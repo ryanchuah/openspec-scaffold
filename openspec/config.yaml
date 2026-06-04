@@ -1,0 +1,34 @@
+schema: spec-driven
+
+context: |
+  Project: <FILL: project name>
+  Purpose: <FILL: one or two sentences describing what this project does>
+  Tech stack: <FILL: language/runtime, database, key libraries>
+  Testing: <FILL: test framework and philosophy, e.g. "pytest; prefer property/invariant tests over output-pinning tests">
+  Style: no inline comments unless the WHY is non-obvious; no docstrings unless public API
+  Web research: always use scripts/fetch_clean.py for fetching article/doc content (see AGENTS.md fetch convention). Use WebFetch only for targeted single-fact extraction.
+
+rules:
+  tasks:
+    - When /opsx:apply is invoked, do not implement tasks in the primary session.
+      Delegate to the apply-executor (a Sonnet subagent if the primary is Claude;
+      @apply-executor / DeepSeek Flash under OpenCode), passing the paths to proposal.md,
+      design.md, and tasks.md for the current change. The executor works tasks.md
+      sequentially and checks off each task. Review its completion report before /opsx:verify.
+  verify:
+    - /opsx:verify is the orchestrator's own substantive behavioral review of the
+      apply-executor's work (not a checklist rubber-stamp). The primary agent itself
+      (never delegated, never trusting the executor's summary) MUST - (1) read the actual
+      diffs/changed files; (2) re-run the FULL test suite - green is necessary but NOT
+      sufficient; (3) eyeball the real output the code produces by running the system on
+      real input and inspecting the actual result (records/rows selected, text produced,
+      request sent), preferring a re-runnable probe script in scripts/; (4) on any defect,
+      diagnose and scope it, then re-delegate the fix to a FRESH apply-executor (never
+      hand-fix beyond a trivial typo/one-line change; more than ~2 lines of implementation
+      => re-delegate). Only after this behavioral review passes, do the spec/task mapping checks.
+  archive:
+    - /opsx:archive is the project-state reconciliation (handoff). Reconcile STATUS.md,
+      ai-docs/decisions.md, ai-docs/open-questions.md from the change dir, preferably in
+      a fresh session seeded from openspec/changes/<name>/ (not the transcript).
+      STATUS.md Done section is a permanent pointer (never grown by hand) to
+      openspec/changes/archive/.
