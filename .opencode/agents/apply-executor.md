@@ -3,7 +3,7 @@ name: apply-executor
 description: Executes OpenSpec change tasks during /opsx:apply. Given the paths to proposal.md, design.md, and tasks.md for a change, implements tasks in order and checks them off. Called by the primary agent during the apply phase — do not invoke directly.
 mode: subagent
 model: deepseek/deepseek-v4-flash
-permissions:
+permission:
   read: allow
   edit: allow
   glob: allow

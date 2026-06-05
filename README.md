@@ -60,8 +60,8 @@ Create `~/.config/opencode/agents/openspec-reviewer.md`:
 name: openspec-reviewer
 description: OpenSpec Change Reviewer — called after proposal artifacts are created and before implementation begins. Reviews proposal.md, design.md, tasks.md, and specs for substantive defects that would cause implementation failure or rework. Invoked by the primary agent between the propose and apply phases.
 mode: subagent
-model: zhipuai/glm-5.1
-permissions:
+model: zai/glm-5.1
+permission:
   read: allow
   edit: deny
   bash: deny
