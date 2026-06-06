@@ -60,9 +60,9 @@ anything the agent must never violate — or remove this section if none.>
   `tasks.md` **sequentially**, top to bottom, checking off each task as it lands.
 - **The `@openspec-reviewer` (GLM 5.1)** is a read-only auditor invoked automatically
   during **propose** to review artifacts *before* implementation. It surfaces defects;
-  it never edits. *(OpenCode path only — GLM is not available under Claude Code; on the
-  Claude path the **primary self-reviews** each artifact against the success criteria
-  before freezing it.)*
+  it never edits. *(OpenCode path only — not available under Claude Code. On the Claude
+  path, artifact review is skipped; the primary creates artifacts sequentially and
+  proceeds directly to implementation.)*
 
 ## OpenSpec workflow
 

@@ -5,20 +5,24 @@ Run this AFTER `openspec init` and after every `openspec update` (both regenerat
 command/skill files from the stock OpenSpec templates, overwriting any edits). Idempotent:
 re-running is safe and skips files already hardened.
 
-The stock OpenSpec `verify` is a document/spec-mapping checklist and the stock `apply`
-implements inline. This script injects two blocks so the generated commands match the
-behaviour required by AGENTS.md and openspec/config.yaml:
+The stock OpenSpec `verify` is a document/spec-mapping checklist, the stock `apply`
+implements inline, and the stock `propose` batch-creates all artifacts in one pass. This
+script injects three blocks so the generated commands match the behaviour required by
+AGENTS.md and openspec/config.yaml:
 
-  - verify: a MANDATORY behavioral-review preamble — read diffs, re-run the full suite,
+  - propose: a sequential-creation mandate — finalize each artifact before starting the
+    next; concrete-fix guidance — decisions must be specific choices, not paraphrases.
+  - verify:  a MANDATORY behavioral-review preamble — read diffs, re-run the full suite,
     eyeball real output, re-delegate fixes to a fresh executor.
-  - apply:  a delegation override — delegate to the apply-executor; do not implement inline.
+  - apply:   a delegation override — delegate to the apply-executor; do not implement inline.
 
 Compatibility: built and tested against OpenSpec 1.4.1. This script depends on the layout
 of the generated files — the `**Input**` anchor line and the
-`.claude/commands/opsx/{apply,verify}.md` + `.claude/skills/openspec-{apply,verify}-change/SKILL.md`
-paths. If a newer OpenSpec changes those templates, the script may no-op or mis-place the
-block; re-check the anchors/paths and bump TESTED_OPENSPEC_VERSION below. It warns at
-runtime if your installed `openspec --version` differs.
+`.claude/commands/opsx/{propose,apply,verify}.md` +
+`.claude/skills/openspec-{propose,apply,verify}-change/SKILL.md` paths. If a newer
+OpenSpec changes those templates, the script may no-op or mis-place the block; re-check
+the anchors/paths and bump TESTED_OPENSPEC_VERSION below. It warns at runtime if your
+installed `openspec --version` differs.
 
 Usage:  python scripts/harden_opsx.py [repo-root]   (default: current directory)
 """
@@ -35,6 +39,7 @@ TESTED_OPENSPEC_VERSION = "1.4.1"
 
 VERIFY_MARKER = "MANDATORY — behavioral review"
 APPLY_MARKER = "MANDATORY — delegation override"
+PROPOSE_MARKER = "MANDATORY — sequential artifact creation"
 
 VERIFY_BLOCK = """\
 > **MANDATORY — behavioral review. This is the core of verify, not optional, and runs BEFORE the artifact/spec checklist below.**
@@ -46,6 +51,18 @@ VERIFY_BLOCK = """\
 > 4. **On any defect:** diagnose and scope it yourself, then **re-delegate the fix to a FRESH apply-executor** with a self-contained fix-spec. Do **not** hand-fix beyond a trivial typo / comment / one-line rename — if you would write more than ~2 lines of implementation, stop and re-delegate. Then re-verify from step 1.
 >
 > Only after this behavioral review passes, proceed to the artifact/spec mapping checks below. If it fails, the verdict is **NEEDS REVISION** regardless of the checklist.
+"""
+
+PROPOSE_BLOCK = """\
+> **MANDATORY — sequential artifact creation. Read before writing any artifact.**
+> Create artifacts in dependency order, finalizing each before it is used as context for the next:
+> - proposal.md (what & why) → complete & finalize → use as context for design.md
+> - design.md (how) → complete & finalize → use as context for tasks.md
+> - tasks.md (implementation steps) → complete & finalize → proceed to apply
+>
+> **Do NOT batch-create all artifacts.** Downstream artifacts written before upstream ones are finalized will reference stale decisions, causing implementation to diverge from intent. Complete each artifact fully before starting the next.
+>
+> **Decisions must be concrete and implementable** — not paraphrases of the problem. E.g., instead of "return value semantics differ" (vague), write: "returns 0 — zero Document rows inserted" (concrete). For every gap or ambiguity, close it with a specific choice.
 """
 
 APPLY_BLOCK = """\
@@ -101,6 +118,8 @@ def main() -> int:
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
     check_openspec_version()
     targets: list[tuple[Path, str, str]] = []
+    for pattern in ("**/commands/opsx/propose.md", "**/openspec-propose/SKILL.md"):
+        targets += [(p, PROPOSE_BLOCK, PROPOSE_MARKER) for p in root.glob(pattern)]
     for pattern in ("**/commands/opsx/verify.md", "**/openspec-verify-change/SKILL.md"):
         targets += [(p, VERIFY_BLOCK, VERIFY_MARKER) for p in root.glob(pattern)]
     for pattern in ("**/commands/opsx/apply.md", "**/openspec-apply-change/SKILL.md"):

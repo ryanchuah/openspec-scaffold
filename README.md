@@ -18,7 +18,7 @@ Copy this repo to start a new project. Fill in the two placeholder files, run th
 | `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash subagent for the apply phase (OpenCode) |
 | `.claude/agents/apply-executor.md` | Sonnet subagent for the apply phase (Claude Code) |
 | `scripts/fetch_clean.py` | Token-efficient web content fetcher for research |
-| `scripts/harden_opsx.py` | Re-applies the apply/verify hardening to the generated `/opsx:*` command files (run after `openspec init`/`update`) |
+| `scripts/harden_opsx.py` | Re-applies the propose/apply/verify hardening to the generated `/opsx:*` command files (run after `openspec init`/`update`) |
 | `dev-requirements.txt` | Python deps for fetch_clean.py |
 
 ---
@@ -138,9 +138,9 @@ Open OpenCode (`opencode .`) and run:
 If you work the project with Claude Code instead of — or alongside — OpenCode, there is
 **no global model config to set**; Claude Code uses its own models. The project files
 cover the Claude path: `AGENTS.md` + `openspec/config.yaml` + `.claude/agents/apply-executor.md`
-(Sonnet executor). One difference: the GLM `@openspec-reviewer` is **not** available under
-Claude Code, so on the Claude path the **primary self-reviews** each artifact against the
-success criteria before freezing it during `/opsx:propose`.
+(Sonnet executor). The GLM `@openspec-reviewer` is **not** available under Claude Code —
+artifact review is skipped on the Claude path; the primary creates artifacts sequentially
+and proceeds directly to implementation.
 
 ---
 
@@ -205,11 +205,15 @@ rules. Re-apply them (idempotent — safe to re-run after every `openspec update
 python scripts/harden_opsx.py
 ```
 
-This injects a mandatory behavioral-review preamble into `verify` (read diffs, re-run the
-full suite, eyeball real output, re-delegate fixes) and a delegation override into `apply`
-(delegate to the apply-executor; don't implement inline). The same rules also live in
-`openspec/config.yaml` (which reaches OpenCode at runtime), so this step is
-belt-and-suspenders for the generated Claude Code command files.
+This injects three blocks into the generated Claude Code command + skill files:
+- **propose**: sequential-creation mandate (finalize each artifact before starting the next)
+  and concrete-fix guidance (decisions must be specific choices, not paraphrases of the problem)
+- **verify**: mandatory behavioral-review preamble (read diffs, re-run full suite, eyeball
+  real output, re-delegate fixes)
+- **apply**: delegation override (delegate to the apply-executor; don't implement inline)
+
+The same apply/verify rules also live in `openspec/config.yaml` (which reaches OpenCode at
+runtime), so this step is belt-and-suspenders for the generated Claude Code command files.
 
 > Pinned to **OpenSpec 1.4.1** — the script warns at runtime if your installed version
 > differs, since the injection depends on the generated file layout.
@@ -244,7 +248,7 @@ That's it. Open your agent in the project directory and start with `/opsx:explor
 
 | Model | Role |
 |---|---|
-| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive; **self-reviews** artifacts before freezing (no separate reviewer — GLM is unavailable here) |
+| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive; creates artifacts sequentially (no reviewer — GLM unavailable here) |
 | Sonnet | apply-executor (`.claude/agents/apply-executor.md`) — implements tasks during apply |
 
 ### Context and sessions
