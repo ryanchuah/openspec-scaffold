@@ -139,8 +139,8 @@ If you work the project with Claude Code instead of — or alongside — OpenCod
 **no global model config to set**; Claude Code uses its own models. The project files
 cover the Claude path: `AGENTS.md` + `openspec/config.yaml` + `.claude/agents/apply-executor.md`
 (Sonnet executor). The GLM `@openspec-reviewer` is **not** available under Claude Code —
-artifact review is skipped on the Claude path; the primary creates artifacts sequentially
-and proceeds directly to implementation.
+on the Claude path, the primary self-reviews each artifact with genuine rigor (actively
+hunting for defects, not rubber-stamping) before proceeding to the next.
 
 ---
 
@@ -248,7 +248,7 @@ That's it. Open your agent in the project directory and start with `/opsx:explor
 
 | Model | Role |
 |---|---|
-| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive; creates artifacts sequentially (no reviewer — GLM unavailable here) |
+| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive; self-reviews each artifact with rigorous defect-hunting before finalizing (GLM reviewer unavailable here) |
 | Sonnet | apply-executor (`.claude/agents/apply-executor.md`) — implements tasks during apply |
 
 ### Context and sessions

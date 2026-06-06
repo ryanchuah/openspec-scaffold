@@ -11,7 +11,9 @@ script injects three blocks so the generated commands match the behaviour requir
 AGENTS.md and openspec/config.yaml:
 
   - propose: a sequential-creation mandate — finalize each artifact before starting the
-    next; concrete-fix guidance — decisions must be specific choices, not paraphrases.
+    next; self-review guidance — rigorous defect-hunting before finalizing (no separate
+    reviewer on Claude); concrete-fix guidance — decisions must be specific choices, not
+    paraphrases.
   - verify:  a MANDATORY behavioral-review preamble — read diffs, re-run the full suite,
     eyeball real output, re-delegate fixes to a fresh executor.
   - apply:   a delegation override — delegate to the apply-executor; do not implement inline.
@@ -61,6 +63,12 @@ PROPOSE_BLOCK = """\
 > - tasks.md (implementation steps) → complete & finalize → proceed to apply
 >
 > **Do NOT batch-create all artifacts.** Downstream artifacts written before upstream ones are finalized will reference stale decisions, causing implementation to diverge from intent. Complete each artifact fully before starting the next.
+>
+> **Self-review each artifact before finalizing it.** Claude Code has no separate reviewer — you are the sole reviewer. Be genuinely rigorous, not a rubber-stamp:
+> - Re-read the artifact you just wrote. Check every claim against the dependencies, template, and context.
+> - Verify every scope boundary is explicit, every decision resolves an ambiguity, and every choice is concrete and implementable.
+> - Actively hunt for defects: gaps in edge cases, contradictions with upstream artifacts, vague or untestable success criteria, design choices that silently commit to unvalidated assumptions.
+> - Fix any issues you find before proceeding to the next artifact.
 >
 > **Decisions must be concrete and implementable** — not paraphrases of the problem. E.g., instead of "return value semantics differ" (vague), write: "returns 0 — zero Document rows inserted" (concrete). For every gap or ambiguity, close it with a specific choice.
 """
