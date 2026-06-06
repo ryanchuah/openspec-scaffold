@@ -84,8 +84,23 @@ All non-trivial feature work follows the OpenSpec lifecycle:
    script in `scripts/` so the check is cheap to repeat. **When verify finds a defect,
    diagnose and scope the fix, then re-delegate it to a fresh apply-executor with a
    self-contained fix-spec — never hand-fix it yourself.** Inline exception is narrow: a
-   typo, comment, or one-line rename. If you would write more than ~2 lines of
-   implementation, stop and re-delegate.
+    typo, comment, or one-line rename. If you would write more than ~2 lines of
+    implementation, stop and re-delegate.
+
+   **Checkpoint verify findings to the change dir (MANDATORY before archive handoff):**
+   After emitting the verification report and BEFORE telling the user to run archive, append
+   the verification outcome to the change's `notes.md` (`<changeRoot>/notes.md`). Capture:
+   - the **verdict** (ready for archive / needs revision);
+   - the **concrete live output you actually eyeballed** during the behavioral review — real
+     numbers/rows/sample, not just "tests pass";
+   - any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs
+     trivial inline);
+   - any **as-built delta discovered during verify** that the artifacts don't already record.
+
+   Why this is mandatory: archive is reconciled in a **fresh session** that reads the change
+   dir, not this conversation. Verify is the step that manufactures these durable facts, and
+   anything left only in this context dies at the session boundary. Do not skip it even when
+   the verdict is a clean pass.
 5. **archive** (`/opsx:archive`) — close the change; promote specs into
    `openspec/specs/`. **This is also the project-state reconciliation (handoff) step —
    see below.**
