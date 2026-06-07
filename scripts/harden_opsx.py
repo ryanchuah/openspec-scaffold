@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
-"""Harden the OpenSpec-generated /opsx command + skill files with project rules.
+"""Harden the OpenSpec-generated skill files with project rules.
 
-Run this AFTER `openspec init` and after every `openspec update` (both regenerate the
-command/skill files from the stock OpenSpec templates, overwriting any edits). Idempotent:
+Run this AFTER `openspec init` and after every `openspec update` (both regenerate
+the skill files from the stock OpenSpec templates, overwriting any edits). Idempotent:
 re-running is safe and skips files already hardened.
 
-Two different hardening strategies:
+Claude Code commands (`.claude/commands/`) are NOT used — skills are the sole
+authoritative source for per-phase procedural rules, loaded directly by the Skill
+tool (Claude Code) or the skill system (OpenCode).
 
-  Commands (`.claude/commands/opsx/*.md`):
-    Stock commands are full 100-500 line procedural documents that duplicate the skill
-    content and go stale independently. This script REPLACES them with thin wrappers
-    (~4 body lines) that delegate to the corresponding skill via the Skill tool.
-    The skill file is the single authoritative source for per-phase rules.
-
-  Skills (`.claude/skills/openspec-*-change/SKILL.md`):
-    Inject MANDATORY preamble blocks for propose, verify, and apply that override the
-    stock OpenSpec behavior:
-      - propose: sequential artifact creation, rigorous self-review, concrete-fix guidance
-      - verify:  behavioral-review preamble (read diffs, re-run suite, eyeball output,
-        live smoke, re-delegate fixes)
-      - apply:   delegation override (delegate to executor; do not implement inline)
+This script injects MANDATORY preamble blocks for propose, verify, and apply that
+override the stock OpenSpec behavior:
+  - propose: sequential artifact creation, rigorous self-review, concrete-fix guidance
+  - verify:  behavioral-review preamble (read diffs, re-run suite, eyeball output,
+    live smoke, re-delegate fixes)
+  - apply:   delegation override (delegate to executor; do not implement inline)
 
 Compatibility: built and tested against OpenSpec 1.4.1. If a newer OpenSpec changes
-the command frontmatter or skill `**Input**` anchor, the script may no-op or mis-place
-the block; re-check and bump TESTED_OPENSPEC_VERSION below. It warns at runtime if your
-installed `openspec --version` differs.
+the skill `**Input**` anchor, the script may no-op or mis-place the block; re-check
+and bump TESTED_OPENSPEC_VERSION below. It warns at runtime if your installed
+`openspec --version` differs.
 
 Usage:  python scripts/harden_opsx.py [repo-root]   (default: current directory)
 """
@@ -83,28 +78,6 @@ APPLY_BLOCK = """\
 > Any step below that says "make the code changes" therefore describes what the **apply-executor** does — not the primary. The primary delegates, then reviews the executor's completion report and proceeds to `/opsx:verify`. The primary must not write implementation code itself (trivial typo / one-line exception only).
 """
 
-# Command file -> skill name mapping.
-COMMAND_SKILL_MAP: dict[str, str] = {
-    "archive.md": "openspec-archive-change",
-    "bulk-archive.md": "openspec-bulk-archive-change",
-    "apply.md": "openspec-apply-change",
-    "verify.md": "openspec-verify-change",
-    "propose.md": "openspec-propose",
-    "explore.md": "openspec-explore",
-    "sync.md": "openspec-sync-specs",
-    "onboard.md": "openspec-onboard",
-}
-
-COMMAND_WRAPPER_MARKER = "Skill tool"
-COMMAND_WRAPPER_BODY = """\
-Use the **Skill tool** to invoke `{skill}`. The skill file at
-`.claude/skills/{skill}/SKILL.md` contains the full authoritative
-workflow with all project-hardened rules.
-
-If the user provided arguments (e.g. a change name), pass them through
-to the skill context.
-"""
-
 
 def inject(path: Path, block: str, marker: str) -> str:
     text = path.read_text(encoding="utf-8")
@@ -145,39 +118,10 @@ def check_openspec_version() -> None:
         )
 
 
-def wrap_command(path: Path, skill: str) -> str:
-    """Replace a stock command file body with a skill-delegation wrapper.
-
-    Preserves the YAML frontmatter. The body is replaced with a short
-    instruction to load the named skill via the Skill tool.
-    """
-    text = path.read_text(encoding="utf-8")
-    if COMMAND_WRAPPER_MARKER in text:
-        return "already wrapped"
-    # Extract frontmatter (between first and second ---).
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return "SKIPPED (no YAML frontmatter found)"
-    frontmatter = "---" + parts[1] + "---"
-    body = COMMAND_WRAPPER_BODY.format(skill=skill)
-    path.write_text(frontmatter + "\n\n" + body + "\n", encoding="utf-8")
-    return "wrapped"
-
-
 def main() -> int:
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
     check_openspec_version()
 
-    # ── Command files: replace with skill-delegation wrappers ──────────
-    for pattern in ("**/commands/opsx/*.md",):
-        for path in sorted(root.glob(pattern)):
-            skill = COMMAND_SKILL_MAP.get(path.name)
-            if skill is None:
-                print(f"  {'unknown command':42s} {path}")
-                continue
-            print(f"  {wrap_command(path, skill):42s} {path}")
-
-    # ── Skill files: inject MANDATORY preamble blocks ─────────────────
     skill_targets: list[tuple[Path, str, str]] = []
     for pattern in ("**/openspec-propose/SKILL.md",):
         skill_targets += [(p, PROPOSE_BLOCK, PROPOSE_MARKER) for p in root.glob(pattern)]

@@ -18,7 +18,7 @@ Copy this repo to start a new project. Fill in the two placeholder files, run th
 | `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash subagent for the apply phase (OpenCode) |
 | `.claude/agents/apply-executor.md` | Sonnet subagent for the apply phase (Claude Code) |
 | `scripts/fetch_clean.py` | Token-efficient web content fetcher for research |
-| `scripts/harden_opsx.py` | Re-applies the propose/apply/verify hardening to the generated `/opsx:*` command files (run after `openspec init`/`update`) |
+| `scripts/harden_opsx.py` | Re-applies the propose/apply/verify hardening to the generated skill files (run after `openspec init`/`update`) |
 | `dev-requirements.txt` | Python deps for fetch_clean.py |
 
 ---
@@ -182,7 +182,7 @@ python3 -m venv .venv
 ```bash
 openspec init
 # When prompted: select BOTH Claude Code and OpenCode (this scaffold supports both)
-# This generates the /opsx:* slash commands for each selected tool
+# This generates the /opsx:* skills for each selected tool
 ```
 
 ### Step 5 — Enable the expanded workflow (adds /opsx:verify)
@@ -192,12 +192,12 @@ openspec config profile
 # Select: Workflows only → enable verify (and bulk-archive, onboard if wanted)
 
 openspec update
-# Regenerates the command set with the full lineup
+# Regenerates the skill set with the full lineup
 ```
 
-### Step 6 — Harden the generated /opsx commands
+### Step 6 — Harden the generated skills
 
-`openspec init`/`update` regenerate the command + skill files from the **stock** OpenSpec
+`openspec init`/`update` regenerate the skill files from the **stock** OpenSpec
 templates, which do not enforce this scaffold's apply-delegation and behavioral-verify
 rules. Re-apply them (idempotent — safe to re-run after every `openspec update`):
 
@@ -213,7 +213,7 @@ This injects three blocks into the generated Claude Code command + skill files:
 - **apply**: delegation override (delegate to the apply-executor; don't implement inline)
 
 The same apply/verify rules also live in `openspec/config.yaml` (which reaches OpenCode at
-runtime), so this step is belt-and-suspenders for the generated Claude Code command files.
+runtime), so this step is belt-and-suspenders for the generated skill files.
 
 > Pinned to **OpenSpec 1.4.1** — the script warns at runtime if your installed version
 > differs, since the injection depends on the generated file layout.
