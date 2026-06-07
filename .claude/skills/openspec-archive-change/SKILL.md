@@ -123,7 +123,8 @@ Archive a completed change in the experimental workflow.
      - `**Decision:**` — what was built (from proposal + design).
      - `**Why now / why this shape:**` — bullet list of key design choices with rationale (from
        design.md's Decisions section). Each bullet explains *why* that choice was made and what
-       alternative was rejected. This is the durable "why" that prevents re-litigation.
+       alternative was rejected — including approaches investigated and rejected, with the reason,
+       so they are not re-attempted. This is the durable "why" that prevents re-litigation.
      - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md).
      - Include the commit hash, archive path, and new/modified capability spec paths.
    - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough

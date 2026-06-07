@@ -138,7 +138,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
- 9. **Reconcile project-state docs for all archived changes (MANDATORY)**
+9. **Reconcile project-state docs for all archived changes (MANDATORY)**
 
    Archive is a **handoff**, not directory moves. For each archived change, read its artifacts
    from the archive location and reconcile into `STATUS.md`, `ai-docs/decisions.md`, and
