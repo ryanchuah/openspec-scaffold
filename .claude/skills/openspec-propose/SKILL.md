@@ -20,6 +20,22 @@ I'll create artifacts with review:
 
 ---
 
+> **MANDATORY — sequential artifact creation. Read before writing any artifact.**
+> Create artifacts in dependency order, finalizing each before it is used as context for the next:
+> - proposal.md (what & why) → complete & finalize → use as context for design.md
+> - design.md (how) → complete & finalize → use as context for tasks.md
+> - tasks.md (implementation steps) → complete & finalize → proceed to apply
+>
+> **Do NOT batch-create all artifacts.** Downstream artifacts written before upstream ones are finalized will reference stale decisions, causing implementation to diverge from intent. Complete each artifact fully before starting the next.
+>
+> **Self-review each artifact before finalizing it.** Claude Code has no separate reviewer — you are the sole reviewer. Be genuinely rigorous, not a rubber-stamp:
+> - Re-read the artifact you just wrote. Check every claim against the dependencies, template, and context.
+> - Verify every scope boundary is explicit, every decision resolves an ambiguity, and every choice is concrete and implementable.
+> - Actively hunt for defects: gaps in edge cases, contradictions with upstream artifacts, vague or untestable success criteria, design choices that silently commit to unvalidated assumptions.
+> - Fix any issues you find before proceeding to the next artifact.
+>
+> **Decisions must be concrete and implementable** — not paraphrases of the problem. E.g., instead of "return value semantics differ" (vague), write: "returns 0 — zero Document rows inserted" (concrete). For every gap or ambiguity, close it with a specific choice.
+
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
 **Steps**
