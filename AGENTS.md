@@ -68,42 +68,17 @@ anything the agent must never violate — or remove this section if none.>
 
 All non-trivial feature work follows the OpenSpec lifecycle:
 
-1. **explore** (`/opsx:explore`) — research and scope; writes `explore-brief.md`.
-2. **propose** (`/opsx:propose <name>`) — generate `proposal.md`, `design.md`,
-   `tasks.md`; `@openspec-reviewer` audits each before it is frozen (`review-log.md`).
-3. **apply** (`/opsx:apply`) — **do not implement in the primary session.** Pass the
-   paths to `proposal.md`, `design.md`, `tasks.md` to the apply-executor. It works
-   `tasks.md` sequentially and checks off tasks. Review its completion report before
-   verify.
-4. **verify** (`/opsx:verify`) — **this is the orchestrator's deep behavioral review,
-   not a rubber stamp.** Read the actual diffs (do not trust the executor's summary);
-   re-run the **full test suite yourself** (a green exit is necessary but not sufficient);
-   **eyeball the real output** the code produces by running the system on real input and
-   inspecting the actual result it generates — the records/rows selected, the text
-   produced, the request sent — not just that tests pass. Prefer a re-runnable probe
-   script in `scripts/` so the check is cheap to repeat. **When verify finds a defect,
-   diagnose and scope the fix, then re-delegate it to a fresh apply-executor with a
-   self-contained fix-spec — never hand-fix it yourself.** Inline exception is narrow: a
-    typo, comment, or one-line rename. If you would write more than ~2 lines of
-    implementation, stop and re-delegate.
+1. **explore** — research and scope; writes `explore-brief.md`.
+2. **propose** — generate proposal, design, tasks; `@openspec-reviewer` audits each
+   before freeze.
+3. **apply** — delegate implementation to the apply-executor.
+4. **verify** — deep behavioral review by the orchestrator.
+5. **archive** — close the change; promote specs; reconcile project docs.
 
-   **Checkpoint verify findings to the change dir (MANDATORY before archive handoff):**
-   After emitting the verification report and BEFORE telling the user to run archive, append
-   the verification outcome to the change's `notes.md` (`<changeRoot>/notes.md`). Capture:
-   - the **verdict** (ready for archive / needs revision);
-   - the **concrete live output you actually eyeballed** during the behavioral review — real
-     numbers/rows/sample, not just "tests pass";
-   - any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs
-     trivial inline);
-   - any **as-built delta discovered during verify** that the artifacts don't already record.
-
-   Why this is mandatory: archive is reconciled in a **fresh session** that reads the change
-   dir, not this conversation. Verify is the step that manufactures these durable facts, and
-   anything left only in this context dies at the session boundary. Do not skip it even when
-   the verdict is a clean pass.
-5. **archive** (`/opsx:archive`) — close the change; promote specs into
-   `openspec/specs/`. **This is also the project-state reconciliation (handoff) step —
-   see below.**
+**Phase-specific procedural rules live in the skill files, not here.**
+When a `/opsx:` command is invoked the attached skill loads the full, authoritative rule
+set for that phase. AGENTS.md carries only cross-cutting rules that span multiple phases.
+Skill files: `.claude/skills/openspec-*-change/SKILL.md`.
 
 OpenSpec artifacts live in `openspec/changes/<name>/`.
 
@@ -125,17 +100,6 @@ Two tiers of state, with deliberately different write rules:
   context in, structured source read. **This is the single load-bearing rule that
   preserves token economy — do not move the reconciliation back into the working
   session.**
-
-At archive, reconcile:
-- `STATUS.md` — `Immediate next action` names the very next concrete step. `§ Done` is a
-  permanent **pointer to `openspec/changes/archive/`** and never grows by hand.
-- `ai-docs/decisions.md` — record every decision unlikely to change, **with a Why**.
-  Never fabricate a rationale: if the motivation is unclear and matters, ask the user; if
-  it doesn't matter enough to ask, omit it. Mark superseded decisions, don't delete.
-- `ai-docs/open-questions.md` — open questions and **user-action items** (credentials,
-  API keys, toggles), flagged BLOCKING where they gate other work.
-- **Negative results preserved** — approaches investigated and rejected, **with the
-  reason**, so they aren't re-attempted.
 
 ## Working process
 
