@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires openspec CLI.
 metadata:
   author: openspec
-  version: "1.0"
+  version: "1.1"
   generatedBy: "1.4.1"
 ---
 
@@ -138,7 +138,26 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Failed: error during archive (record error)
       - Skipped: user chose not to archive (if applicable)
 
-9. **Display summary**
+ 9. **Reconcile project-state docs for all archived changes (MANDATORY)**
+
+   Archive is a **handoff**, not directory moves. For each archived change, read its artifacts
+   from the archive location and reconcile into `STATUS.md`, `ai-docs/decisions.md`, and
+   `ai-docs/open-questions.md`. Follow the same reconciliation rules as the single-change archive
+   skill (step 6), with these bulk-specific adjustments:
+
+   - **`STATUS.md`:** For the first (most recent) change, add `## Latest change — <title> SHIPPED`.
+     For each subsequent change, add `## Prior change — <title> SHIPPED` (chronological order,
+     newest first). Demote the pre-existing `## Latest change` to `## Prior change` before inserting
+     any new entries.
+   - **`ai-docs/decisions.md`:** Append one `## <title> (<date>)` section per change (newest first).
+   - **`ai-docs/open-questions.md`:** Append one `## <topic> (shipped <date>)` section per change.
+
+   After all three files are edited, **commit** with a message like:
+   ```
+   Reconcile project docs for bulk archive: <change1>, <change2>, ...
+   ```
+
+10. **Display summary**
 
    Show final results:
 
@@ -246,3 +265,5 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>
 - If archive target exists, fail that change but continue with others
+- **Reconciliation is NOT optional** — reconcile STATUS.md, decisions.md, and open-questions.md
+  for every successfully archived change before committing

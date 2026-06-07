@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires openspec CLI.
 metadata:
   author: openspec
-  version: "1.0"
+  version: "1.1"
   generatedBy: "1.4.1"
 ---
 
@@ -85,13 +85,78 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    ```
 
-6. **Display summary**
+6. **Reconcile project-state docs (MANDATORY — the handoff half of archive)**
+
+   Archive is a **handoff**, not a directory move. A fresh session seeded from the change directory
+   and the three project-tracked docs (`STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`)
+   must understand what shipped, why, and what follows — without any conversation transcript.
+   Reconciliation writes that durable summary.
+
+   **Source material:** Read these files from the **archived** change directory (`<archivePath>/`):
+   - `notes.md` — verify verdict, concrete live output eyeballed, any defects found/fixed, as-built
+     deltas, candidate follow-ons for open-questions
+   - `proposal.md` — problem statement, scope, what changed
+   - `design.md` — key design decisions with rationale (often labeled D1, D2, …), risks identified
+
+   If `notes.md` lacks a verify section, extract what you can from `proposal.md` and `design.md` instead.
+   If none of these files exist, note that and produce minimal entries.
+
+   ### 6a. Reconcile `STATUS.md`
+
+   - **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble
+     paragraph (before any existing `## Latest change` or `## Prior change` heading).
+     Content: name the change, link the commit hash and archive path, summarize what shipped (from
+     proposal.md), include **concrete verify results from notes.md** — real numbers, sources, ratios,
+     log lines actually eyeballed — not just "tests pass". Point to the decisions.md and
+     open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of
+     existing `## Latest change` entries.
+   - **Demote the previous `## Latest change`** heading to `## Prior change` (preserve its content
+     exactly — do not edit or summarize it).
+   - **Read `## Immediate next action`** near the file end. If this change removes a block or
+     completes a pending build, update accordingly: state there is **no proactive build in flight**
+     (if true) and name the next concrete step. If the change adds new gated work, mention it.
+
+   ### 6b. Reconcile `ai-docs/decisions.md`
+
+   - **Append** (at end of file before trailing `---` if any) a `## <title> (<date>)` section.
+     Structure it as:
+     - `**Decision:**` — what was built (from proposal + design).
+     - `**Why now / why this shape:**` — bullet list of key design choices with rationale (from
+       design.md's Decisions section). Each bullet explains *why* that choice was made and what
+       alternative was rejected. This is the durable "why" that prevents re-litigation.
+     - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md).
+     - Include the commit hash, archive path, and new/modified capability spec paths.
+   - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough
+     to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
+   - Mark superseded decisions with `~~strikethrough~~` — never delete them.
+
+   ### 6c. Reconcile `ai-docs/open-questions.md`
+
+   - **Append** a `## <topic> (shipped <date>)` section. Open with a one-paragraph summary of
+     what shipped and where to find the full decision.
+   - **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive"
+     section (if present), or from design.md's Risks / deferred Non-Goals. Each as a bullet
+     describing what's open, what gates resolution, and whether it blocks other work.
+   - **Flag blocking items** with **BLOCKING** where they gate other work.
+   - Keep bullets lean — this file is the operator's scan list; resolved items move to
+     `ai-docs/archive/retired-notes.md`.
+
+   ### 6d. Commit the reconciliation
+
+   After all three files are edited, **commit** with a message like:
+   ```
+   Reconcile project docs for <change-name> archive
+   ```
+   This can be a separate commit or folded into the archive commit — but it must be committed.
+
+7. **Display summary**
 
    Show archive completion summary including:
    - Change name
    - Schema that was used
    - Archive location
    - Whether specs were synced (if applicable)
+   - Whether project docs were reconciled
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -103,6 +168,7 @@ Archive a completed change in the experimental workflow.
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from `planningHome.changesDir`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
+**Project docs:** ✓ Reconciled (STATUS.md, decisions.md, open-questions.md)
 
 All artifacts complete. All tasks complete.
 ```
@@ -115,3 +181,6 @@ All artifacts complete. All tasks complete.
 - Show clear summary of what happened
 - If sync is requested, use openspec-sync-specs approach (agent-driven)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
+- **Reconciliation is NOT optional** — it is the load-bearing half of archive. A directory move without
+  reconciliation leaves a fresh session blind. If notes.md has no verify section, read proposal.md and
+  design.md for source material. If all source files are absent, produce minimal entries noting the gap.

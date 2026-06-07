@@ -17,7 +17,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 > 1. **Read the actual diffs and changed files.** Run `git diff` (and open the files) for everything the executor touched. Trust the code, not the summary.
 > 2. **Re-run the FULL test suite yourself:** `.venv/bin/python -m pytest -q`. It must be green (pre-existing skips OK). A green exit is **necessary but not sufficient.**
 > 3. **Eyeball the real output the code produces.** Render a concrete sample of what the change actually generates — the actual digest rows, the prompt sent to the LLM/relevance gate, the terms/spans extracted, the DB rows selected — not just that tests pass. Run the relevant project command or a `scripts/_*_oneoff.py` probe against the live DB and inspect a real sample. Bugs that logic-reading misses are often visible the instant you render real output.
-> 4. **If the change touches an external API / network service, RUN ITS LIVE SMOKE yourself against the real endpoint.** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened once on a real project: a collector shipped with `order=volume` (string-sorts) and a 500-ing backfill, with mocks that encoded the *idealized* API, so 600+ tests passed green over a non-functional collector. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response. **A *skipped* live smoke is NOT a *passed* one.** If an external-API change has no live smoke at all, that is itself a **CRITICAL** gap — require one to be added before archive.
+> 4. **If the change touches an external API / network service, RUN ITS LIVE SMOKE yourself against the real endpoint.** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened on real projects: a collector shipped with `order=volume` (string-sorts) and a 500-ing backfill, with mocks that encoded the *idealized* API, so 600+ tests passed green over a non-functional collector. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response. **A *skipped* live smoke is NOT a *passed* one.** If an external-API change has no live smoke at all, that is itself a **CRITICAL** gap — require one to be added before archive.
 > 5. **On any defect:** diagnose and scope it yourself (reproduce it, run DB queries, read diffs), then **re-delegate the fix to a FRESH apply-executor** with a self-contained fix-spec. Do **not** hand-fix beyond a trivial typo / comment / one-line rename — if you would write more than ~2 lines of implementation, stop and re-delegate. Then re-verify from step 1.
 >
 > Only after this behavioral review passes, proceed to the artifact/spec mapping checks below and emit the report. If the behavioral review fails, the verdict is **NEEDS REVISION** regardless of the checklist.
@@ -160,20 +160,70 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 9. **Checkpoint verify findings to the change dir (MANDATORY before archive handoff)**
 
    After emitting the report and BEFORE telling the user to run archive, append the verification
-   outcome to the change's `notes.md` (`<changeRoot>/notes.md`). Capture:
-   - the **verdict** (ready for archive / needs revision);
-   - the **concrete live output you actually eyeballed** during the behavioral review — real
-     numbers/rows/sample (e.g. "collect_recent stored 499 docs, 0 non-empty bodies; board surfaced
-     <terms>"), not just "tests pass";
-   - any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs trivial
-     inline);
-   - any **as-built delta discovered during verify** that the artifacts don't already record.
+   outcome to the change's `notes.md` (`<changeRoot>/notes.md`). You MUST capture **all five** of the
+   following — treat each as a required field, and if one is genuinely empty, write "none" plus one
+   line of *why*, never silently omit it:
+
+   1. the **verdict** (ready for archive / needs revision);
+   2. the **concrete live output you actually eyeballed** during the behavioral review — real
+      numbers/rows/sample (e.g. "collect_recent stored 499 docs, 0 non-empty bodies; board surfaced
+      <terms>"), not just "tests pass";
+   3. any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs trivial
+      inline);
+   4. any **as-built delta discovered during verify** that the artifacts don't already record;
+   5. **forward-looking items for the project docs — the load-bearing, easily-missed one.** Enumerate
+      every **open question, tuning item, deferred-scope decision, follow-on, or monitored risk** that
+      surfaced during design OR verify and is **recorded nowhere else** (not in `proposal.md` /
+      `design.md` / `specs/` and not already in `ai-docs/open-questions.md`). These exist to be folded
+      into `ai-docs/open-questions.md` (and where relevant `ai-docs/decisions.md`) at archive. Be
+      exhaustive — typical sources you MUST scan for:
+        - **"tune after real runs" items** — any new threshold/default/knob this change introduced that
+          has not been validated against real production output (e.g. a new config default);
+        - **observations from the live-output eyeball** that imply a *future question* even when current
+          behavior is correct-by-design (e.g. "monitor is collapse-only; a live surge was observed —
+          do we want symmetric monitoring?");
+        - **scope deferrals** stated in design Non-Goals/Risks that the operator will plausibly ask
+          about later (alerting, second-order risks, follow-on phases);
+        - anything you said "out of scope / revisit later / could add" about during this session.
+
+   Also write a short **"Still owned by `/opsx:archive`"** pointer list (what the fresh archive session
+   must still reconcile: `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`, spec
+   promotion into `openspec/specs/`, and any cleanup). Do NOT edit those project-tracked docs yourself
+   here — they are reconciled at archive per the write-discipline rule; your job at verify is to make
+   the change dir self-sufficient so that reconciliation loses nothing.
 
    Why this is mandatory: per `AGENTS.md`, archive is reconciled in a **fresh session that reads the
    change dir, not this conversation**. Verify is the step that manufactures these durable facts, and
    anything left only in this context **dies at the session boundary** — forcing either a lossy
-   fresh-session archive or an expensive in-context one. This write is cheap because the context is
-   already loaded. Do not skip it even when the verdict is a clean pass.
+   fresh-session archive or an expensive in-context one. **Field 5 is the one that bites:** a new
+   open-question or tuning item that exists only in this conversation is simply *lost* — it never
+   reaches `open-questions.md`, and the project silently forgets a decision it meant to revisit. This
+   write is cheap because the context is already loaded. Do not skip it even when the verdict is a
+   clean pass.
+
+10. **Verbally acknowledge documentation persistence (MANDATORY — do not end the turn without it)**
+
+    After writing `notes.md`, you MUST close your response to the user with an explicit, itemised
+    acknowledgement that confirms each required `notes.md` field was persisted. This is a forcing
+    function: stating it out loud catches the silent-omission failure that field 5 is most prone to.
+
+    Use exactly this shape (fill in the real content; do not paraphrase the labels away):
+
+    ```
+    ✅ Documentation persisted to <changeRoot>/notes.md:
+      1. Verdict — <ready for archive / needs revision>
+      2. Live output eyeballed — <one-line pointer to the real sample recorded>
+      3. Defects + fixes — <summary, or "none">
+      4. As-built deltas — <summary, or "none">
+      5. Forward-looking open-questions / tuning items / follow-ons — <explicit list, or "none + why">
+      Still owned by /opsx:archive — <STATUS.md, decisions.md, open-questions.md, spec promotion, cleanup>
+    ```
+
+    For field 5 you MUST either **name each item** carried forward (so the user can sanity-check that
+    nothing was dropped) or state "none" with a one-line justification. A bare "docs updated" or
+    "ready for archive" WITHOUT this itemised confirmation is non-compliant — losing an open-question
+    or tuning item to the session boundary is a critical documentation failure, and this step exists to
+    make that failure impossible to commit silently.
 
 **Verification Heuristics**
 
