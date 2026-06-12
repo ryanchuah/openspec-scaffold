@@ -481,7 +481,6 @@ Skills are invoked by telling me what you want to do — no slash commands neede
  |-------|-------------|--------------|
  | verify | "Verify [change-name]" | Verify implementation matches artifacts |
  | sync | "Sync specs for [change-name]" | Sync delta specs to main specs |
- | bulk-archive | "Bulk archive" | Archive multiple completed changes at once |
 
 ---
 
@@ -534,7 +533,6 @@ Skills are invoked by telling me what you want to do.
  |-------|-------------|--------------|
  | verify | "Verify [change-name]" | Verify implementation |
  | sync | "Sync specs for [change-name]" | Sync delta specs to main specs |
- | bulk-archive | "Bulk archive" | Archive multiple changes at once |
 
 Ask me to propose a change to start your first change.
 ```
