@@ -82,6 +82,11 @@ The agent invokes the appropriate skill (via the Skill tool) when a phase is ent
 AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*-change/SKILL.md`.
 
+> **Fast-track override:** A fast-track (tiered) workflow exists in
+> `ai-docs/fast-track-workflow.md` for high-capability agents the operator explicitly
+> trusts. **Do NOT use it unless the operator has explicitly granted you fast-track
+> authority** — otherwise follow the normal workflow described here and in the skills.
+
 OpenSpec artifacts live in `openspec/changes/<name>/`.
 
 ## State, write discipline, and the archive-as-handoff rule
@@ -93,15 +98,16 @@ Two tiers of state, with deliberately different write rules:
   decisions / rejected approaches / discoveries to `notes.md`, log reviews in
   `review-log.md`. These writes are cheap because they happen while the relevant context
   is already loaded. The change dir is the scratch log.
-- **Project-tracked docs — write-deferred, reconciled at archive in a FRESH session.**
+- **Project-tracked docs — write-deferred, reconciled at archive by a delegated executor.**
   Do **not** incrementally edit `STATUS.md`, `ai-docs/decisions.md`, or
   `ai-docs/open-questions.md` during busy work in a bloated context. They are reconciled
-  **once**, during **archive**, and the preferred path is to run archive **in a
-  fresh session seeded from the change dir** (the compact, structured artifacts — not the
-  conversation transcript). This keeps the expensive multi-file reconciliation cheap: low
-  context in, structured source read. **This is the single load-bearing rule that
-  preserves token economy — do not move the reconciliation back into the working
-  session.**
+  **once**, during **archive**, by a delegated `deepseek/deepseek-v4-pro`
+  archive-executor (under Claude: via `opencode run`; under OpenCode: a subagent), then
+  reviewed and committed by the primary. The executor runs with fresh context seeded from
+  the compact, structured change dir artifacts — not the conversation transcript. This
+  keeps the expensive multi-file reconciliation cheap: low context in, structured source
+  read. **This is the single load-bearing rule that preserves token economy — do not move
+  the reconciliation back into the working session.**
 
 ## Working process
 
@@ -146,5 +152,5 @@ sequential apply-executor and verify is *your* deep behavioral review; (3) that 
 verify finds a bug you diagnose and scope it, then re-delegate the fix to a fresh
 executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
 trivial typo-level changes inline); (4) that you write the change dir
-continuously but reconcile `STATUS.md`/`ai-docs/` only at archive, preferably in
-a fresh session.
+continuously but reconcile `STATUS.md`/`ai-docs/` only at archive, by delegating
+to the archive-executor (deepseek-v4-pro), then reviewing and committing.

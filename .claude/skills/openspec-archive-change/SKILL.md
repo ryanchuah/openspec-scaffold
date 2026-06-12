@@ -13,6 +13,18 @@ Archive a completed change in the experimental workflow.
 
 **PHASE GATE — archive is the FINAL phase.** When archive completes (move + reconciliation + commit), you are DONE. Do NOT start any new work, propose a new change, or invoke any other workflow skill without an explicit user request. Show the completion summary and stop.
 
+> **MANDATORY — delegation override. Read before Step 5; it changes who executes.**
+> After the interactive gates (Steps 1–4), the primary does **not** perform the archive inline.
+> Delegate full execution — directory move, optional delta-spec sync, and project-doc
+> reconciliation — to the **archive-executor**:
+> - **Claude Code:** drive the OpenCode `archive-executor` (deepseek-v4-pro) via `opencode run`
+>   (see Step 5 for the exact invocation and the failure ladder). A Sonnet subagent is used
+>   **only as a fallback** per that ladder.
+> - **OpenCode:** delegate to `@archive-executor` (DeepSeek V4 Pro) via the Task tool.
+>
+> After the executor finishes, the **primary reviews** the reconciliation (reads diffs, verifies
+> doc content), fixes anything wrong, then **commits**. Executors never commit.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -70,95 +82,126 @@ Archive a completed change in the experimental workflow.
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
    - If already synced: "Archive now", "Sync anyway", "Cancel"
 
-   If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
+   Record whether sync was requested — this is passed to the archive-executor in Step 5.
 
-5. **Perform the archive**
+5. **Delegate archive execution**
 
-   Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
-   ```bash
-   mkdir -p "<planningHome.changesDir>/archive"
-   ```
+   After the interactive gates (Steps 1–4), delegate full execution to the `archive-executor`.
+   Compute the target archive path: `<planningHome.changesDir>/archive/YYYY-MM-DD-<name>`.
 
-   Generate target name using current date: `YYYY-MM-DD-<change-name>`
+   The delegation path depends on which agent platform you are:
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move `changeRoot` to the archive directory
+   ---
+   ### If you are Claude Code
 
-   ```bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
-   ```
+   Drive the OpenCode `archive-executor` (deepseek-v4-pro) via `opencode run`.
+   Do **not** perform the archive yourself, and do **not** spawn a Sonnet subagent as
+   the default — use the deepseek executor first.
 
-6. **Reconcile project-state docs (MANDATORY — the handoff half of archive)**
+   1. **Invoke the executor** (substitute real paths and the sync decision), capturing
+      stdout and stderr to separate files:
 
-   Archive is a **handoff**, not a directory move. A fresh session seeded from the change directory
-   and the three project-tracked docs (`STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`)
-   must understand what shipped, why, and what follows — without any conversation transcript.
-   Reconciliation writes that durable summary.
+      ```bash
+      timeout -k 30 600 opencode run \
+        --agent archive-executor \
+        --model deepseek/deepseek-v4-pro \
+        --format json \
+        "Archive the OpenSpec change. changeRoot: <changeRoot>. \
+         archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
+         Delta spec sync requested: <yes/no>. \
+         Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
+         Move the change dir to the archive path, sync delta specs if requested, \
+         and reconcile the three project docs from the archived notes.md / \
+         proposal.md / design.md. Do not commit. End with a brief completion \
+         report (what was moved, which specs synced, which docs reconciled, \
+         anything the primary should double-check)." \
+        > /tmp/archive-out.jsonl 2> /tmp/archive-err.log
+      ```
 
-   **Source material:** Read these files from the **archived** change directory (`<archivePath>/`):
-   - `notes.md` — verify verdict, concrete live output eyeballed, any defects found/fixed, as-built
-     deltas, candidate follow-ons for open-questions
-   - `proposal.md` — problem statement, scope, what changed
-   - `design.md` — key design decisions with rationale (often labeled D1, D2, …), risks identified
+      - The OpenCode agent edits files in the **same working tree** as Claude, so
+        its moves and doc edits land directly on disk — verify by reading back.
+      - **Bounded wait + surgical kill.** The `timeout -k 30 600` wrapper caps the
+        wait at 10 minutes (TERM at the deadline, then SIGKILL 30s later). It kills
+        **only the opencode process this command launched** — other concurrent
+        opencode processes are left untouched and no children are orphaned. **Never**
+        `pkill opencode` / `killall opencode`. Because reconciliation can run several
+        minutes, run this Bash call with `run_in_background: true`. Exit 124 (or 137
+        if SIGKILL was needed) = operational crash (step 4 of the ladder).
 
-   If `notes.md` lacks a verify section, extract what you can from `proposal.md` and `design.md` instead.
-   If none of these files exist, note that and produce minimal entries.
+   2. **Assert the real executor ran** (do this BEFORE trusting output —
+      `opencode run` exits 0 even on silent agent fallback):
 
-   ### 6a. Reconcile `STATUS.md`
+      - `grep -q "Falling back to default agent" /tmp/archive-err.log` → if it
+        matches, the deepseek executor was **not** loaded. Treat as an
+        **operational crash** (step 4 of the ladder).
+      - Extract the completion report:
+        `grep '"type":"text"' /tmp/archive-out.jsonl | tail -1 | jq -r '.part.text'`
+        Empty/unparseable → operational crash.
 
-   - **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble
-     paragraph (before any existing `## Latest change` or `## Prior change` heading).
-      Content: name the change, link the archive path, summarize what shipped (from
-     proposal.md), include **concrete verify results from notes.md** — real numbers, sources, ratios,
-     log lines actually eyeballed — not just "tests pass". Point to the decisions.md and
-     open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of
-     existing `## Latest change` entries.
-   - **Demote the previous `## Latest change`** heading to `## Prior change` (preserve its content
-     exactly — do not edit or summarize it).
-   - **Read `## Immediate next action`** near the file end. If this change removes a block or
-     completes a pending build, update accordingly: state there is **no proactive build in flight**
-     (if true) and name the next concrete step. If the change adds new gated work, mention it.
+   3. **Judge success from disk** (not just the report):
 
-   ### 6b. Reconcile `ai-docs/decisions.md`
+      - **Success** = the real agent ran AND `<archivePath>/` exists on disk AND
+        STATUS.md / decisions.md / open-questions.md contain new reconciled content
+        AND the report does not declare an unresolved blocker.
+      - **Operational crash** = non-zero exit (including a timeout kill — exit 124,
+        or 137 if SIGKILL was needed), empty/unparseable stdout, or the
+        fallback-warning match.
+      - **Non-crash failure** = real agent ran, but the archive dir is missing or
+        docs show no new reconciled content.
 
-   - **Append** (at end of file before trailing `---` if any) a `## <title> (<date>)` section.
-     Structure it as:
-     - `**Decision:**` — what was built (from proposal + design).
-     - `**Why now / why this shape:**` — bullet list of key design choices with rationale (from
-       design.md's Decisions section). Each bullet explains *why* that choice was made and what
-       alternative was rejected — including approaches investigated and rejected, with the reason,
-       so they are not re-attempted. This is the durable "why" that prevents re-litigation.
-     - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md).
-      - Include the archive path and new/modified capability spec paths.
-   - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough
-     to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
-   - Mark superseded decisions with `~~strikethrough~~` — never delete them.
+   4. **Failure ladder:**
 
-   ### 6c. Reconcile `ai-docs/open-questions.md`
+      - **Operational crash** → **retry the `opencode run` once**. Second crash →
+        spawn a **Sonnet subagent** archive-executor (`Agent` tool,
+        `subagent_type: "archive-executor"`) to complete the archive.
+      - **Non-crash failure** → **immediately** spawn the Sonnet subagent
+        archive-executor (no retry).
+      - **Mandatory disclosure:** whenever Sonnet runs, the primary's output in
+        Step 7 MUST state (a) the deepseek/opencode failure and how it manifested,
+        and (b) that Sonnet finished the work.
 
-   - **Append** a `## <topic> (shipped <date>)` section. Open with a one-paragraph summary of
-     what shipped and where to find the full decision.
-   - **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive"
-     section (if present), or from design.md's Risks / deferred Non-Goals. Each as a bullet
-     describing what's open, what gates resolution, and whether it blocks other work.
-   - **Flag blocking items** with **BLOCKING** where they gate other work.
-   - Keep bullets lean — this file is the operator's scan list; resolved items move to
-     `ai-docs/archive/retired-notes.md`.
+   5. After the executor (deepseek or Sonnet) finishes, proceed to Step 6.
 
-   ### 6d. Commit the reconciliation
+   ---
+   ### If you are OpenCode
 
-   After all three files are edited, **commit** with a message like:
-   ```
-   Reconcile project docs for <change-name> archive
-   ```
-    This can be a separate commit or folded into the archive commit — but it must be committed.
+   Delegate the full archive operation to `@archive-executor` (DeepSeek V4 Pro) via
+   the Task tool with `subagent_type: "archive-executor"`. Pass:
+   - `changeRoot`, target `archivePath`, whether delta spec sync was requested
+   - Paths to `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`
 
-  **The commit hash chicken-and-egg:** The reconciliation commit produces the hash, so the hash
-  cannot be known at reconciliation time. Do NOT include commit hashes in reconciled doc entries —
-  reference the change by its archive path instead (the hash is one ``git log -- <archive-path>``
-  away). If a prior entry says "commit pending," it is a bug from a previous archive that should
-  be stamped retroactively (search and stamp the hash from ``git log -- <archive-path>``).
+6. **Primary reviews, fixes, and commits**
+
+   Archive is a **handoff**, not just a directory move. The archive-executor runs with
+   fresh context (seeded from the change dir and the three project-tracked docs) and
+   produces the reconciliation; the primary reviews it before committing.
+
+   - **Read back from disk:** confirm `<archivePath>/` exists, then read the diffs in
+     `STATUS.md`, `ai-docs/decisions.md`, and `ai-docs/open-questions.md`.
+   - **Quality check — verify each doc contains real, artifact-backed content:**
+     - `STATUS.md` `## Latest change` section must include concrete verify results
+       from notes.md (real numbers, sources, log lines — not just "tests pass"),
+       link the archive path, and name the next concrete step.
+     - `ai-docs/decisions.md` entry must carry the "why" for each key design choice
+       with alternatives rejected — not a paraphrase of the problem.
+     - `ai-docs/open-questions.md` entry must list the open follow-ons from notes.md
+       or design.md, with BLOCKING flags where appropriate.
+   - **Fix trivial issues inline** (wording, missing field, minor formatting).
+     For larger gaps — missing reconciliation, fabricated content, wrong structure —
+     re-delegate to the archive-executor with a specific fix-spec and re-review.
+   - **Commit once satisfied** (the executor never commits; the primary always owns
+     the commit):
+     ```
+     Archive <change-name> and reconcile project docs
+     ```
+     This can be a single commit or two (archive move + doc reconciliation) — but
+     both must be committed before reporting completion.
+
+   **The commit hash chicken-and-egg:** The reconciliation commit produces the hash,
+   so the hash cannot be known at reconciliation time. Do NOT include commit hashes
+   in reconciled doc entries — reference the change by its archive path (the hash is
+   one `git log -- <archive-path>` away). If a prior entry says "commit pending," it
+   is a bug from a previous archive — stamp the hash retroactively.
 
 7. **Display summary**
 
@@ -168,6 +211,7 @@ Archive a completed change in the experimental workflow.
    - Archive location
    - Whether specs were synced (if applicable)
    - Whether project docs were reconciled
+   - Executor used (deepseek-v4-pro via `opencode run`, or Sonnet fallback)
    - Note about any warnings (incomplete artifacts/tasks)
 
 **Output On Success**
@@ -181,7 +225,17 @@ Archive a completed change in the experimental workflow.
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
 **Project docs:** ✓ Reconciled (STATUS.md, decisions.md, open-questions.md)
 
+**Executor:** deepseek-v4-pro via `opencode run`
+**Fallback used:** No
+
 All artifacts complete. All tasks complete.
+```
+
+When a fallback to Sonnet occurred, replace the **Executor** / **Fallback used** lines with:
+
+```
+**Executor:** deepseek-v4-pro via `opencode run` (FAILED — <brief description of how>)
+**Fallback used:** Yes — Sonnet subagent completed the work.
 ```
 
 **Guardrails**
@@ -190,9 +244,7 @@ All artifacts complete. All tasks complete.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, use openspec-sync-specs approach (agent-driven)
+- If sync is requested, pass that decision to the archive-executor (it performs the sync)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
-- **Reconciliation is NOT optional** — it is the load-bearing half of archive. A directory move without
-  reconciliation leaves a fresh session blind. If notes.md has no verify section, read proposal.md and
-  design.md for source material. If all source files are absent, produce minimal entries noting the gap.
+- **Reconciliation is NOT optional** — it is the load-bearing half of archive. A directory move without reconciliation leaves the next session blind. The archive-executor performs reconciliation with fresh context from the change artifacts; the primary reviews and repairs before committing. If source files are absent, the executor produces minimal entries noting the gap — the primary confirms this is acceptable before committing.
 - **PHASE GATE**: Archive is the final phase. When complete, show the summary and STOP. Do not start any new workflow without an explicit user request. This is a hard rule.

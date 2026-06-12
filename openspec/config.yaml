@@ -22,10 +22,11 @@ rules:
       and scripts the executor completes sequentially and checks off. Verify (live-canary
       eyeball / behavioral acceptance) and archive (spec sync, doc reconciliation, notes.md
       write) are NOT executor work and MUST NOT appear as tasks.md checkboxes — they need
-      live LLM calls, human judgment, or a fresh session, and listing them produces a false
-      "incomplete / in-progress" status at archive. Change-specific acceptance criteria
-      belong in a "Verification" section of design.md (authored and reviewed at propose);
-      the generic verify procedure lives in the verify skill; verify results go in notes.md.
+      live LLM calls, human judgment, or a separate delegated pass, and listing them
+      produces a false "incomplete / in-progress" status at archive. Change-specific
+      acceptance criteria belong in a "Verification" section of design.md (authored and
+      reviewed at propose); the generic verify procedure lives in the verify skill; verify
+      results go in notes.md.
   verify:
     - >-
       Verify is the orchestrator's own substantive behavioral review of the
@@ -42,8 +43,13 @@ rules:
       Only after this behavioral review passes, do the spec/task mapping checks.
   archive:
     - >-
-      Archive is the project-state reconciliation (handoff). Reconcile STATUS.md,
-      ai-docs/decisions.md, ai-docs/open-questions.md from the change dir, preferably in
-      a fresh session seeded from openspec/changes/<name>/ (not the transcript).
+      Archive is the project-state reconciliation (handoff). After interactive gates
+      (artifact/task checks, delta-spec sync decision), delegate full execution —
+      directory move, optional delta-spec sync, and reconciliation of STATUS.md /
+      ai-docs/decisions.md / ai-docs/open-questions.md — to a
+      deepseek/deepseek-v4-pro archive-executor (under Claude: via `opencode run`;
+      under OpenCode: a subagent). The executor runs with fresh context seeded from
+      the change dir. After the executor finishes, the primary reviews the
+      reconciliation, fixes any gaps, then commits. The executor never commits.
       STATUS.md Done section is a permanent pointer (never grown by hand) to
       openspec/changes/archive/.

@@ -18,8 +18,10 @@ Copy this repo to start a new project. Fill in the placeholder files and you're 
 | `openspec/changes/`, `openspec/specs/` | Planning home for in-flight changes and promoted capability specs (ship empty, with `.gitkeep`) |
 | `.claude/skills/openspec-*/` | The 8 workflow skills (explore/propose/apply/verify/archive/sync/bulk-archive/onboard) — pre-built and ready; loaded by both Claude Code and OpenCode |
 | `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash apply-phase executor (driven via `opencode run`) |
+| `.opencode/agents/archive-executor.md` | DeepSeek V4 Pro archive executor — moves change dir, syncs delta specs, reconciles project docs (driven via `opencode run`) |
 | `.opencode/agents/openspec-reviewer.md` | DeepSeek V4 Pro reviewer agent — reviews proposal artifacts before implementation (project-local; driven via `opencode run`) |
 | `.claude/agents/apply-executor.md` | Sonnet subagent — apply-phase executor fallback under Claude Code |
+| `.claude/agents/archive-executor.md` | Sonnet subagent — archive-executor fallback under Claude Code |
 | `scripts/fetch_clean.py` | Token-efficient web content fetcher for research |
 | `dev-requirements.txt` | Python deps for fetch_clean.py |
 
@@ -162,6 +164,7 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 | DeepSeek V4 Pro | Primary agent — explore, propose, verify, archive |
 | DeepSeek V4 Pro (project-local `@openspec-reviewer`) | Reviewer — reviews proposal artifacts (called automatically during propose) |
 | DeepSeek V4 Flash | `@apply-executor` — implements tasks (called automatically during apply) |
+| DeepSeek V4 Pro (`@archive-executor`) | Archive executor — moves change dir, syncs delta specs, reconciles project docs (called automatically during archive; primary reviews and commits) |
 
 **Claude Code path:**
 
@@ -170,7 +173,8 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 | Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive |
 | DeepSeek V4 Pro (via `opencode run`) | `@openspec-reviewer` — reviews proposal artifacts (project-local at `.opencode/agents/openspec-reviewer.md`; called automatically during propose) |
 | DeepSeek V4 Flash (via `opencode run`) | apply-executor — implements tasks during apply (primary path) |
-| Sonnet | apply-executor fallback and verify fix-executor fallback (`.claude/agents/apply-executor.md`) |
+| DeepSeek V4 Pro (via `opencode run`) | archive-executor — moves change dir, syncs delta specs, reconciles project docs during archive (primary path; primary reviews and commits) |
+| Sonnet | apply-executor fallback and verify fix-executor fallback (`.claude/agents/apply-executor.md`); archive-executor fallback (`.claude/agents/archive-executor.md`) |
 
 ### Context and sessions
 
@@ -179,7 +183,7 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 - Each apply delegation is an isolated child session — it reads the frozen artifacts, implements, and returns a report.
 - Because the artifacts are on disk, you can safely split across sessions: end a session after propose and start a fresh one for apply without losing anything.
 - **Write discipline:** during a change, write its `openspec/changes/<name>/` files freely (check off `tasks.md`, jot `notes.md`). Do **not** edit `STATUS.md` / `ai-docs/` mid-change — that keeps the working context small.
-- **Archive = handoff:** archive is where `STATUS.md` + `ai-docs/` get reconciled from the change dir. Run it in a **fresh session seeded from the change dir**, not the bloated working session — that keeps the multi-file reconciliation cheap.
+- **Archive = handoff:** archive is where `STATUS.md` + `ai-docs/` get reconciled from the change dir. Delegated to a `deepseek/deepseek-v4-pro` archive-executor (fresh context; Claude via `opencode run`, OpenCode via a subagent), then reviewed and committed by the primary — that keeps the multi-file reconciliation cheap.
 
 ### Key files per change
 

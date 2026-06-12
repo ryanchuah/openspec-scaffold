@@ -204,14 +204,14 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    here — they are reconciled at archive per the write-discipline rule; your job at verify is to make
    the change dir self-sufficient so that reconciliation loses nothing.
 
-   Why this is mandatory: per `AGENTS.md`, archive is reconciled in a **fresh session that reads the
-   change dir, not this conversation**. Verify is the step that manufactures these durable facts, and
-   anything left only in this context **dies at the session boundary** — forcing either a lossy
-   fresh-session archive or an expensive in-context one. **Field 5 is the one that bites:** a new
-   open-question or tuning item that exists only in this conversation is simply *lost* — it never
-   reaches `open-questions.md`, and the project silently forgets a decision it meant to revisit. This
-   write is cheap because the context is already loaded. Do not skip it even when the verdict is a
-   clean pass.
+   Why this is mandatory: per `AGENTS.md`, archive is reconciled by a **delegated
+   deepseek-v4-pro archive-executor (fresh context), then primary-reviewed**. That executor reads
+   the change dir, not this conversation. Verify is the step that manufactures these durable facts,
+   and anything left only in this context **dies at the session boundary** — the archive-executor
+   is blind to it. **Field 5 is the one that bites:** a new open-question or tuning item that
+   exists only in this conversation is simply *lost* — it never reaches `open-questions.md`, and
+   the project silently forgets a decision it meant to revisit. This write is cheap because the
+   context is already loaded. Do not skip it even when the verdict is a clean pass.
 
 10. **Verbally acknowledge documentation persistence (MANDATORY — do not end the turn without it)**
 
