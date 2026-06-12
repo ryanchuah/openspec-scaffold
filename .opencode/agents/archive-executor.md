@@ -57,7 +57,7 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 
 #### 3a. Reconcile `STATUS.md`
 
-- **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble paragraph (before any existing `## Latest change` or `## Prior change` heading). Content: name the change, link the archive path, summarize what shipped (from proposal.md), include **concrete verify results from notes.md** — real numbers, sources, ratios, log lines actually eyeballed — not just "tests pass". Point to decisions.md and open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of existing `## Latest change` entries.
+- **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble paragraph (before any existing `## Latest change` or `## Prior change` heading). Content: name the change, link the archive path, summarize what shipped (from proposal.md), include the **verify outcome from notes.md** — the eyeballed behavior and verdict ("tests pass" / "the system ran clean", or any failing or newly-skipped test with its cause), **never** test, doc, or row counts, not even as history (see AGENTS.md). Point to decisions.md and open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of existing `## Latest change` entries.
 - **Demote the previous `## Latest change`** heading to `## Prior change` (preserve its content exactly — do not edit or summarize it).
 - **Read `## Immediate next action`** near the file end. If this change removes a block or completes a pending build, update accordingly: state there is **no proactive build in flight** (if true) and name the next concrete step. If the change adds new gated work, mention it.
 

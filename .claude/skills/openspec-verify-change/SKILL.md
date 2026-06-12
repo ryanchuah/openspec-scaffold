@@ -177,9 +177,10 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    line of *why*, never silently omit it:
 
    1. the **verdict** (ready for archive / needs revision);
-   2. the **concrete live output you actually eyeballed** during the behavioral review — real
-      numbers/rows/sample (e.g. "collect_recent stored 499 docs, 0 non-empty bodies; board surfaced
-      <terms>"), not just "tests pass";
+   2. **what you confirmed by eyeballing live output** during the behavioral review — recorded as
+      behavior, not counts (e.g. "collect_recent stored docs but every body came back empty; board
+      surfaced the expected <terms>"). The eyeball itself stays mandatory; only the figures are
+      barred — **never** test, doc, or row counts, not even as history (see AGENTS.md);
    3. any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs trivial
       inline);
    4. any **as-built delta discovered during verify** that the artifacts don't already record;

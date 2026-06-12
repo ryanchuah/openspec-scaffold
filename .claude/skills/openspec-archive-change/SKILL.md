@@ -22,8 +22,11 @@ Archive a completed change in the experimental workflow.
 >   **only as a fallback** per that ladder.
 > - **OpenCode:** delegate to `@archive-executor` (DeepSeek V4 Pro) via the Task tool.
 >
-> After the executor finishes, the **primary reviews** the reconciliation (reads diffs, verifies
-> doc content), fixes anything wrong, then **commits**. Executors never commit.
+> After the interactive gates the primary first takes a **pre-handoff checkpoint commit**
+> (Step 5.0) to snapshot a clean baseline, then delegates. After the executor finishes, the
+> **primary reviews** the reconciliation (reads diffs, verifies doc content), fixes anything
+> wrong, then **commits**. Executors never commit; if an executor botches the tree, the primary
+> restores that baseline before retrying.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -89,6 +92,32 @@ Archive a completed change in the experimental workflow.
    After the interactive gates (Steps 1–4), delegate full execution to the `archive-executor`.
    Compute the target archive path: `<planningHome.changesDir>/archive/YYYY-MM-DD-<name>`.
 
+   **5.0 — Pre-handoff checkpoint (primary; both platforms).** The executor runs with Bash +
+   Edit over the whole tree and never commits, so a mistake lands as uncommitted damage. Before
+   handing off, snapshot a clean baseline you can return to:
+
+   1. **Verify the tree holds only this change.** Run `git status --porcelain` and confirm every
+      *tracked* modification/deletion/rename belongs to the change being archived — `<changeRoot>/`
+      or the shared docs/specs the executor will reconcile (STATUS.md, ai-docs/decisions.md,
+      ai-docs/open-questions.md, `openspec/specs/`). In the serialized apply→verify→archive
+      lifecycle every tracked mod must be this change's. If a tracked modification appears OUTSIDE
+      that scope, **STOP** and surface it — "another change may be mid-execution; archive expects
+      serialized apply→verify→archive." Untracked entries (`??`) under other change dirs are
+      expected concurrent propose/explore work and are fine.
+   2. **Snapshot the change at HEAD:**
+      ```bash
+      git commit -am "Checkpoint <name> before archive"
+      ```
+      This commits ALL *tracked* modifications — the change's full footprint, including any source
+      files it touched anywhere in the tree, not just the change dir. `-a` is **required**; do
+      **NOT** use `-A` — concurrent propose work is untracked and must be excluded, and `-A` would
+      sweep those other changes' artifacts into this commit. It's a no-op if apply already
+      committed everything — that's fine.
+   3. **The one assumption:** this checkpoint is airtight only if the change has no *untracked new*
+      files of its own. That holds because apply commits new files in its reviewed checkpoints, so
+      by archive time the change's new files are already tracked; the only untracked files left in
+      the tree are other changes' propose artifacts.
+
    The delegation path depends on which agent platform you are:
 
    ---
@@ -149,13 +178,16 @@ Archive a completed change in the experimental workflow.
       - **Non-crash failure** = real agent ran, but the archive dir is missing or
         docs show no new reconciled content.
 
-   4. **Failure ladder:**
+   4. **Failure ladder:** before retrying the `opencode run` or spawning the Sonnet
+      subagent, **restore the baseline** (see the Recovery block at the end of Step 5)
+      so each attempt starts from the clean Step 5.0 checkpoint, not a half-botched tree.
 
-      - **Operational crash** → **retry the `opencode run` once**. Second crash →
-        spawn a **Sonnet subagent** archive-executor (`Agent` tool,
+      - **Operational crash** → restore the baseline, then **retry the `opencode run`
+        once**. Second crash → restore the baseline again, then spawn a **Sonnet
+        subagent** archive-executor (`Agent` tool,
         `subagent_type: "archive-executor"`) to complete the archive.
-      - **Non-crash failure** → **immediately** spawn the Sonnet subagent
-        archive-executor (no retry).
+      - **Non-crash failure** → restore the baseline, then **immediately** spawn the
+        Sonnet subagent archive-executor (no retry).
       - **Mandatory disclosure:** whenever Sonnet runs, the primary's output in
         Step 7 MUST state (a) the deepseek/opencode failure and how it manifested,
         and (b) that Sonnet finished the work.
@@ -169,6 +201,26 @@ Archive a completed change in the experimental workflow.
    the Task tool with `subagent_type: "archive-executor"`. Pass:
    - `changeRoot`, target `archivePath`, whether delta spec sync was requested
    - Paths to `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`
+   - On executor failure or a botched result, **restore the baseline** (see Recovery below)
+     before re-delegating.
+
+   ---
+   **Recovery — restoring the baseline after a botched executor run (both platforms).**
+   If an executor run leaves the tree partial or wrong (deleted/modified source, half-done `mv`,
+   bad reconciliation), restore the pre-handoff baseline BEFORE any retry or re-delegation —
+   including before spawning the Sonnet fallback:
+
+   ```bash
+   git reset --hard HEAD                                    # reverts all tracked damage; does NOT touch untracked files
+   git clean -fd <planningHome.changesDir>/archive/YYYY-MM-DD-<name>   # remove only the partial archive copy
+   ```
+
+   Why this is safe with concurrent work: `git reset --hard HEAD` only reverts *tracked* files to
+   the Step 5.0 checkpoint and leaves untracked files alone, so concurrent untracked propose work
+   survives it; the `git clean` is **path-scoped** to the new archive dir, so it never reaches that
+   concurrent work. Hard rules: **never** `git stash`; **never** an unscoped `git clean`; **never**
+   recover without having made the Step 5.0 checkpoint — without it, `reset --hard` would discard
+   the change's own uncommitted work.
 
 6. **Primary reviews, fixes, and commits**
 
@@ -179,9 +231,10 @@ Archive a completed change in the experimental workflow.
    - **Read back from disk:** confirm `<archivePath>/` exists, then read the diffs in
      `STATUS.md`, `ai-docs/decisions.md`, and `ai-docs/open-questions.md`.
    - **Quality check — verify each doc contains real, artifact-backed content:**
-     - `STATUS.md` `## Latest change` section must include concrete verify results
-       from notes.md (real numbers, sources, log lines — not just "tests pass"),
-       link the archive path, and name the next concrete step.
+     - `STATUS.md` `## Latest change` section must record the verify *outcome*
+       ("tests pass" / "the system ran clean", or any failing or newly-skipped test
+       with its cause) — **never** test, doc, or row counts, not even as history
+       (see AGENTS.md) — then link the archive path and name the next concrete step.
      - `ai-docs/decisions.md` entry must carry the "why" for each key design choice
        with alternatives rejected — not a paraphrase of the problem.
      - `ai-docs/open-questions.md` entry must list the open follow-ons from notes.md
