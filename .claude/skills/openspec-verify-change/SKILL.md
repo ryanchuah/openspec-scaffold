@@ -16,11 +16,19 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 >
 > 1. **Read the actual diffs and changed files.** Run `git diff` (and open the files) for everything the executor touched. Trust the code, not the summary.
 > 2. **Re-run the FULL test suite yourself:** `.venv/bin/python -m pytest -q`. It must be green (pre-existing skips OK). A green exit is **necessary but not sufficient.**
-> 3. **Eyeball the real output the code produces.** Render a concrete sample of what the change actually generates — the actual digest rows, the prompt sent to the LLM/relevance gate, the terms/spans extracted, the DB rows selected — not just that tests pass. Run the relevant project command or a `scripts/_*_oneoff.py` probe against the live DB and inspect a real sample. Bugs that logic-reading misses are often visible the instant you render real output.
-> 4. **If the change touches an external API / network service, RUN ITS LIVE SMOKE yourself against the real endpoint.** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened on real projects: a collector shipped with `order=volume` (string-sorts) and a 500-ing backfill, with mocks that encoded the *idealized* API, so 600+ tests passed green over a non-functional collector. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response. **A *skipped* live smoke is NOT a *passed* one.** If an external-API change has no live smoke at all, that is itself a **CRITICAL** gap — require one to be added before archive.
+> 3. **Eyeball the real output the code produces.** Render a concrete sample of what the change actually generates — the actual records/rows selected, the text or prompt produced, the request sent, the values computed — not just that tests pass. Run the relevant project command or a `scripts/_*_oneoff.py` probe against real data and inspect a real sample. Bugs that logic-reading misses are often visible the instant you render real output.
+> 4. **If the change touches an external API / network service, RUN ITS LIVE SMOKE yourself against the real endpoint.** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened on real projects: an integration shipped with wrong sort semantics and a 500-ing backfill, with mocks that encoded the *idealized* API, so a fully green suite passed over a non-functional integration. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response. **A *skipped* live smoke is NOT a *passed* one.** If an external-API change has no live smoke at all, that is itself a **CRITICAL** gap — require one to be added before archive.
 > 5. **On any defect:** diagnose and scope it yourself (reproduce it, run DB queries, read diffs), then **re-delegate the fix to a FRESH apply-executor** with a self-contained fix-spec. Do **not** hand-fix beyond a trivial typo / comment / one-line rename — if you would write more than ~2 lines of implementation, stop and re-delegate. Then re-verify from step 1.
+>    - **Claude Code:** the fresh fix executor is the deepseek `apply-executor` driven via `opencode run` (same invocation shape as in the apply skill's Step 6, but the prompt is the **self-contained fix-spec** for the specific defect, not the whole `tasks.md`). **One attempt.**
+>    - **Wrap the call in `timeout -k 15 300 opencode run …`** (a scoped single-defect fix should finish well inside 5 minutes). The wrapper kills **only the opencode process it launched** — other concurrent opencode processes are untouched and no children are orphaned. **Never** `pkill`/`killall opencode`. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
+>    - Reuse the same "assert the real agent ran" checks (fallback-warning grep + parseable output).
+>    - **Escalate to a Sonnet subagent** if that one attempt yields **either**: (a) an operational failure (crash / no usable output), **or** (b) a quality failure — i.e. the orchestrator's re-verification (re-run from MANDATORY step 1) still finds the defect, or finds a newly-introduced one.
+>    - After Sonnet fixes it, re-verify again from step 1.
+>    - **Mandatory disclosure:** if Sonnet was used, say so in the verification report / `notes.md` field 3 ("defect found and how it was fixed — and who fixed it"), explicitly noting the deepseek attempt failed and Sonnet took over.
 >
 > Only after this behavioral review passes, proceed to the artifact/spec mapping checks below and emit the report. If the behavioral review fails, the verdict is **NEEDS REVISION** regardless of the checklist.
+
+**PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, you MUST NOT automatically proceed to archive. Tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Never invoke archive without an explicit user request. Crossing phases without permission is a hard rule.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -73,6 +81,10 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+   - **Note:** by convention `tasks.md` holds apply-phase work ONLY (no verify/archive
+     checkboxes), so an incomplete task genuinely means implementation work remains — CRITICAL
+     is correct. The change-specific acceptance criteria you verify behaviorally against live
+     in design.md's **Verification** section, not in `tasks.md`.
 
    **Spec Coverage**:
    - If delta specs exist in `contextFiles.specs`:
@@ -186,7 +198,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
           about later (alerting, second-order risks, follow-on phases);
         - anything you said "out of scope / revisit later / could add" about during this session.
 
-   Also write a short **"Still owned by `/opsx:archive`"** pointer list (what the fresh archive session
+   Also write a short **"Still owned by archive"** pointer list (what the fresh archive session
    must still reconcile: `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`, spec
    promotion into `openspec/specs/`, and any cleanup). Do NOT edit those project-tracked docs yourself
    here — they are reconciled at archive per the write-discipline rule; your job at verify is to make
@@ -216,7 +228,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
       3. Defects + fixes — <summary, or "none">
       4. As-built deltas — <summary, or "none">
       5. Forward-looking open-questions / tuning items / follow-ons — <explicit list, or "none + why">
-      Still owned by /opsx:archive — <STATUS.md, decisions.md, open-questions.md, spec promotion, cleanup>
+      Still owned by archive — <STATUS.md, decisions.md, open-questions.md, spec promotion, cleanup>
     ```
 
     For field 5 you MUST either **name each item** carried forward (so the user can sanity-check that
@@ -248,3 +260,4 @@ Use clear markdown with:
 - Code references in format: `file.ts:123`
 - Specific, actionable recommendations
 - No vague suggestions like "consider reviewing"
+- **PHASE GATE**: When verification is complete, STOP. Inform the user and prompt them for the next step. Never invoke archive without an explicit user request. This is a hard rule.

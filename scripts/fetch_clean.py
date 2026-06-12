@@ -25,10 +25,7 @@ import requests
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_UA = (
-    "Mozilla/5.0 (compatible; TrendScope-research/1.0; "
-    "+https://github.com/TrendScope/extrends)"
-)
+_UA = "Mozilla/5.0 (compatible; research-fetch/1.0)"
 _TIMEOUT = 20
 _THIN_THRESHOLD = 200  # chars; below this, trafilatura output is considered empty/thin
 _DEFAULT_MAX_CHARS = 40_000

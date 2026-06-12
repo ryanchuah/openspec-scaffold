@@ -13,28 +13,14 @@ Propose a new change — create artifacts one at a time, freeze each after revie
 
 I'll create artifacts with review:
 - proposal.md (what & why) → review → freeze
-- design.md (how) → review → freeze
-- tasks.md (implementation steps) → review → freeze
+- design.md (how — include a **Verification** section stating the change-specific acceptance criteria) → review → freeze
+- tasks.md (apply-phase implementation steps ONLY — code, tests, scripts) → review → freeze
 
 **CRITICAL — Do NOT batch-create all artifacts.** Create proposal, review it, fix it, freeze it. Only then create design (using the frozen proposal as context). Repeat for tasks. Downstream artifacts written before upstream ones are frozen will contain stale decisions, requiring extra review rounds to correct. Each unnecessary review round costs real money.
 
----
+**PHASE GATE — STOP after proposing.** Once all artifacts are frozen, you MUST NOT automatically proceed to implementation. Tell the user "All artifacts created, reviewed, and frozen. Ready for implementation. Say 'apply <name>' when you want me to start." Then WAIT. Never invoke implementation without an explicit user request. Crossing phases without permission is a hard rule.
 
-> **MANDATORY — sequential artifact creation. Read before writing any artifact.**
-> Create artifacts in dependency order, finalizing each before it is used as context for the next:
-> - proposal.md (what & why) → complete & finalize → use as context for design.md
-> - design.md (how) → complete & finalize → use as context for tasks.md
-> - tasks.md (implementation steps) → complete & finalize → proceed to apply
->
-> **Do NOT batch-create all artifacts.** Downstream artifacts written before upstream ones are finalized will reference stale decisions, causing implementation to diverge from intent. Complete each artifact fully before starting the next.
->
-> **Self-review each artifact before finalizing it.** Claude Code has no separate reviewer — you are the sole reviewer. Be genuinely rigorous, not a rubber-stamp:
-> - Re-read the artifact you just wrote. Check every claim against the dependencies, template, and context.
-> - Verify every scope boundary is explicit, every decision resolves an ambiguity, and every choice is concrete and implementable.
-> - Actively hunt for defects: gaps in edge cases, contradictions with upstream artifacts, vague or untestable success criteria, design choices that silently commit to unvalidated assumptions.
-> - Fix any issues you find before proceeding to the next artifact.
->
-> **Decisions must be concrete and implementable** — not paraphrases of the problem. E.g., instead of "return value semantics differ" (vague), write: "returns 0 — zero Document rows inserted" (concrete). For every gap or ambiguity, close it with a specific choice.
+---
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -85,6 +71,20 @@ I'll create artifacts with review:
       - Read any completed dependency files for context
       - Create the artifact file using `template` as the structure and write it to `resolvedOutputPath`
       - Apply `context` and `rules` as constraints - but do NOT copy them into the file
+      - **DESIGN.MD ONLY — External-API live probe before self-review.** If the design
+        introduces or touches an external-API surface — a new kwarg, client option, or
+        changed request shape — run a live probe of that EXACT surface against the real
+        installed environment before the self-review step. The mock-based test suite is
+        structurally blind to whether the real library honors the assumptions: for
+        example, a constructor kwarg was assumed available, the reviewer "confirmed" it,
+        the full patched test suite passed green, and the real library crashed on the
+        first request. The probe must exercise a real request
+        (constructing a client is NOT proof — failures can defer to request time,
+        exactly what bit `_build_client()`). Record the probe in a `### Live Probe`
+        section of design.md with the command run and observed output. If the probe
+        reveals the assumption is wrong, fix the design before proceeding — do not
+        self-review or invoke the reviewer on a known-false claim. Skip this step only
+        when the change has zero new external-API surface.
       - Show brief progress: "Created <artifact-id>"
 
     b. **Self-review the artifact before invoking the reviewer.**
@@ -94,13 +94,109 @@ I'll create artifacts with review:
        - This is the first review pass (out of max 4: 1 self + up to 3 `@openspec-reviewer` passes)
 
     c. **Invoke `@openspec-reviewer` to audit the artifact.**
-       - Use the Task tool with `subagent_type: "openspec-reviewer"` to audit the artifact
+
+       The path forks based on which agent platform you are:
+
+       ---
+       ### If you are Claude Code (claude-cli)
+
+        Claude Code cannot spawn non-Anthropic subagents. Instead, invoke the
+        reviewer programmatically via `opencode run`. Do NOT review the artifact
+        yourself — the review must come from a different model.
+
+        1. Run the reviewer (substituting actual paths for `<changeRoot>` and
+           `<artifact>`), **capturing stdout and stderr to separate files**:
+
+           timeout -k 15 300 opencode run \
+             --agent openspec-reviewer \
+             --model deepseek/deepseek-v4-pro \
+             --format json \
+             "Review the artifact at <changeRoot>/<artifact>.md. \
+              Also read the explore-brief if it exists and openspec/specs/ \
+              for context." \
+             > /tmp/review-out.jsonl 2> /tmp/review-err.log
+
+           If the user specified a different reviewer model, substitute it
+           for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
+           reviewer's role prompt and tools; `--model` selects which LLM runs.
+
+           **Bounded wait + surgical kill.** The `timeout -k 15 300` wrapper
+           caps the wait at 5 minutes; if the reviewer is still running it gets
+           SIGTERM, then SIGKILL 15s later. This kills **only the opencode
+           process this command launched** — it leaves any other concurrent
+           opencode processes untouched and orphans no children (verified). A
+           timeout surfaces as exit code 124 (or 137 if SIGKILL was needed) —
+           treat it as an `opencode run` failure and follow step 4 (escalate to
+           the user). **Never** `pkill opencode` / `killall opencode`: there are
+           routinely other opencode processes running, and that would kill them
+           too.
+
+        2. **Assert the real reviewer actually ran (do this BEFORE trusting any
+           output — `opencode run` exits 0 even when it silently used the wrong
+           agent):**
+           - Grep stderr for the fallback warning:
+             `grep -q "Falling back to default agent" /tmp/review-err.log`.
+             If it matches, the reviewer was NOT loaded (a `mode:` regression —
+             it must be `mode: all` or a primary). Do NOT use the output, do NOT
+             self-review. Escalate to the user with the stderr line.
+           - Extract the review: filter the JSON Lines for `"type":"text"`,
+             take the last one, extract `part.text`:
+             `grep '"type":"text"' /tmp/review-out.jsonl | tail -1 | jq -r '.part.text'`
+           - Confirm the extracted text contains the reviewer's own format —
+             a `## Review Round` heading AND at least one severity marker
+             (🔴/🟡/💡). If either is missing, the output did not come from the
+             reviewer prompt: do NOT proceed, escalate with the raw output.
+           - If the output is empty or unparseable: do NOT proceed. Escalate
+             to the user with the raw output and the exact command that ran.
+
+        3. Process the review:
+           - Append the review text to `review-log.md` with round number
+             and date
+           - When a fix is required in the artifact, make it a **concrete,
+             implementable decision**, not a paraphrase of the problem. E.g.,
+             instead of "return value semantics differ" (paraphrase), decide:
+             "returns 0 — zero Document rows inserted" (concrete). If a
+             reviewer flags a gap, close it with a specific choice.
+           - If 🔴 blocking issues exist → fix them in the artifact → go back
+             to step 1 (max 3 reviewer passes total; escalate to user if
+             still unresolved after 3)
+           - If no 🔴 issues → the artifact is frozen; move to the next one
+
+        4. If `opencode run` fails (non-zero exit, timeout, or no review text):
+           do NOT self-review. Escalate to the user with the exact error,
+           exit code, and stderr.
+
+       ---
+       ### If you are OpenCode
+
+       Use the Task tool with `subagent_type: "openspec-reviewer"` to audit
+       the artifact:
+
        - Append the review output to `review-log.md`
-       - If 🔴 blocking issues exist → fix them in the artifact → re-review (max 3 reviewer passes; escalate to user if still unresolved after 3)
-       - When a fix is required, make it a **concrete, implementable decision**, not a paraphrase of the problem. E.g., instead of "return value semantics differ" (paraphrase), decide: "returns 0 — zero Document rows inserted" (concrete). If a reviewer flags a gap, close it with a specific choice.
+       - When a fix is required, make it a **concrete, implementable
+         decision**, not a paraphrase of the problem. E.g., instead of
+         "return value semantics differ" (paraphrase), decide: "returns 0 —
+         zero Document rows inserted" (concrete). If a reviewer flags a gap,
+         close it with a specific choice.
+       - If 🔴 blocking issues exist → fix them in the artifact → re-review
+         (max 3 reviewer passes; escalate to user if still unresolved after 3)
        - If no 🔴 issues → the artifact is frozen; move to the next one
-       - **If the reviewer subagent fails for any reason** (model not found, provider error, timeout, etc.): do NOT self-review as a replacement. Halt immediately and escalate to the user with the exact error.
-       - **Never skip review or batch-create downstream artifacts.** A design written against an unfrozen proposal will reference stale decisions, causing extra review rounds on every downstream artifact.
+       - **If the reviewer subagent fails for any reason** (model not found,
+         provider error, timeout, etc.): do NOT self-review as a replacement.
+         Halt immediately and escalate to the user with the exact error.
+
+       ---
+       **Never skip review or batch-create downstream artifacts.** A design
+       written against an unfrozen proposal will reference stale decisions,
+       causing extra review rounds on every downstream artifact.
+
+       **The reviewer can be wrong — apply judgment, don't obey blindly.** If a
+       finding (including a 🔴) contradicts the authoritative `openspec
+       instructions <artifact>` template, the project's own rules (AGENTS.md /
+       skill guardrails), or a verifiable fact in the codebase, the primary MAY
+       overrule it — but MUST record the rejection and its concrete rationale in
+       `review-log.md`, and MUST NOT freeze on a genuine defect just to move on.
+       Mechanically complying with a false finding causes its own rework.
 
     d. **Continue until all `applyRequires` artifacts are complete**
        - After creating each artifact, re-run `openspec status --change "<name>" --json`
@@ -122,7 +218,8 @@ After completing all artifacts and reviews, summarize:
 - Change name and location
 - List of artifacts created with review round counts
 - What's ready: "All artifacts created, reviewed, and frozen. Ready for implementation."
-- Prompt: "Run `/opsx:apply` or ask me to implement to start working on the tasks."
+- Tell the user: "Say 'apply <name>' when you want me to start implementing the tasks."
+- **Do NOT invoke implementation yourself.** Wait for the user to ask.
 
 **Artifact Creation Guidelines**
 
@@ -135,8 +232,11 @@ After completing all artifacts and reviews, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
+- **tasks.md MUST contain only apply-phase implementation work** — deterministic code, tests, and scripts the executor completes sequentially and checks off. Verify (live-canary eyeball, behavioral acceptance) and archive (spec sync, doc reconciliation, `notes.md` write) are NOT implementation — they need live LLM calls, human judgment, or a fresh session — so they MUST NOT appear as `tasks.md` checkboxes (doing so creates a false "incomplete / in-progress" status at archive). Put change-specific acceptance criteria in a **Verification** section of `design.md` instead; the generic verify procedure lives in the verify skill, and verify results land in `notes.md`.
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
+- **External-API live probe (design.md):** When design.md introduces new external-API surfaces, run a live probe against the real installed environment before self-review — record the result in design.md. See step 4a for procedure.
 - Always read dependency artifacts before creating a new one
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
+- **PHASE GATE**: When proposing is complete, STOP. Inform the user and prompt them for the next step. Never invoke the apply/implementation phase without an explicit user request. This is a hard rule.

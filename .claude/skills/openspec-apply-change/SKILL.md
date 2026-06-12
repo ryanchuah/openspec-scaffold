@@ -13,10 +13,12 @@ Implement tasks from an OpenSpec change.
 
 > **MANDATORY — delegation override. Read before Step 6; it changes who implements.**
 > Per `AGENTS.md` and `openspec/config.yaml` `rules.tasks`, the primary agent does **not** implement tasks inline. Delegate implementation to the **apply-executor**:
-> - **Claude Code:** spawn a **Sonnet subagent** as the apply-executor, passing the paths to the change's `proposal.md`, `design.md`, and `tasks.md`. It works `tasks.md` sequentially and checks off each task as it lands.
-> - **OpenCode:** delegate to `@apply-executor` (DeepSeek V4 Flash).
+> - **Claude Code:** drive the OpenCode `apply-executor` (deepseek-v4-flash) via `opencode run` (see Step 6 for the exact invocation and the failure ladder). A Sonnet subagent is used **only as a fallback** per that ladder. Do **not** make a Sonnet subagent the default, and do **not** implement inline.
+> - **OpenCode:** delegate to `@apply-executor` (DeepSeek V4 Flash) as today — unchanged.
 >
-> Step 6 below ("Make the code changes required") therefore describes what the **apply-executor** does — not the primary. The primary's job is to delegate, then review the executor's completion report and proceed to `/opsx:verify` (its own behavioral review). The primary must not write implementation code itself (trivial typo / one-line exception only).
+> Step 6 below ("Make the code changes required") therefore describes what the **apply-executor** does — not the primary. The primary's job is to delegate, then review the executor's completion report and proceed to verify (its own behavioral review). The primary must not write implementation code itself (trivial typo / one-line exception only).
+
+**PHASE GATE — STOP after implementation.** Once all tasks are checked off, you MUST NOT automatically proceed to verification. Tell the user "All tasks complete. Say 'verify <name>' when you want me to review the implementation." Then WAIT. Never invoke verification without an explicit user request. Crossing phases without permission is a hard rule.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -29,7 +31,7 @@ Implement tasks from an OpenSpec change.
    - Auto-select if only one active change exists
    - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/opsx:apply <other>`).
+   Always announce: "Using change: <name>" and how to override (e.g., "apply <other>").
 
 2. **Check status to understand the schema**
    ```bash
@@ -75,6 +77,93 @@ Implement tasks from an OpenSpec change.
    - Dynamic instruction from CLI
 
 6. **Implement tasks (loop until done or blocked)**
+
+   The delegation path depends on which agent platform you are:
+
+   ---
+   ### If you are Claude Code
+
+   Drive the OpenCode `apply-executor` (deepseek-v4-flash) via `opencode run`.
+   Do **not** implement tasks yourself, and do **not** spawn a Sonnet subagent as
+   the default — use the deepseek executor first.
+
+   1. **Invoke the executor** (substitute real `<changeRoot>` paths), capturing
+      stdout and stderr to separate files:
+
+      ```bash
+      timeout -k 30 600 opencode run \
+        --agent apply-executor \
+        --model deepseek/deepseek-v4-flash \
+        --format json \
+        "Implement the OpenSpec change in <changeRoot>. Work <changeRoot>/tasks.md \
+         sequentially, top to bottom, following <changeRoot>/design.md and \
+         <changeRoot>/proposal.md. Check off each task ([ ] -> [x]) in tasks.md as it \
+         lands. Do not modify proposal.md or design.md. Do not commit. End with a brief \
+         completion report (what was implemented, deviations, what the primary should \
+         check at verify, and any external-API behavior you ASSUMED rather than verified)." \
+        > /tmp/apply-out.jsonl 2> /tmp/apply-err.log
+      ```
+
+      - The OpenCode agent edits files in the **same working tree** as Claude,
+        so its `tasks.md` check-offs and source edits land directly on disk —
+        read them back via `git diff` and re-read `tasks.md` afterward.
+      - If the user named a different executor model, substitute it for
+        `deepseek/deepseek-v4-flash`.
+      - **Bounded wait + surgical kill.** The `timeout -k 30 600` wrapper caps the
+        wait at 10 minutes (TERM at the deadline, then SIGKILL 30s later). It kills
+        **only the opencode process this command launched** — other concurrent
+        opencode processes are left untouched and no children are orphaned
+        (verified). **Never** `pkill opencode` / `killall opencode`: other opencode
+        processes routinely run, and that would kill them too. Because a full
+        `tasks.md` can run several minutes (and exceed the Bash tool's 600 000 ms
+        cap), run this Bash call with `run_in_background: true` and poll for
+        completion so the tool cap can't preempt the wrapper. If the wrapper fires
+        (exit 124, or 137 if SIGKILL was needed), the apply **timed out** — treat it
+        as an **operational crash** (step 4). For a very large change, prefer
+        splitting delegation across task ranges over raising the ceiling.
+
+   2. **Assert the real executor ran** (do this BEFORE trusting output —
+      `opencode run` exits 0 even on silent agent fallback):
+
+      - `grep -q "Falling back to default agent" /tmp/apply-err.log` → if it
+        matches, the deepseek executor was **not** loaded. Treat as an
+        **operational crash** (step 4).
+      - Confirm `/tmp/apply-out.jsonl` is non-empty and parseable, and extract
+        the completion report:
+        `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
+        Empty/unparseable → operational crash.
+
+   3. **Determine success vs. failure** by reading back from disk (not just the report):
+
+      - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
+        the completion report does not declare an unresolved blocker.
+      - **Operational crash** = non-zero exit (including a `timeout` kill — exit
+        124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
+        fallback-warning match from step 2.
+      - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
+        says it got stuck / output shows it gave up.
+
+   4. **Failure ladder:**
+
+      - **Operational crash** → **retry the `opencode run` once**. Second crash →
+        spawn a **Sonnet subagent** apply-executor (`Agent` tool,
+        `subagent_type: "apply-executor"`) to finish `tasks.md`.
+      - **Non-crash failure** → **immediately** spawn the Sonnet subagent
+        apply-executor (no retry).
+      - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
+        output in Step 7 MUST state (a) the deepseek/opencode failure and how it
+        manifested, and (b) that Sonnet finished the work.
+
+   5. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
+      `git diff` to confirm all tasks are checked off and changes are on disk.
+      Proceed to Step 7.
+
+   ---
+   ### If you are OpenCode
+
+   Delegate the whole `tasks.md` loop to `@apply-executor` (DeepSeek V4 Flash)
+   via the Task tool with `subagent_type: "apply-executor"` — unchanged from
+   existing behavior.
 
    For each pending task:
    - Show which task is being worked on
@@ -125,7 +214,17 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Ready to archive this change.
+**Executor:** deepseek-v4-flash via `opencode run`
+**Fallback used:** No
+
+All tasks complete! Say 'verify <name>' to review the implementation, or 'archive <name>' to archive.
+```
+
+When a fallback to Sonnet occurred, replace the **Executor** / **Fallback used** lines with:
+
+```
+**Executor:** deepseek-v4-flash via `opencode run` (FAILED — <brief description of how>)
+**Fallback used:** Yes — Sonnet subagent completed the work.
 ```
 
 **Output On Pause (Issue Encountered)**
@@ -154,6 +253,7 @@ What would you like to do?
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
+- **PHASE GATE**: When implementation is complete, STOP. Inform the user and prompt them for the next step. Never invoke verification without an explicit user request. This is a hard rule.
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names

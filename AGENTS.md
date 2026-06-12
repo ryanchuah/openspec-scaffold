@@ -23,9 +23,9 @@
 
 ## Cross-agent compatibility (load-bearing — do not weaken)
 
-This repo may be worked by **multiple agent families** (e.g. OpenCode/DeepSeek/GLM and
-Claude). For that to work, **all project state lives in tracked, agent-neutral files** —
-never in harness-private storage. Concretely, do **not** read from, write to, or rely on:
+This repo is worked by **both Claude and non-Claude agents** (OpenCode/DeepSeek).
+For that to work, **all project state lives in tracked, agent-neutral files** — never in
+harness-private storage. Concretely, do **not** read from, write to, or rely on:
 - Global or cross-session memory, harness memory, or any assistant-specific config
   files/directories (`.claude/`, `CLAUDE.md`, memory files, etc.) — record project
   knowledge in `ai-docs/` and the OpenSpec artifacts instead.
@@ -54,15 +54,17 @@ anything the agent must never violate — or remove this section if none.>
   **not** write implementation code. Implementation happens in the **apply** phase, which
   is delegated (see below). Quick doc edits and commits are done by the primary directly
   — do not over-delegate trivia.
-- **The apply-executor is a role, fillable by either agent family:** a **subagent** of
-  the primary's family when the primary is Claude (a Sonnet subagent), or
-  **`@apply-executor`** (DeepSeek V4 Flash) under OpenCode. Either way it implements
+- **The apply-executor is a role, fillable by either agent family:** under Claude, the
+  apply-executor is **deepseek-v4-flash driven via `opencode run`**, with a **Sonnet
+  subagent as fallback** (see the apply skill for the exact failure ladder); under
+  OpenCode, it is **DeepSeek V4 Flash** (`@apply-executor`). Either way it implements
   `tasks.md` **sequentially**, top to bottom, checking off each task as it lands.
-- **The `@openspec-reviewer` (GLM 5.1)** is a read-only auditor invoked automatically
-  during **propose** to review artifacts *before* implementation. It surfaces defects;
-  it never edits. *(OpenCode path only — not available under Claude Code. On the Claude
-  path, the primary self-reviews each artifact with genuine rigor — actively hunting
-  for defects, not rubber-stamping — before proceeding to the next.)*
+- **The `@openspec-reviewer` (`deepseek/deepseek-v4-pro`)** is a read-only auditor
+  invoked automatically during **propose** to review artifacts *before* implementation.
+  It surfaces defects; it never edits. Under Claude Code, it is invoked via
+  `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro` (the agent
+  definition lives at `.opencode/agents/openspec-reviewer.md`). Under OpenCode, it is
+  called via the Task tool with `subagent_type: "openspec-reviewer"`.
 
 ## OpenSpec workflow
 
@@ -76,8 +78,8 @@ All non-trivial feature work follows the OpenSpec lifecycle:
 5. **archive** — close the change; promote specs; reconcile project docs.
 
 **Phase-specific procedural rules live in the skill files, not here.**
-When a `/opsx:` command is invoked the attached skill loads the full, authoritative rule
-set for that phase. AGENTS.md carries only cross-cutting rules that span multiple phases.
+The agent invokes the appropriate skill (via the Skill tool) when a phase is entered.
+AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*-change/SKILL.md`.
 
 OpenSpec artifacts live in `openspec/changes/<name>/`.
@@ -94,7 +96,7 @@ Two tiers of state, with deliberately different write rules:
 - **Project-tracked docs — write-deferred, reconciled at archive in a FRESH session.**
   Do **not** incrementally edit `STATUS.md`, `ai-docs/decisions.md`, or
   `ai-docs/open-questions.md` during busy work in a bloated context. They are reconciled
-  **once**, during **`/opsx:archive`**, and the preferred path is to run archive **in a
+  **once**, during **archive**, and the preferred path is to run archive **in a
   fresh session seeded from the change dir** (the compact, structured artifacts — not the
   conversation transcript). This keeps the expensive multi-file reconciliation cheap: low
   context in, structured source read. **This is the single load-bearing rule that
@@ -105,20 +107,23 @@ Two tiers of state, with deliberately different write rules:
 
 - **Default to scripts over LLM token-burn for deterministic work — everywhere.** When a
   task is mechanical and reproducible (data scans, extraction, bulk transforms, repetitive
-  checks), write a small script in `scripts/` and run it; dump non-trivial output to disk
-  as JSON/CSV — that artifact becomes the durable, re-runnable input the reasoning
-  consumes. Spend tokens on *judgment*, not on re-deriving by hand what a script
-  reproduces for free.
-- **Make work resumable.** Subagents may not be resumable and session limits are
-  unpredictable, so a killed agent restarts cold. Push deterministic heavy-lifting into
-  re-runnable scripts that dump intermediate results to disk; checkpoint partial findings
-  as each section completes; decompose long jobs into steps that each complete and return.
-  Granularity buys resumability.
+  checks), write a small script and run it. Prefer the `scripts/_*_oneoff.py` convention;
+  dump non-trivial output to disk as JSON/CSV — that artifact becomes the durable,
+  re-runnable input the reasoning consumes. Spend tokens on *judgment*, not on
+  re-deriving by hand what a script reproduces for free.
+- **Make work resumable.** This harness has **no subagent resume**; a killed agent
+  restarts cold. Push deterministic heavy-lifting into re-runnable scripts that dump
+  intermediate results to disk; checkpoint partial findings as each section completes;
+  decompose long jobs into steps that each complete and return. Granularity buys
+  resumability.
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
-  each). Prefer invariant/property tests over output-pinning tests. **Do not record test
-  counts or other figures that go stale as live-status in `STATUS.md`** — "tests pass" and
-  "the system ran clean" are the signals that matter.
+  each). Prefer invariant/property tests over output-pinning tests. **Never record test,
+  doc, or row counts in any tracked doc** (`STATUS.md`, `ai-docs/`, change `notes.md`) —
+  not as a live-status figure and **not as a historical record**. "Tests pass" and
+  "the system ran clean" are the only signals that matter; the sole exception is a
+  *failing or newly-skipped* test, recorded as a note with its cause — never a passing
+  tally.
 - **Design lives in two places by horizon:** *per-change* design → the change's
   `design.md`. *Multi-change / long-horizon roadmap* that doesn't map to a single change
   → `plans/`. Prune `plans/` as roadmap items become real changes.
@@ -139,6 +144,7 @@ Acknowledge four things before acting: (1) your role as orchestrator/reviewer wh
 the OpenSpec lifecycle and does not implement; (2) that apply is delegated to a
 sequential apply-executor and verify is *your* deep behavioral review; (3) that when
 verify finds a bug you diagnose and scope it, then re-delegate the fix to a fresh
-executor (only trivial typo-level changes inline); (4) that you write the change dir
-continuously but reconcile `STATUS.md`/`ai-docs/` only at `/opsx:archive`, preferably in
+executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
+trivial typo-level changes inline); (4) that you write the change dir
+continuously but reconcile `STATUS.md`/`ai-docs/` only at archive, preferably in
 a fresh session.

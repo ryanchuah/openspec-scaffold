@@ -11,6 +11,8 @@ metadata:
 
 Archive a completed change in the experimental workflow.
 
+**PHASE GATE — archive is the FINAL phase.** When archive completes (move + reconciliation + commit), you are DONE. Do NOT start any new work, propose a new change, or invoke any other workflow skill without an explicit user request. Show the completion summary and stop.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -44,7 +46,9 @@ Archive a completed change in the experimental workflow.
 
    Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete). By convention
+   `tasks.md` holds apply-phase work ONLY — verify/archive steps are not tracked there — so
+   any incomplete task means implementation work genuinely remains (not a pending doc/spec step).
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
@@ -105,7 +109,7 @@ Archive a completed change in the experimental workflow.
 
    - **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble
      paragraph (before any existing `## Latest change` or `## Prior change` heading).
-     Content: name the change, link the commit hash and archive path, summarize what shipped (from
+      Content: name the change, link the archive path, summarize what shipped (from
      proposal.md), include **concrete verify results from notes.md** — real numbers, sources, ratios,
      log lines actually eyeballed — not just "tests pass". Point to the decisions.md and
      open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of
@@ -126,7 +130,7 @@ Archive a completed change in the experimental workflow.
        alternative was rejected — including approaches investigated and rejected, with the reason,
        so they are not re-attempted. This is the durable "why" that prevents re-litigation.
      - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md).
-     - Include the commit hash, archive path, and new/modified capability spec paths.
+      - Include the archive path and new/modified capability spec paths.
    - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough
      to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
    - Mark superseded decisions with `~~strikethrough~~` — never delete them.
@@ -148,7 +152,13 @@ Archive a completed change in the experimental workflow.
    ```
    Reconcile project docs for <change-name> archive
    ```
-   This can be a separate commit or folded into the archive commit — but it must be committed.
+    This can be a separate commit or folded into the archive commit — but it must be committed.
+
+  **The commit hash chicken-and-egg:** The reconciliation commit produces the hash, so the hash
+  cannot be known at reconciliation time. Do NOT include commit hashes in reconciled doc entries —
+  reference the change by its archive path instead (the hash is one ``git log -- <archive-path>``
+  away). If a prior entry says "commit pending," it is a bug from a previous archive that should
+  be stamped retroactively (search and stamp the hash from ``git log -- <archive-path>``).
 
 7. **Display summary**
 
@@ -185,3 +195,4 @@ All artifacts complete. All tasks complete.
 - **Reconciliation is NOT optional** — it is the load-bearing half of archive. A directory move without
   reconciliation leaves a fresh session blind. If notes.md has no verify section, read proposal.md and
   design.md for source material. If all source files are absent, produce minimal entries noting the gap.
+- **PHASE GATE**: Archive is the final phase. When complete, show the summary and STOP. Do not start any new workflow without an explicit user request. This is a hard rule.

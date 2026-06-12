@@ -13,6 +13,8 @@ Enter explore mode. Think deeply. Visualize freely. Follow the conversation wher
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
+**PHASE GATE — do NOT auto-advance to proposing.** If exploration crystallizes into a concrete plan, tell the user they can say "propose a change for X" — but do NOT invoke the propose skill yourself. Wait for an explicit user request before moving to any other phase.
+
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ---
@@ -200,7 +202,7 @@ You: [reads codebase]
 
 **User is stuck mid-implementation:**
 ```
-User: /opsx:explore add-auth-system
+User: explore add-auth-system
       The OAuth integration is more complex than expected
 
 You: [reads change artifacts]
@@ -282,6 +284,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
 - **Don't auto-capture** - Offer to save insights, don't just do it
+- **PHASE GATE**: Do not auto-advance to proposing or implementing. If the user is ready, tell them what to say next and let them decide.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
 - **Do question assumptions** - Including the user's and your own

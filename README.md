@@ -1,8 +1,8 @@
 # openspec-scaffold
 
-Reusable project scaffold for OpenSpec projects, worked by **OpenCode (DeepSeek/GLM) and/or Claude Code**.
+Reusable project scaffold for OpenSpec projects, worked by **OpenCode (DeepSeek) and/or Claude Code**.
 
-Copy this repo to start a new project. Fill in the two placeholder files, run the per-project setup steps, and you're ready to use the full workflow with the apply-delegation and behavioral-verify hardening already in place.
+Copy this repo to start a new project. Fill in the placeholder files and you're ready to use the full workflow — the skills, agents, config, and planning dirs all ship ready, with the apply-delegation and behavioral-verify rules already baked into the skills. There is **no skill-generation or hardening step**.
 
 ---
 
@@ -15,11 +15,20 @@ Copy this repo to start a new project. Fill in the two placeholder files, run th
 | `ai-docs/decisions.md` | Durable architectural decisions and rationale |
 | `ai-docs/open-questions.md` | Unresolved questions and user-action items |
 | `openspec/config.yaml` | OpenSpec project config — injected into every artifact prompt; carries the `tasks` (delegate apply), `verify` (behavioral review), and `archive` (reconcile-as-handoff) rules |
-| `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash subagent for the apply phase (OpenCode) |
-| `.claude/agents/apply-executor.md` | Sonnet subagent for the apply phase (Claude Code) |
+| `openspec/changes/`, `openspec/specs/` | Planning home for in-flight changes and promoted capability specs (ship empty, with `.gitkeep`) |
+| `.claude/skills/openspec-*/` | The 8 workflow skills (explore/propose/apply/verify/archive/sync/bulk-archive/onboard) — pre-built and ready; loaded by both Claude Code and OpenCode |
+| `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash apply-phase executor (driven via `opencode run`) |
+| `.opencode/agents/openspec-reviewer.md` | DeepSeek V4 Pro reviewer agent — reviews proposal artifacts before implementation (project-local; driven via `opencode run`) |
+| `.claude/agents/apply-executor.md` | Sonnet subagent — apply-phase executor fallback under Claude Code |
 | `scripts/fetch_clean.py` | Token-efficient web content fetcher for research |
-| `scripts/harden_opsx.py` | Re-applies the propose/apply/verify hardening to the generated skill files (run after `openspec init`/`update`) |
 | `dev-requirements.txt` | Python deps for fetch_clean.py |
+
+> **Note — OpenCode runtime deps are intentionally not shipped.** `.opencode/` carries
+> only the agent definitions (`agents/*.md`). The OpenCode runtime artifacts
+> (`.opencode/node_modules/`, `package.json`, lockfiles) are **not** committed — they are
+> install artifacts that OpenCode regenerates locally. Do not add them to the scaffold. If
+> `opencode run --agent …` ever fails to load an agent because of missing deps, install
+> them in the project's `.opencode/` locally rather than committing them here.
 
 ---
 
@@ -34,11 +43,11 @@ npm install -g @fission-ai/openspec@latest
 # OpenCode: https://opencode.ai
 ```
 
-> **Version note.** This scaffold was built and tested against **OpenSpec 1.4.1**.
-> `scripts/harden_opsx.py` (Step 6) patches the *generated* `/opsx` command files, so it
-> is coupled to that template layout. If you install a newer OpenSpec, the harden script
-> will print a version-mismatch warning — re-check it before relying on the output (see
-> the note at the top of `scripts/harden_opsx.py`).
+> **Version note.** The shipped skills were authored against **OpenSpec 1.4.1** CLI
+> behavior (artifact templates, `openspec status --json`, `openspec new change`, etc.).
+> They are checked-in files — the CLI is used only to drive changes, not to regenerate
+> them. Do **not** run `openspec update`/`openspec init` over this repo; that overwrites
+> the rich skills with stock templates (see the caveat in per-project setup).
 
 ### 2. Set DeepSeek V4 Pro as the default model
 
@@ -51,96 +60,31 @@ Edit `~/.config/opencode/opencode.jsonc`:
 }
 ```
 
-### 3. Create the global GLM 5.1 reflection agent
-
-Create `~/.config/opencode/agents/openspec-reviewer.md`:
-
-```markdown
----
-name: openspec-reviewer
-description: OpenSpec Change Reviewer — called after proposal artifacts are created and before implementation begins. Reviews proposal.md, design.md, tasks.md, and specs for substantive defects that would cause implementation failure or rework. Invoked by the primary agent between the propose and apply phases.
-mode: subagent
-model: zai/glm-5.1
-permission:
-  read: allow
-  edit: deny
-  bash: deny
-  glob: allow
-  grep: allow
-  list: allow
-  webfetch: deny
-  websearch: deny
----
-
-You are an **OpenSpec Change Reviewer** — a critical thinker and auditor focused on substance.
-
-Your job is to review every artifact in an OpenSpec change before it moves to implementation,
-and find the issues that would actually cause implementation failure or rework.
-
-## Core Principle
-
-**Substantive defects** = issues that cause implementation to go in the wrong direction,
-miss critical scenarios, create contradictions, or make acceptance impossible.
-
-**Formatting issues** = style or wording differences that don't affect implementation quality.
-
-Find the former. Mention the latter only as optional suggestions at the end.
-
-## Severity levels
-
-- 🔴 **Blocking** — must be fixed before moving on
-- 🟡 **Should Fix** — important but not a hard blocker
-- 💡 **Suggestion** — optional improvement
-
-## Output format
-
-\`\`\`
-## Review Round N — [artifact reviewed]
-
-### Summary
-One paragraph: overall quality and the most important concern.
-
-### 🔴 Blocking Issues
-[numbered list — or "None"]
-
-### 🟡 Should Fix
-[numbered list — or "None"]
-
-### 💡 Suggestions
-[numbered list — or "None"]
-
-### Verdict
-PASS — ready to freeze and move to next artifact
-  or
-NEEDS REVISION — address 🔴 issues before proceeding
-\`\`\`
-
-## Rules
-
-- **Constructive and strict.** For every issue explain WHY it would cause rework.
-- **Specific.** Point to exact file locations, section names, task numbers.
-- **Context-aware.** Evaluate against existing specs in `openspec/specs/`.
-- **Read-only.** Never modify files. You surface problems; the primary agent fixes them.
-- **No rubber-stamping.** No vague feedback. No jumping to solutions.
-```
-
-### 4. Connect providers in OpenCode
+### 3. Connect DeepSeek in OpenCode
 
 Open OpenCode (`opencode .`) and run:
 
 ```
 /connect   → select DeepSeek    → paste API key from platform.deepseek.com
-/connect   → select ZhipuAI     → paste API key from bigmodel.cn
 ```
 
-### 5. (Claude Code) No extra global setup
+### 4. (Claude Code) Also needs OpenCode CLI + DeepSeek
 
-If you work the project with Claude Code instead of — or alongside — OpenCode, there is
-**no global model config to set**; Claude Code uses its own models. The project files
+Claude Code drives the apply-executor (`deepseek/deepseek-v4-flash`) and the reviewer
+(`deepseek/deepseek-v4-pro`) via `opencode run`. This means the Claude Code path
+requires the same prerequisites as the OpenCode path:
+
+- **OpenCode CLI** installed (step 1 above)
+- **DeepSeek API key** connected to OpenCode (step 3 above)
+
+No separate global model config is needed for Claude Code itself; the project files
 cover the Claude path: `AGENTS.md` + `openspec/config.yaml` + `.claude/agents/apply-executor.md`
-(Sonnet executor). The GLM `@openspec-reviewer` is **not** available under Claude Code —
-on the Claude path, the primary self-reviews each artifact with genuine rigor (actively
-hunting for defects, not rubber-stamping) before proceeding to the next.
+(Sonnet, used only as fallback) + `.opencode/agents/openspec-reviewer.md` and
+`.opencode/agents/apply-executor.md` (invoked via `opencode run`).
+
+> **Reviewer location.** The `@openspec-reviewer` agent is **project-local** at
+> `.opencode/agents/openspec-reviewer.md` (included in this scaffold). There is no
+> global reviewer to configure — it travels with each project.
 
 ---
 
@@ -154,7 +98,7 @@ cd ~/Projects/your-project-name
 rm -rf .git && git init
 ```
 
-### Step 2 — Fill in the two placeholder files
+### Step 2 — Fill in the placeholder files
 
 **`AGENTS.md`** — replace every `<FILL: ...>` with project-specific content:
 - Heading: project name
@@ -177,60 +121,35 @@ python3 -m venv .venv
 .venv/bin/pip install -r dev-requirements.txt
 ```
 
-### Step 4 — Initialise OpenSpec
+### Step 4 — That's it
 
-```bash
-openspec init
-# When prompted: select BOTH Claude Code and OpenCode (this scaffold supports both)
-# This generates the /opsx:* skills for each selected tool
-```
+The skills, agents, `openspec/config.yaml`, and the empty `openspec/changes/` +
+`openspec/specs/` planning dirs all ship with the scaffold, so there is **nothing to
+generate**. Just confirm the OpenSpec CLI is installed (`openspec --version`) and open
+your agent in the project directory — say "explore" to research a change, or "propose"
+to start one. The apply-delegation and behavioral-verify rules live directly in the
+skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically.
 
-### Step 5 — Enable the expanded workflow (adds /opsx:verify)
-
-```bash
-openspec config profile
-# Select: Workflows only → enable verify (and bulk-archive, onboard if wanted)
-
-openspec update
-# Regenerates the skill set with the full lineup
-```
-
-### Step 6 — Harden the generated skills
-
-`openspec init`/`update` regenerate the skill files from the **stock** OpenSpec
-templates, which do not enforce this scaffold's apply-delegation and behavioral-verify
-rules. Re-apply them (idempotent — safe to re-run after every `openspec update`):
-
-```bash
-python scripts/harden_opsx.py
-```
-
-This injects three blocks into the generated Claude Code command + skill files:
-- **propose**: sequential-creation mandate (finalize each artifact before starting the next)
-  and concrete-fix guidance (decisions must be specific choices, not paraphrases of the problem)
-- **verify**: mandatory behavioral-review preamble (read diffs, re-run full suite, eyeball
-  real output, re-delegate fixes)
-- **apply**: delegation override (delegate to the apply-executor; don't implement inline)
-
-The same apply/verify rules also live in `openspec/config.yaml` (which reaches OpenCode at
-runtime), so this step is belt-and-suspenders for the generated skill files.
-
-> Pinned to **OpenSpec 1.4.1** — the script warns at runtime if your installed version
-> differs, since the injection depends on the generated file layout.
-
-That's it. Open your agent in the project directory and start with `/opsx:explore` or `/opsx:propose`.
+> ⚠️ **Do NOT run `openspec init` or `openspec update` in this repo.** Those regenerate
+> the skill files from **stock** OpenSpec templates and overwrite the rich, pre-built
+> skills this scaffold ships (the detailed `opencode run` delegation, the live-probe and
+> behavioral-verify procedures, the failure ladders — all of which live in the skill
+> bodies). If you ever run them by accident, restore the skills with
+> `git checkout .claude/skills`. The CLI's *change* commands (`openspec new change`,
+> `openspec status`, `openspec archive`, `openspec validate`) are safe — they operate on
+> `openspec/`, not the skill files.
 
 ---
 
 ## Workflow reference
 
-| Command | When to use |
+| Invocation | When to use |
 |---|---|
-| `/opsx:explore` | Research and scope a change before proposing |
-| `/opsx:propose <name>` | Create and review artifacts (GLM reviewer runs automatically) |
-| `/opsx:apply` | Implement — delegates to the apply-executor (Sonnet subagent under Claude Code; `@apply-executor`/DeepSeek Flash under OpenCode) |
-| `/opsx:verify` | The orchestrator's own behavioral review — re-run suite, eyeball real output, re-delegate fixes (not a rubber-stamp) |
-| `/opsx:archive` | Close a finished change |
+| "explore \<topic\>" | Research and scope a change before proposing |
+| "propose \<name\>" | Create and review artifacts (reviewer runs automatically) |
+| "apply \<name\>" | Implement — delegates to the apply-executor (deepseek-v4-flash via `opencode run` under Claude Code; `@apply-executor`/DeepSeek Flash under OpenCode; Sonnet subagent as fallback) |
+| "verify \<name\>" | The orchestrator's own behavioral review — re-run suite, eyeball real output, re-delegate fixes (not a rubber-stamp) |
+| "archive \<name\>" | Close a finished change |
 | `openspec status` | See status of all open changes |
 | `openspec status --change <name>` | Status of a specific change |
 
@@ -241,34 +160,36 @@ That's it. Open your agent in the project directory and start with `/opsx:explor
 | Model | Role |
 |---|---|
 | DeepSeek V4 Pro | Primary agent — explore, propose, verify, archive |
-| GLM 5.1 | `@openspec-reviewer` — reviews proposal artifacts (called automatically during propose) |
+| DeepSeek V4 Pro (project-local `@openspec-reviewer`) | Reviewer — reviews proposal artifacts (called automatically during propose) |
 | DeepSeek V4 Flash | `@apply-executor` — implements tasks (called automatically during apply) |
 
 **Claude Code path:**
 
 | Model | Role |
 |---|---|
-| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive; self-reviews each artifact with rigorous defect-hunting before finalizing (GLM reviewer unavailable here) |
-| Sonnet | apply-executor (`.claude/agents/apply-executor.md`) — implements tasks during apply |
+| Opus / Sonnet (your choice) | Primary agent — explore, propose, verify, archive |
+| DeepSeek V4 Pro (via `opencode run`) | `@openspec-reviewer` — reviews proposal artifacts (project-local at `.opencode/agents/openspec-reviewer.md`; called automatically during propose) |
+| DeepSeek V4 Flash (via `opencode run`) | apply-executor — implements tasks during apply (primary path) |
+| Sonnet | apply-executor fallback and verify fix-executor fallback (`.claude/agents/apply-executor.md`) |
 
 ### Context and sessions
 
-- The primary session (DeepSeek V4 Pro) runs continuously across all `/opsx:*` commands.
+- The primary session runs continuously across all phases (explore → propose → verify → archive).
 - Each `@openspec-reviewer` call is an isolated child session — it starts fresh, reads the artifact files, returns its review, and exits.
-- Each `/opsx:apply` delegation is an isolated child session — it reads the frozen artifacts, implements, and returns a report.
-- Because the artifacts are on disk, you can safely split across sessions: end a session after `/opsx:propose` and start a fresh one for `/opsx:apply` without losing anything.
+- Each apply delegation is an isolated child session — it reads the frozen artifacts, implements, and returns a report.
+- Because the artifacts are on disk, you can safely split across sessions: end a session after propose and start a fresh one for apply without losing anything.
 - **Write discipline:** during a change, write its `openspec/changes/<name>/` files freely (check off `tasks.md`, jot `notes.md`). Do **not** edit `STATUS.md` / `ai-docs/` mid-change — that keeps the working context small.
-- **Archive = handoff:** `/opsx:archive` is where `STATUS.md` + `ai-docs/` get reconciled from the change dir. Run it in a **fresh session seeded from the change dir**, not the bloated working session — that keeps the multi-file reconciliation cheap.
+- **Archive = handoff:** archive is where `STATUS.md` + `ai-docs/` get reconciled from the change dir. Run it in a **fresh session seeded from the change dir**, not the bloated working session — that keeps the multi-file reconciliation cheap.
 
 ### Key files per change
 
 ```
 openspec/changes/<name>/
-  explore-brief.md   ← context from /opsx:explore (prevents context loss)
+  explore-brief.md   ← context from explore (prevents context loss)
   proposal.md        ← frozen after reviewer PASS
   design.md          ← frozen after reviewer PASS
   tasks.md           ← frozen after reviewer PASS
-  notes.md           ← change-local scratch: decisions, rejected approaches (replaces session-notes)
+  notes.md           ← change-local scratch: decisions, rejected approaches
   review-log.md      ← append-only log of all review rounds
 ```
 
@@ -279,5 +200,7 @@ openspec/changes/<name>/
 The following live in `~/.config/opencode/` and are shared across all projects. Do not copy them into individual project repos:
 
 - `opencode.jsonc` — default model
-- `agents/openspec-reviewer.md` — GLM 5.1 reflection agent
 - `AGENTS.md` — global fallback workflow instructions (project AGENTS.md takes precedence)
+
+> **Note:** The `@openspec-reviewer` agent is **project-local** (`.opencode/agents/openspec-reviewer.md`
+> in this scaffold) — it belongs in each project repo and does not go in `~/.config/opencode/`.

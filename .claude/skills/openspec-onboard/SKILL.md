@@ -25,7 +25,7 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 ```
 
 **If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to `/opsx:onboard`.
+> OpenSpec CLI is not installed. Install it first, then ask me to run onboard again.
 
 Stop here if not installed.
 
@@ -152,7 +152,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+The explore skill is for this kind of thinking—investigating before implementing. You can ask me to explore anytime you need to think through a problem.
 
 Now let's create a change to hold our work.
 ```
@@ -462,31 +462,32 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ---
 
-## Command Reference
+## OpenSpec Phases
+
+Skills are invoked by telling me what you want to do — no slash commands needed.
 
 **Core workflow:**
 
- | Command           | What it does                               |
- |-------------------|--------------------------------------------|
- | `/opsx:propose` | Create a change and generate all artifacts |
- | `/opsx:explore` | Think through problems before/during work  |
- | `/opsx:apply`   | Implement tasks from a change              |
- | `/opsx:archive` | Archive a completed change                 |
+ | Phase | What to say | What it does |
+ |-------|-------------|--------------|
+ | explore | "Explore X" | Think through problems before/during work |
+ | propose | "Propose a change for X" | Create a change and generate all artifacts |
+ | apply | "Apply [change-name]" | Implement tasks from a change |
+ | archive | "Archive [change-name]" | Archive a completed change |
 
-**Additional commands:**
+**Additional phases:**
 
- | Command            | What it does                                             |
- |--------------------|----------------------------------------------------------|
- | `/opsx:new`      | Start a new change, step through artifacts one at a time |
- | `/opsx:continue` | Continue working on an existing change                   |
- | `/opsx:ff`       | Fast-forward: create all artifacts at once               |
- | `/opsx:verify`   | Verify implementation matches artifacts                  |
+ | Phase | What to say | What it does |
+ |-------|-------------|--------------|
+ | verify | "Verify [change-name]" | Verify implementation matches artifacts |
+ | sync | "Sync specs for [change-name]" | Sync delta specs to main specs |
+ | bulk-archive | "Bulk archive" | Archive multiple completed changes at once |
 
 ---
 
 ## What's Next?
 
-Try `/opsx:propose` on something you actually want to build. You've got the rhythm now!
+Ask me to propose a change for something you actually want to build. You've got the rhythm now!
 ```
 
 ---
@@ -501,40 +502,41 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the `changeRoot` reported by `openspec status --change "<name>" --json`.
 
 To pick up where we left off later:
-- `/opsx:continue <name>` - Resume artifact creation
-- `/opsx:apply <name>` - Jump to implementation (if tasks exist)
+- "Continue the <name> change" — Resume artifact creation
+- "Apply <name>" — Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 ```
 
 Exit gracefully without pressure.
 
-### User just wants command reference
+### User just wants a quick reference
 
-If the user says they just want to see the commands or skip the tutorial:
+If the user says they just want to see the phases or skip the tutorial:
 
 ```
 ## OpenSpec Quick Reference
 
+Skills are invoked by telling me what you want to do.
+
 **Core workflow:**
 
- | Command                  | What it does                               |
- |--------------------------|--------------------------------------------|
- | `/opsx:propose <name>` | Create a change and generate all artifacts |
- | `/opsx:explore`        | Think through problems (no code changes)   |
- | `/opsx:apply <name>`   | Implement tasks                            |
- | `/opsx:archive <name>` | Archive when done                          |
+ | Phase | What to say | What it does |
+ |-------|-------------|--------------|
+ | explore | "Explore X" | Think through problems (no code changes) |
+ | propose | "Propose a change for X" | Create a change and generate all artifacts |
+ | apply | "Apply [change-name]" | Implement tasks |
+ | archive | "Archive [change-name]" | Archive when done |
 
-**Additional commands:**
+**Additional phases:**
 
- | Command                   | What it does                        |
- |---------------------------|-------------------------------------|
- | `/opsx:new <name>`      | Start a new change, step by step    |
- | `/opsx:continue <name>` | Continue an existing change         |
- | `/opsx:ff <name>`       | Fast-forward: all artifacts at once |
- | `/opsx:verify <name>`   | Verify implementation               |
+ | Phase | What to say | What it does |
+ |-------|-------------|--------------|
+ | verify | "Verify [change-name]" | Verify implementation |
+ | sync | "Sync specs for [change-name]" | Sync delta specs to main specs |
+ | bulk-archive | "Bulk archive" | Archive multiple changes at once |
 
-Try `/opsx:propose` to start your first change.
+Ask me to propose a change to start your first change.
 ```
 
 Exit gracefully.
