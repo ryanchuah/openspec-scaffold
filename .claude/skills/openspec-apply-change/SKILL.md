@@ -101,8 +101,12 @@ Implement tasks from an OpenSpec change.
          lands. Do not modify proposal.md or design.md. Do not commit. End with a brief \
          completion report (what was implemented, deviations, what the primary should \
          check at verify, and any external-API behavior you ASSUMED rather than verified)." \
-        > /tmp/apply-out.jsonl 2> /tmp/apply-err.log
+        > /tmp/apply-out.jsonl 2> /tmp/apply-err.log; \
+      echo "EXIT=$?" > /tmp/apply-out.exit
       ```
+
+      The trailing `echo "EXIT=$?" > /tmp/apply-out.exit` is the **completion
+      sentinel** — it is MANDATORY (completion detection below depends on it).
 
       - The OpenCode agent edits files in the **same working tree** as Claude,
         so its `tasks.md` check-offs and source edits land directly on disk —
@@ -116,11 +120,28 @@ Implement tasks from an OpenSpec change.
         (verified). **Never** `pkill opencode` / `killall opencode`: other opencode
         processes routinely run, and that would kill them too. Because a full
         `tasks.md` can run several minutes (and exceed the Bash tool's 600 000 ms
-        cap), run this Bash call with `run_in_background: true` and poll for
-        completion so the tool cap can't preempt the wrapper. If the wrapper fires
-        (exit 124, or 137 if SIGKILL was needed), the apply **timed out** — treat it
-        as an **operational crash** (step 4). For a very large change, prefer
-        splitting delegation across task ranges over raising the ceiling.
+        cap), run this Bash call with `run_in_background: true`.
+      - **Completion detection — poll for the EXIT-file sentinel, never process
+        liveness (binding).** Detect completion by `[ -f /tmp/apply-out.exit ]`
+        in a bounded sleep loop (or simply wait for the harness
+        background-completion notification); the `timeout` wrapper guarantees the
+        sentinel appears within ~N+grace seconds. **NEVER poll with
+        `until ! pgrep -f "<pattern>"`** — the pattern self-matches the poller's
+        own `bash -c` command line, so the loop exits while the run is still
+        going; and **never judge a run from a mid-execution jsonl snapshot** —
+        deepseek-v4-flash/pro can legitimately take >5 minutes and a short jsonl
+        mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows
+        nonzero (124 = timeout, 137 = SIGKILL), OR no opencode PID remains AND no
+        exit file was ever written (genuine truncation). A premature retry or
+        Sonnet fallback spawns CONCURRENT writers on the same working tree (this
+        has left duplicate work) — which is exactly why completion must be judged
+        from the sentinel, not guessed from process state. If the wrapper fires
+        (exit 124/137 in the exit file), the apply **timed out** — treat it as an
+        **operational crash** (step 4). For a very large change, prefer splitting
+        delegation across task ranges over raising the ceiling — gate each slice with
+        orchestrator-run targeted tests, and if your diff-read finds a defect in slice N,
+        fold the scoped fix as the **first item of slice N+1's brief** instead of a
+        separate fix run (sequential, no concurrent writers, one fewer invocation).
 
    2. **Assert the real executor ran** (do this BEFORE trusting output —
       `opencode run` exits 0 even on silent agent fallback):
@@ -145,9 +166,13 @@ Implement tasks from an OpenSpec change.
 
    4. **Failure ladder:**
 
-      - **Operational crash** → **retry the `opencode run` once**. Second crash →
-        spawn a **Sonnet subagent** apply-executor (`Agent` tool,
-        `subagent_type: "apply-executor"`) to finish `tasks.md`.
+      - **Operational crash** → **retry the `opencode run` once** (if it timed out,
+        retry with a **tight brief**: name the exact files to read, front-load the facts
+        you've already verified as given, and forbid codebase re-exploration — the wrapper
+        is a hard ceiling and the executor otherwise burns its budget re-deriving context
+        you already have). Second crash → spawn a **Sonnet subagent**
+        apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
+        `tasks.md`.
       - **Non-crash failure** → **immediately** spawn the Sonnet subagent
         apply-executor (no retry).
       - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
