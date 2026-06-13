@@ -78,9 +78,10 @@ All non-trivial feature work follows the OpenSpec lifecycle:
 5. **archive** — close the change; promote specs; reconcile project docs.
 
 **Phase-specific procedural rules live in the skill files, not here.**
-The agent invokes the appropriate skill (via the Skill tool) when a phase is entered.
-AGENTS.md carries only cross-cutting rules that span multiple phases.
-Skill files: `.claude/skills/openspec-*-change/SKILL.md`.
+The agent invokes the appropriate skill (via its harness's skill mechanism) when a phase is
+entered. AGENTS.md carries only cross-cutting rules that span multiple phases.
+Skill files: `.claude/skills/openspec-*/SKILL.md` (discovered by both harnesses — see
+`ai-docs/decisions.md`).
 
 > **Fast-track override:** A fast-track (tiered) workflow exists in
 > `ai-docs/fast-track-workflow.md` for high-capability agents the operator explicitly
@@ -126,7 +127,11 @@ Two tiers of state, with deliberately different write rules:
 - **Use subagents for independent work.** Parallelize independent research/extraction
   across subagents freely; prefer a cheaper model (e.g. Sonnet) for extraction. Always
   apply your own judgment to their reports — they have been wrong before — and have each
-  subagent checkpoint findings to disk so the work survives interruption.
+  subagent checkpoint findings to disk so the work survives interruption. **Do not fan out
+  cohesive, dependency-laden work** (e.g. the apply phase's sequential tasks): concurrent
+  writers on one working tree corrupt each other — which is exactly why apply uses a single
+  sequential executor. Delegation saves time/cost only when the subtasks are genuinely
+  independent.
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,
