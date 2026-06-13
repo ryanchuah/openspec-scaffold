@@ -121,7 +121,12 @@ Two tiers of state, with deliberately different write rules:
   restarts cold. Push deterministic heavy-lifting into re-runnable scripts that dump
   intermediate results to disk; checkpoint partial findings as each section completes;
   decompose long jobs into steps that each complete and return. Granularity buys
-  resumability.
+  resumability. Long-running batches must be resumable from a checkpoint and **stop on
+  first failure** rather than continuing with partial state.
+- **Use subagents for independent work.** Parallelize independent research/extraction
+  across subagents freely; prefer a cheaper model (e.g. Sonnet) for extraction. Always
+  apply your own judgment to their reports — they have been wrong before — and have each
+  subagent checkpoint findings to disk so the work survives interruption.
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,
@@ -130,9 +135,27 @@ Two tiers of state, with deliberately different write rules:
   "the system ran clean" are the only signals that matter; the sole exception is a
   *failing or newly-skipped* test, recorded as a note with its cause — never a passing
   tally.
+- **Commit to `main` by default; push only with authorization.** Unless a project
+  specifies otherwise, committing to `main` is fine without asking (in the small, tested
+  checkpoints described above) — but **push to the remote only with explicit operator
+  authorization**. Where a project uses a PR/merge flow, standing merge authorization is
+  scoped to a named queue and to PRs whose own CI run passed — report each merge.
 - **Design lives in two places by horizon:** *per-change* design → the change's
   `design.md`. *Multi-change / long-horizon roadmap* that doesn't map to a single change
   → `plans/`. Prune `plans/` as roadmap items become real changes.
+- **Guard destructive and external operations.** Never add a destructive operation
+  (SQL `TRUNCATE`/`DROP`/`DELETE`-without-filter, and the like) without an
+  input-confirmation guard. When running tests, blank or override external-service
+  credentials (email/SMS/payment) so the suite can't send real messages or incur charges.
+- **Mind data scale.** For data too large to fit in memory, stream or use SQL
+  set-operations — never load the full dataset into process memory. Before the first
+  at-scale run of changed data code, audit each step's input domain (bounded by this run,
+  or by all history?) and check for unbounded in-memory loads (e.g. `fetchall()` on an
+  unbounded query) — a green suite at fixture scale says nothing about production volume.
+- **One canonical file per category.** Keep exactly one source for each kind of thing
+  (dependency manifest, open-issues list, schema, etc.); when a duplicate drifts, delete
+  it rather than maintaining both. When a tracked item completes or becomes moot, close
+  it explicitly in its tracker rather than leaving a stale entry.
 - Plan non-trivial work before executing; ask the user when genuinely unsure rather than
   guessing.
 
