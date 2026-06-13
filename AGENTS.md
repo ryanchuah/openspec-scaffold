@@ -13,6 +13,10 @@
 > knowledge, and outside assumptions. If they conflict with the actual codebase,
 > **update the files** to reflect reality — do not silently override or ignore the gap.
 >
+> On resume specifically, sanity-check freshness before trusting `STATUS.md`: run
+> `git log --oneline -5` and confirm `STATUS.md` reflects those latest commits — if it
+> lags, reconcile it to reality first.
+>
 > **Treat this file as stable.** Edit it only to add durable project context any future
 > agent needs to orient — project purpose, constraints, process decisions. Current
 > status, recent progress, and changeable decisions belong in `STATUS.md`,
@@ -30,6 +34,12 @@ harness-private storage. Concretely, do **not** read from, write to, or rely on:
   files/directories (`.claude/`, `CLAUDE.md`, memory files, etc.) — record project
   knowledge in `ai-docs/` and the OpenSpec artifacts instead.
 - External repos or documentation you were not explicitly pointed to.
+
+**Exception — shared workflow definitions, not private state.** The tracked
+`.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
+upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
+auto-discovers `.claude/skills/` — see `ai-docs/decisions.md`). The rule above bans
+harness-*private* state/memory, not these shared, tracked definitions.
 
 Maintain this discipline for the **entire session**, not just at the start.
 

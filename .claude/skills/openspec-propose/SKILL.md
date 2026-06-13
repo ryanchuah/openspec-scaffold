@@ -52,7 +52,7 @@ I'll create artifacts with review:
 
 4. **Create artifacts in sequence until apply-ready**
 
-   Use the **TodoWrite tool** to track progress through the artifacts.
+   Track progress through the artifacts with a running checklist (your harness's todo tool, if it has one).
 
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
