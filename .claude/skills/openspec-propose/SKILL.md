@@ -157,9 +157,12 @@ I'll create artifacts with review:
              instead of "return value semantics differ" (paraphrase), decide:
              "returns 0 — zero Document rows inserted" (concrete). If a
              reviewer flags a gap, close it with a specific choice.
-           - If 🔴 blocking issues exist → fix them in the artifact → go back
-             to step 1 (max 3 reviewer passes total; escalate to user if
-             still unresolved after 3)
+           - If 🔴 blocking issues exist → fix them in the artifact → **go back
+             to step 1 for a fresh review pass. Re-review is MANDATORY.** A fix
+             you made to clear a 🔴 is never self-certified — you may NOT freeze
+             the artifact on the strength of your own fix. Only a review round
+             that comes back with zero 🔴 can freeze it. (Max 3 reviewer passes
+             total; escalate to user if still unresolved after 3.)
            - If no 🔴 issues → the artifact is frozen; move to the next one
 
         4. If `opencode run` fails (non-zero exit, timeout, or no review text):
@@ -178,8 +181,11 @@ I'll create artifacts with review:
          "return value semantics differ" (paraphrase), decide: "returns 0 —
          zero Document rows inserted" (concrete). If a reviewer flags a gap,
          close it with a specific choice.
-       - If 🔴 blocking issues exist → fix them in the artifact → re-review
-         (max 3 reviewer passes; escalate to user if still unresolved after 3)
+       - If 🔴 blocking issues exist → fix them in the artifact → **re-review is
+         MANDATORY** — invoke the reviewer again. A fix you made to clear a 🔴 is
+         never self-certified: you may NOT freeze the artifact on the strength of
+         your own fix. Only a review round that comes back with zero 🔴 can freeze
+         it. (Max 3 reviewer passes; escalate to user if still unresolved after 3.)
        - If no 🔴 issues → the artifact is frozen; move to the next one
        - **If the reviewer subagent fails for any reason** (model not found,
          provider error, timeout, etc.): do NOT self-review as a replacement.
