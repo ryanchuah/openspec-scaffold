@@ -27,19 +27,20 @@
 
 ## Cross-agent compatibility (load-bearing — do not weaken)
 
-This repo is worked by **both Claude and non-Claude agents** (OpenCode/DeepSeek).
+This repo is worked by **both Claude and non-Claude agents** (OpenCode/DeepSeek/GLM).
 For that to work, **all project state lives in tracked, agent-neutral files** — never in
 harness-private storage. Concretely, do **not** read from, write to, or rely on:
 - Global or cross-session memory, harness memory, or any assistant-specific config
-  files/directories (`.claude/`, `CLAUDE.md`, memory files, etc.) — record project
-  knowledge in `ai-docs/` and the OpenSpec artifacts instead.
+  files/directories (`.claude/settings.local.json`, `CLAUDE.md`, memory files, etc.) —
+  record project knowledge in `ai-docs/` and the OpenSpec artifacts instead.
 - External repos or documentation you were not explicitly pointed to.
 
 **Exception — shared workflow definitions, not private state.** The tracked
 `.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
 upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
 auto-discovers `.claude/skills/` — see `ai-docs/decisions.md`). The rule above bans
-harness-*private* state/memory, not these shared, tracked definitions.
+harness-*private* state/memory, not these shared, tracked definitions. (A tracked,
+hook-free `.claude/settings.json` permissions file is also fine.)
 
 Maintain this discipline for the **entire session**, not just at the start.
 
@@ -66,15 +67,21 @@ anything the agent must never violate — or remove this section if none.>
   — do not over-delegate trivia.
 - **The apply-executor is a role, fillable by either agent family:** under Claude, the
   apply-executor is **deepseek-v4-flash driven via `opencode run`**, with a **Sonnet
-  subagent as fallback** (see the apply skill for the exact failure ladder); under
+  subagent as fallback** (see the apply/verify skills for the exact failure ladder); under
   OpenCode, it is **DeepSeek V4 Flash** (`@apply-executor`). Either way it implements
   `tasks.md` **sequentially**, top to bottom, checking off each task as it lands.
-- **The `@openspec-reviewer` (`deepseek/deepseek-v4-pro`)** is a read-only auditor
-  invoked automatically during **propose** to review artifacts *before* implementation.
-  It surfaces defects; it never edits. Under Claude Code, it is invoked via
-  `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro` (the agent
-  definition lives at `.opencode/agents/openspec-reviewer.md`). Under OpenCode, it is
-  called via the Task tool with `subagent_type: "openspec-reviewer"`.
+- **The archive-executor is a role for the archive phase:** under Claude it is **deepseek-v4-pro
+  driven via `opencode run`**, with a **Sonnet subagent as fallback**; under OpenCode it is
+  **DeepSeek V4 Pro** (`@archive-executor`). It moves the change dir, syncs delta specs, and
+  reconciles `STATUS.md` / `ai-docs/decisions.md` / `ai-docs/open-questions.md` into a durable
+  handoff. Reconciliation is judgment-heavy, so it runs on the **pro** tier — unlike the
+  mechanical apply-executor (flash).
+- **The `@openspec-reviewer` (deepseek-v4-pro)** is a read-only auditor invoked automatically
+  during **propose** to review artifacts *before* implementation. It surfaces defects;
+  it never edits. Under Claude Code it is invoked via
+  `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro`
+  (`.opencode/agents/openspec-reviewer.md`); under OpenCode via the Task tool with
+  `subagent_type: "openspec-reviewer"`.
 
 ## OpenSpec workflow
 
@@ -93,12 +100,30 @@ entered. AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*/SKILL.md` (discovered by both harnesses — see
 `ai-docs/decisions.md`).
 
-> **Fast-track override:** A fast-track (tiered) workflow exists in
-> `ai-docs/fast-track-workflow.md` for high-capability agents the operator explicitly
-> trusts. **Do NOT use it unless the operator has explicitly granted you fast-track
-> authority** — otherwise follow the normal workflow described here and in the skills.
+> **Fast-track override:** A fast-track workflow exists in `ai-docs/fast-track-workflow.md`
+> for high-capability agents the operator explicitly trusts — it lets you proceed
+> **autonomously**, working the normal interactive checkpoints without pausing for
+> confirmation. **Do NOT use it unless the operator has explicitly granted you fast-track
+> authority** for this session or task — otherwise follow the normal, phase-gated workflow
+> here and in the skills. (Tiering, below, is standing and applies regardless.)
 
 OpenSpec artifacts live in `openspec/changes/<name>/`.
+
+## Change tiers
+
+Scale process weight to risk; classify every change yourself and **state the tier** (the operator
+initiates tier-2/tier-3 lifecycles):
+
+- **SMALL** — skip the full OpenSpec lifecycle, but still: (1) write a plan checkpointed to a standard
+  dir (the change dir or `plans/`), (2) delegate execution to **deepseek-v4-flash** via
+  `opencode run --agent apply-executor`, (3) do your own verification.
+- **MEDIUM** — run the OpenSpec lifecycle, except **propose** emits only `tasks.md`, reviewed by
+  **deepseek-v4-pro** before freeze; change-specific acceptance criteria go in the change's `notes.md`.
+- **COMPLEX / UNCERTAIN** — full OpenSpec process (proposal + design + tasks, reviewed).
+
+You never write implementation code beyond a single disclosed one-line exception. **Pushes to `main`
+require explicit operator authorization.** Exact opencode invocations and the crash→retry→Sonnet
+failure ladder live in `.claude/skills/openspec-apply-change/SKILL.md`.
 
 ## State, write discipline, and the archive-as-handoff rule
 
@@ -158,6 +183,10 @@ Two tiers of state, with deliberately different write rules:
 - **Design lives in two places by horizon:** *per-change* design → the change's
   `design.md`. *Multi-change / long-horizon roadmap* that doesn't map to a single change
   → `plans/`. Prune `plans/` as roadmap items become real changes.
+- **Authored deliverables go only to the standard agent-neutral dirs** — `plans/` (roadmap/
+  design direction), `ai-docs/decisions.md` (ratified decisions), `ai-docs/open-questions.md`
+  (open follow-ons), `ai-docs/archive/` (historical/process records), `openspec/changes/<name>/`
+  (change artifacts). **Never** write deliverables into a harness-specific directory.
 - **Guard destructive and external operations.** Never add a destructive operation
   (SQL `TRUNCATE`/`DROP`/`DELETE`-without-filter, and the like) without an
   input-confirmation guard. When running tests, blank or override external-service
@@ -182,6 +211,10 @@ Two tiers of state, with deliberately different write rules:
 **(b) Full-page content — use `fetch_clean`** (`python scripts/fetch_clean.py <url>`).
 Use built-in WebFetch only for a targeted single-fact answer.
 **(c) Be targeted** — only fetch what you will cite; checkpoint findings to disk.
+**(d) Never call the built-in `WebSearch` tool from the main thread.** Route ALL web research
+through subagents that use `scripts/fetch_clean.py` (discover via a fetched search URL, then
+fetch the chosen pages). This keeps the orchestrator context clean and lets research run in
+parallel and checkpoint to disk; the orchestrator applies its own judgment to subagent reports.
 
 ## After reading this file
 Acknowledge four things before acting: (1) your role as orchestrator/reviewer who runs
