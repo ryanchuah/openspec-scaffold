@@ -20,6 +20,7 @@ Copy this repo to start a new project. Fill in the placeholder files and you're 
 | `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash apply-phase executor (driven via `opencode run`) |
 | `.opencode/agents/archive-executor.md` | DeepSeek V4 Pro archive executor — moves change dir, syncs delta specs, reconciles project docs (driven via `opencode run`) |
 | `.opencode/agents/openspec-reviewer.md` | DeepSeek V4 Pro reviewer agent — reviews proposal artifacts before implementation (project-local; driven via `opencode run`) |
+| `.opencode/agents/openspec-verifier.md` | DeepSeek V4 Flash verifier agent — runs independent multi-model verification passes during verify (read diffs, re-run suite, eyeball output); read-only on files; invoked via `opencode run` under Claude Code or `subagent_type:` under OpenCode |
 | `.claude/agents/apply-executor.md` | Sonnet subagent — apply-phase executor fallback under Claude Code |
 | `.claude/agents/archive-executor.md` | Sonnet subagent — archive-executor fallback under Claude Code |
 | `scripts/fetch_clean.py` | Token-efficient web content fetcher for research |
@@ -150,7 +151,7 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 | "explore \<topic\>" | Research and scope a change before proposing |
 | "propose \<name\>" | Create and review artifacts (reviewer runs automatically) |
 | "apply \<name\>" | Implement — delegates to the apply-executor (deepseek-v4-flash via `opencode run` under Claude Code; `@apply-executor`/DeepSeek Flash under OpenCode; Sonnet subagent as fallback) |
-| "verify \<name\>" | The orchestrator's own behavioral review — re-run suite, eyeball real output, re-delegate fixes (not a rubber-stamp) |
+| "verify \<name\>" | The orchestrator's own behavioral review — re-run suite, eyeball real output, re-delegate fixes — followed by independent multi-model verification passes (Claude: pro then flash; OpenCode: flash only) as hard gates before the checklist |
 | "archive \<name\>" | Close a finished change |
 | `openspec status` | See status of all open changes |
 | `openspec status --change <name>` | Status of a specific change |
@@ -165,6 +166,7 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 | DeepSeek V4 Pro (project-local `@openspec-reviewer`) | Reviewer — reviews proposal artifacts (called automatically during propose) |
 | DeepSeek V4 Flash | `@apply-executor` — implements tasks (called automatically during apply) |
 | DeepSeek V4 Pro (`@archive-executor`) | Archive executor — moves change dir, syncs delta specs, reconciles project docs (called automatically during archive; primary reviews and commits) |
+| DeepSeek V4 Flash (`openspec-verifier`, project-local) | Verifier — runs independent multi-model verification passes during verify (read diffs, re-run suite, eyeball output); read-only on files; invoked via `subagent_type: openspec-verifier` (called automatically after the orchestrator's self-review) |
 
 **Claude Code path:**
 
@@ -174,6 +176,8 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 | DeepSeek V4 Pro (via `opencode run`) | `@openspec-reviewer` — reviews proposal artifacts (project-local at `.opencode/agents/openspec-reviewer.md`; called automatically during propose) |
 | DeepSeek V4 Flash (via `opencode run`) | apply-executor — implements tasks during apply (primary path) |
 | DeepSeek V4 Pro (via `opencode run`) | archive-executor — moves change dir, syncs delta specs, reconciles project docs during archive (primary path; primary reviews and commits) |
+| DeepSeek V4 Pro (via `opencode run`) | verifier — first independent verification pass (pro tier) during verify; invoked automatically after the orchestrator's self-review |
+| DeepSeek V4 Flash (via `opencode run`) | verifier — second independent verification pass (flash tier) during verify; runs after the pro pass under Claude Code |
 | Sonnet | apply-executor fallback and verify fix-executor fallback (`.claude/agents/apply-executor.md`); archive-executor fallback (`.claude/agents/archive-executor.md`) |
 
 ### Context and sessions

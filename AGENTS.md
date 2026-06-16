@@ -86,6 +86,19 @@ anything the agent must never violate — or remove this section if none.>
   `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro`
   (`.opencode/agents/openspec-reviewer.md`); under OpenCode via the Task tool with
   `subagent_type: "openspec-reviewer"`.
+- **The `openspec-verifier` (deepseek, read-only, bash-capable)** is an independent
+  multi-model verification pass invoked during **verify**, layered after the orchestrator's
+  self-review and before the artifact/spec mapping checklist. It runs the same behavioral
+  review (read diffs, re-run the full suite, eyeball real output, run live smoke) but is
+  **read-only on files** (`bash: allow`, `edit: deny`) — it reports defects, never fixes
+  them. It emits a machine-discriminable verdict the orchestrator judges from disk. The
+  platform-dependent pass chain is: **Claude Code** orchestrator → self → pro → flash;
+  **OpenCode** orchestrator → self → flash only (an OpenCode orchestrator already runs
+  deepseek-v4-pro, so only the cheaper flash tier adds independent model diversity).
+  Under Claude Code the verifier is invoked via hardened `opencode run --agent openspec-verifier`
+  (two invocations: `--model deepseek/deepseek-v4-pro` then `--model deepseek/deepseek-v4-flash`);
+  under OpenCode via the Task tool with `subagent_type: openspec-verifier` (runs the frontmatter
+  default flash, no override).
 
 ## OpenSpec workflow
 
@@ -95,7 +108,7 @@ All non-trivial feature work follows the OpenSpec lifecycle:
 2. **propose** — generate proposal, design, tasks; `@openspec-reviewer` audits each
    before freeze.
 3. **apply** — delegate implementation to the apply-executor.
-4. **verify** — deep behavioral review by the orchestrator.
+4. **verify** — deep behavioral review by the orchestrator, followed by independent multi-model verification passes (the `openspec-verifier`) as hard gates before the artifact/spec mapping checks.
 5. **archive** — close the change; promote specs; reconcile project docs.
 
 **Phase-specific procedural rules live in the skill files, not here.**
@@ -227,7 +240,9 @@ parallel and checkpoint to disk; the orchestrator applies its own judgment to su
 ## After reading this file
 Acknowledge four things before acting: (1) your role as orchestrator/reviewer who runs
 the OpenSpec lifecycle and does not implement; (2) that apply is delegated to a
-sequential apply-executor and verify is *your* deep behavioral review; (3) that when
+sequential apply-executor and verify is *your* deep behavioral review, followed
+by independent multi-model verification passes (the `openspec-verifier`) as hard
+gates before the artifact/spec mapping checks; (3) that when
 verify finds a bug you diagnose and scope it, then re-delegate the fix to a fresh
 executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
 trivial typo-level changes inline); (4) that you write the change dir

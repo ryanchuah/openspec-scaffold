@@ -33,6 +33,75 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 >
 > Only after this behavioral review passes, proceed to the artifact/spec mapping checks below and emit the report. If the behavioral review fails, the verdict is **NEEDS REVISION** regardless of the checklist.
 
+### Multi-model passes (independent verification gates)
+
+After your own self-review (above) and **before** the artifact/spec mapping checklist Steps below, you MUST run independent multi-model verification passes. These passes are additional independent confirmations; they do NOT replace your own self-review — the "do not delegate this" rule above still governs the self-review.
+
+The pass sequence depends on which platform you are running on:
+
+- **Claude Code orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-pro` verifier pass → `deepseek/deepseek-v4-flash` verifier pass. Three independent views — a Claude (Anthropic) model gains maximum diversity from both deepseek tiers.
+- **OpenCode orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-flash` verifier pass only. An OpenCode orchestrator already runs on deepseek-v4-pro, so a second pro pass adds little model diversity; the cheaper flash tier provides the independent second pair of eyes.
+
+The verifier agent is defined in `.opencode/agents/openspec-verifier.md` (default `model: deepseek/deepseek-v4-flash`; `bash: allow`, `edit: deny`). It runs the same behavioral review you performed in the self-review (read diffs, re-run the full suite, eyeball real output, run live smoke for external-API changes), but it **never modifies files** — it reports defects and emits a machine-discriminable verdict block of this form:
+
+```
+## Verify Pass — <model-id>
+VERDICT: READY            # or exactly: VERDICT: NEEDS REVISION
+### Defects
+- 🔴 <file:line> — <what is wrong and the evidence>     # `- None` when clean; the section is always present
+```
+
+#### Claude Code invocation (two passes)
+
+For each pass, invoke the verifier via a hardened `opencode run` (the same EXIT-sentinel/background pattern used for the fix-executor invocation):
+
+**Pro pass:**
+```bash
+timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
+  --model deepseek/deepseek-v4-pro --format json "<the fixed verifier prompt from design D5>" \
+  > /tmp/verify-pro-out.jsonl 2> /tmp/verify-pro-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-pro-out.exit
+```
+
+**Flash pass:**
+```bash
+timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
+  --model deepseek/deepseek-v4-flash --format json "<the fixed verifier prompt from design D5>" \
+  > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
+```
+
+Both invocations close stdin (`< /dev/null`), pass `--dir <repoRoot>`, and use the EXIT-file sentinel for completion detection (same pattern as the fix-executor invocation above). See the `noninteractive-delegation-safety` spec for the rationale.
+
+#### OpenCode invocation (one flash pass)
+
+Under OpenCode, spawn the verifier in-process via the Task tool — it runs the frontmatter default `deepseek/deepseek-v4-flash` with no model override:
+
+```
+subagent_type: openspec-verifier
+```
+
+Because this is an in-process Task-tool spawn (not `opencode run`), it is **not** subject to the `< /dev/null` / `--dir` hardening — there is no separate process and no TTY-stdin to block.
+
+#### Assert the real verifier ran
+
+Before trusting any pass output, you MUST confirm the real verifier ran and produced usable output:
+
+- **For the Claude Code `opencode run` passes:** grep stderr for `Falling back to default agent`. If found, do NOT use the output — escalate (the invocation silently fell back to a different model). Then confirm the extracted output contains a `## Verify Pass` heading AND a `VERDICT:` line.
+- **For the OpenCode Task-tool path** (in-process; no `opencode run` stderr to grep): confirm the extracted text contains a `## Verify Pass` heading AND a `VERDICT:` line; there is no stderr to grep for the fallback warning.
+
+#### Judge findings from disk
+
+Treat every verifier finding as a **lead to confirm from disk**, not gospel. Use `git diff` and re-run tests/output to reproduce each reported defect. You MAY overrule a demonstrably false finding, but you MUST record the rationale in `review-log.md` / `notes.md` (mirrors the propose "reviewer can be wrong" rule).
+
+#### Gate semantics and recovery
+
+Each pass is a **hard gate**. When a pass returns `VERDICT: NEEDS REVISION` and you confirm the defect from disk:
+
+1. **Fix** via the **existing** defect re-delegation path already documented in this skill (re-delegate a self-contained fix-spec to the apply-executor; one attempt; escalate to a Sonnet subagent on operational or quality failure; disclose if Sonnet was used).
+2. **Re-run the pass that failed and every pass after it**, in sequence — never the passes before it. (For an OpenCode orchestrator with only one delegated pass, re-run only that pass. For a Claude Code orchestrator, if the pro pass fails: fix, re-run pro, then re-run flash. If the flash pass fails: fix, re-run flash only.)
+3. **Loop bound:** if the **same** pass returns NEEDS REVISION across **3** fix cycles without clearing, STOP and escalate to the operator with the accumulated verdicts.
+
+If your own self-review (pass 1, above) finds a defect, follow the existing behavioral-review-fails path: fix, re-run from pass 1 (the self-review).
+
 **PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, you MUST NOT automatically proceed to archive. Tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Never invoke archive without an explicit user request. Crossing phases without permission is a hard rule.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
@@ -140,6 +209,10 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
 8. **Generate Verification Report**
 
+   **Multi-model passes**:
+   - After the self-review and any delegated verifier passes (see the multi-model passes section above), record each pass's verdict in the report: pass number, model that ran it, verdict, and which defects (if any) it surfaced.
+   - For any pass that was re-run after a fix, record BOTH the original NEEDS REVISION verdict and the final READY verdict.
+
    **Summary Scorecard**:
    ```
    ## Verification Report: <change-name>
@@ -187,7 +260,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
       surfaced the expected <terms>"). The eyeball itself stays mandatory; only the figures are
       barred — **never** test, doc, or row counts, not even as history (see AGENTS.md);
    3. any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs trivial
-      inline);
+      inline), attributed to the pass/model that surfaced it (self-review, pro pass, or flash pass);
    4. any **as-built delta discovered during verify** that the artifacts don't already record;
    5. **forward-looking items for the project docs — the load-bearing, easily-missed one.** Enumerate
       every **open question, tuning item, deferred-scope decision, follow-on, or monitored risk** that
