@@ -87,26 +87,30 @@ Implement tasks from an OpenSpec change.
    Do **not** implement tasks yourself, and do **not** spawn a Sonnet subagent as
    the default — use the deepseek executor first.
 
-   1. **Invoke the executor** (substitute real `<changeRoot>` paths), capturing
-      stdout and stderr to separate files:
+    1. **Invoke the executor** (substitute real `<changeRoot>` paths), capturing
+       stdout and stderr to separate files.
+       `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
+       prompt cannot hang the call — see the `noninteractive-delegation-safety`
+       capability spec for the full rationale.
 
-      ```bash
-      timeout -k 30 600 opencode run \
-        --agent apply-executor \
-        --model deepseek/deepseek-v4-flash \
-        --format json \
-        "Implement the OpenSpec change in <changeRoot>. Work <changeRoot>/tasks.md \
-         sequentially, top to bottom, following <changeRoot>/design.md and \
-         <changeRoot>/proposal.md. Check off each task ([ ] -> [x]) in tasks.md as it \
-         lands. Do not modify proposal.md or design.md. Do not commit. End with a brief \
-         completion report (what was implemented, deviations, what the primary should \
-         check at verify, and any external-API behavior you ASSUMED rather than verified)." \
-        > /tmp/apply-out.jsonl 2> /tmp/apply-err.log; \
-      echo "EXIT=$?" > /tmp/apply-out.exit
-      ```
+       ```bash
+       timeout -k 30 600 opencode run \
+         --dir <repoRoot> \
+         --agent apply-executor \
+         --model deepseek/deepseek-v4-flash \
+         --format json \
+         "Implement the OpenSpec change in <changeRoot>. Work <changeRoot>/tasks.md \
+          sequentially, top to bottom, following <changeRoot>/design.md and \
+          <changeRoot>/proposal.md. Check off each task ([ ] -> [x]) in tasks.md as it \
+          lands. Do not modify proposal.md or design.md. Do not commit. End with a brief \
+          completion report (what was implemented, deviations, what the primary should \
+          check at verify, and any external-API behavior you ASSUMED rather than verified)." \
+         > /tmp/apply-out.jsonl 2> /tmp/apply-err.log < /dev/null; \
+       echo "EXIT=$?" > /tmp/apply-out.exit
+       ```
 
-      The trailing `echo "EXIT=$?" > /tmp/apply-out.exit` is the **completion
-      sentinel** — it is MANDATORY (completion detection below depends on it).
+       The trailing `echo "EXIT=$?" > /tmp/apply-out.exit` is the **completion
+       sentinel** — it is MANDATORY (completion detection below depends on it).
 
       - The OpenCode agent edits files in the **same working tree** as Claude,
         so its `tasks.md` check-offs and source edits land directly on disk —

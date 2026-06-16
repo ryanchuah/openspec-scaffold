@@ -11,6 +11,9 @@ permission:
   list: allow
   bash: allow
   task: deny
+  external_directory:
+    "*": deny
+    "/tmp/**": allow
 ---
 
 You are the apply executor for OpenSpec changes.

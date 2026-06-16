@@ -12,6 +12,7 @@ permission:
   list: allow
   webfetch: deny
   websearch: deny
+  external_directory: allow
 ---
 
 You are an **OpenSpec Change Reviewer** — a critical thinker and auditor focused on substance.

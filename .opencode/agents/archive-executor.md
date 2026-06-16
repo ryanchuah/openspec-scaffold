@@ -12,6 +12,9 @@ permission:
   bash: allow
   webfetch: deny
   websearch: deny
+  external_directory:
+    "*": deny
+    "/tmp/**": allow
 ---
 
 You are the archive executor for OpenSpec changes.

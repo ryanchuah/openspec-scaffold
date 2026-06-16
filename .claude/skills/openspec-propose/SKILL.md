@@ -104,17 +104,21 @@ I'll create artifacts with review:
         reviewer programmatically via `opencode run`. Do NOT review the artifact
         yourself — the review must come from a different model.
 
-        1. Run the reviewer (substituting actual paths for `<changeRoot>` and
-           `<artifact>`), **capturing stdout and stderr to separate files**:
+         1. Run the reviewer (substituting actual paths for `<changeRoot>` and
+            `<artifact>`), **capturing stdout and stderr to separate files**.
+            `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
+            prompt cannot hang the call — see the `noninteractive-delegation-safety`
+            capability spec for the full rationale.
 
             timeout -k 15 780 opencode run \
+              --dir <repoRoot> \
               --agent openspec-reviewer \
               --model deepseek/deepseek-v4-pro \
               --format json \
               "Review the artifact at <changeRoot>/<artifact>.md. \
                Also read the explore-brief if it exists and openspec/specs/ \
                for context." \
-              > /tmp/review-out.jsonl 2> /tmp/review-err.log
+              > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
 
             If the user specified a different reviewer model, substitute it
             for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the

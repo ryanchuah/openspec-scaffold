@@ -127,28 +127,32 @@ Archive a completed change in the experimental workflow.
    Do **not** perform the archive yourself, and do **not** spawn a Sonnet subagent as
    the default — use the deepseek executor first.
 
-   1. **Invoke the executor** (substitute real paths and the sync decision), capturing
-      stdout and stderr to separate files:
+    1. **Invoke the executor** (substitute real paths and the sync decision), capturing
+       stdout and stderr to separate files.
+       `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
+       prompt cannot hang the call — see the `noninteractive-delegation-safety`
+       capability spec for the full rationale.
 
-      ```bash
-      timeout -k 30 600 opencode run \
-        --agent archive-executor \
-        --model deepseek/deepseek-v4-pro \
-        --format json \
-        "Archive the OpenSpec change. changeRoot: <changeRoot>. \
-         archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
-         Delta spec sync requested: <yes/no>. \
-         Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
-         Move the change dir to the archive path, sync delta specs if requested, \
-         and reconcile the three project docs from the archived notes.md / \
-         proposal.md / design.md. Do not commit. End with a brief completion \
-         report (what was moved, which specs synced, which docs reconciled, \
-         anything the primary should double-check)." \
-        > /tmp/archive-out.jsonl 2> /tmp/archive-err.log
-      ```
+       ```bash
+       timeout -k 30 600 opencode run \
+         --dir <repoRoot> \
+         --agent archive-executor \
+         --model deepseek/deepseek-v4-pro \
+         --format json \
+         "Archive the OpenSpec change. changeRoot: <changeRoot>. \
+          archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
+          Delta spec sync requested: <yes/no>. \
+          Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
+          Move the change dir to the archive path, sync delta specs if requested, \
+          and reconcile the three project docs from the archived notes.md / \
+          proposal.md / design.md. Do not commit. End with a brief completion \
+          report (what was moved, which specs synced, which docs reconciled, \
+          anything the primary should double-check)." \
+         > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null
+       ```
 
-      - The OpenCode agent edits files in the **same working tree** as Claude, so
-        its moves and doc edits land directly on disk — verify by reading back.
+       - The OpenCode agent edits files in the **same working tree** as Claude, so
+         its moves and doc edits land directly on disk — verify by reading back.
       - **Bounded wait + surgical kill.** The `timeout -k 30 600` wrapper caps the
         wait at 10 minutes (TERM at the deadline, then SIGKILL 30s later). It kills
         **only the opencode process this command launched** — other concurrent
