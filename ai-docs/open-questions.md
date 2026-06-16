@@ -16,3 +16,16 @@ Delegated-work governance hardened: deterministic commit-test-gate, apply-execut
 - **OpenCode-side gate plugin (v2)** still deferred — OpenCode-driven commits are NOT gated. Also recorded in design Non-Goals and in decisions.md "Scaffold ships the commit-test-gate hook" (residual gap).
 - **Reviewer incremental-emission quality** — observe the first few real reviews after this change; revert the prompt nudge if any review drops to zero findings against the non-incremental baseline or the reviewer reports format confusion.
 - **Propagation to extrends + psc-monitor** — this hardening is inert until propagated (the scaffold gate is a no-op locally since there is no `scripts/test-cmd`). The forthcoming single-source change will carry the shared files.
+
+## harden-instruction-surface follow-ons (shipped 2026-06-16)
+
+Instruction-surface audit reconciled six stale/hazardous first-load instruction sites and added a tier-confirmation gate: non-fast-track agents must now confirm the change tier and plan with the operator before executing. The fast-track failure ladder was aligned with the declared-blocker triage routing, the "hook-free" claim about `.claude/settings.json` was corrected, the orchestrator's verify re-run was single-sourced from `scripts/test-cmd`, the research-fetch convention was completed, and the onboard tutorial was fixed. Docs/instruction-only change — no code, no test suite in scaffold, ran clean. Full decision in `ai-docs/decisions.md` ("Tier-confirmation gate for non-fast-track agents") and "Scaffold ships the commit-test-gate hook" (post-hoc note). Archive: `openspec/changes/archive/2026-06-16-harden-instruction-surface`. New spec: `openspec/specs/tier-confirmation-gate/spec.md`. Modified specs: `openspec/specs/apply-convergence-guard/spec.md`, `openspec/specs/commit-test-gate/spec.md`.
+
+- **Propagation backlog (HIGH).** This change is scaffold-only. `extrends` and `psc-monitor` still carry the identical stale text (hook-free line, fast-track ladder, hard-coded pytest, missing web rule (d), onboard Verify checkbox, "~2 lines"). There are now TWO scaffold changes awaiting propagation — `harden-delegation` and `harden-instruction-surface` — both ride on the single-source "change 2".
+- **Web-research convention still duplicated (MED).** This change only made the two copies agree (added rule (d) to `research-fetch-convention.md`); AGENTS.md §9 and `research-fetch-convention.md` are still two sources of the same rules. Full single-sourcing deferred to change 2.
+- **Deferred audit findings from harden-instruction-surface (MED), not addressed here:**
+  - War-story narrative duplicated ~3× across instruction surfaces.
+  - Model-assignment matrix duplicated ~5×.
+  - The apply "Completion detection" block and the verify MANDATORY block bury the happy path under stacked exceptions (convolution, "M7").
+  - Onboard kept as a simplified teaching path (design D6b) rather than fully delegated, by deliberate decision.
+- **Reference-rot watch (LOW).** `fast-track-workflow.md` now references the apply skill's ladder by path (`.claude/skills/openspec-apply-change/SKILL.md`); a rename/move of that skill must update this reference. (Recorded in design Risks.)
