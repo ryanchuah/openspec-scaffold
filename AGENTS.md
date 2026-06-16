@@ -39,8 +39,12 @@ harness-private storage. Concretely, do **not** read from, write to, or rely on:
 `.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
 upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
 auto-discovers `.claude/skills/` — see `ai-docs/decisions.md`). The rule above bans
-harness-*private* state/memory, not these shared, tracked definitions. (A tracked,
-hook-free `.claude/settings.json` permissions file is also fine.)
+harness-*private* state/memory, not these shared, tracked definitions. (The sole
+carve-out is the shipped commit-test-gate `PreToolUse` hook in `.claude/settings.json`
+— verified present and git-tracked — which runs the tracked, agent-neutral
+`scripts/test-gate.sh`; see the commit-test-gate hook carve-out decision in
+`ai-docs/decisions.md`. This is a Claude-only, deliberate exception and does not weaken
+the harness-private-state ban above.)
 
 Maintain this discipline for the **entire session**, not just at the start.
 
@@ -111,8 +115,12 @@ OpenSpec artifacts live in `openspec/changes/<name>/`.
 
 ## Change tiers
 
-Scale process weight to risk; classify every change yourself and **state the tier** (the operator
-initiates tier-2/tier-3 lifecycles):
+An agent WITHOUT an explicit fast-track/autonomy grant MUST propose its tier together with a plan
+and obtain operator confirmation BEFORE beginning execution (delegating apply, editing
+implementation code, or mutating project state) — producing the plan is NOT gated. With an explicit
+fast-track grant, self-classify and proceed per `ai-docs/fast-track-workflow.md`. If the operator
+is unavailable, do NOT execute — report the proposed tier and plan and wait. Scale process weight
+to risk:
 
 - **SMALL** — skip the full OpenSpec lifecycle, but still: (1) write a plan checkpointed to a standard
   dir (the change dir or `plans/`), (2) delegate execution to **deepseek-v4-flash** via

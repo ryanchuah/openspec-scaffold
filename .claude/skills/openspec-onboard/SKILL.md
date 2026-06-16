@@ -353,7 +353,7 @@ Save to the `resolvedOutputPath` from `openspec instructions design --change "<n
 
 Finally, we break the work into implementation tasks—checkboxes that drive the apply phase.
 
-These should be small, clear, and in logical order.
+These should be small, clear, and in logical order. (Verify is a separate phase — do NOT add verify checkboxes to tasks.md; they belong in design.md's Verification section.)
 ```
 
 **DO:** Generate tasks based on specs and design:
@@ -367,10 +367,6 @@ Here are the implementation tasks:
 
 - [ ] 1.1 [Specific task]
 - [ ] 1.2 [Specific task]
-
-## 2. Verify
-
-- [ ] 2.1 [Verification step]
 
 ---
 
@@ -402,6 +398,8 @@ Now we implement each task, checking them off as we go. I'll announce each one a
 
 Keep narration light—don't over-explain every line of code.
 
+> **Real changes:** delegate apply to the apply-executor and archive via the archive skill — the inline implementation shown here is a teaching simplification.
+
 After all tasks:
 
 ```
@@ -432,6 +430,7 @@ Archived changes become your project's decision history—you can always find th
 ```bash
 openspec archive "<name>"
 ```
+> **Real changes:** delegate apply to the apply-executor and archive via the archive skill — the bare `openspec archive` shown here is a teaching simplification.
 
 **SHOW:**
 ```

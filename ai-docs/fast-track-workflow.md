@@ -35,7 +35,7 @@ These apply regardless of fast-track or tier.
   - Use the same `opencode run` executor/reviewer invocations.
   - Assert that the real agent actually ran (do not accept a self-report).
   - Judge success from disk via `git diff` and task check-offs — not the agent's own claim of success.
-  - Failure ladder: operational crash → retry once → Sonnet subagent; non-crash failure → Sonnet immediately. Always disclose any fallback taken.
+  - Failure ladder: follow the apply skill's ladder in `.claude/skills/openspec-apply-change/SKILL.md` — operational crash → retry once → Sonnet; non-crash → a declared blocker (`### NON-CONVERGENCE BLOCKER`) routes to orchestrator triage (NOT reflexive Sonnet), an opaque give-up → Sonnet. Always disclose any fallback.
 - **Verify is always real.** Even a SMALL change requires a diff read and a behavioral test. Never mark a change done off a green test suite alone.
 - **Archive runs normally.** For MEDIUM and COMPLEX, archive per the normal archive skill — do not skip it.
 - **Executors never commit.** You review the diff, then you commit. Pushes to `main` still require explicit operator authorization.

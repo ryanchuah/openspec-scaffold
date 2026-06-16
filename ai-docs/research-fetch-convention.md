@@ -2,12 +2,12 @@
 
 Standard block to paste into research-subagent prompts. Established 2026-06-03.
 
-Measurement baseline: `output/fetch-measure.md` showed ~91% token reduction on article pages and
-~100× (≈99%) reduction on GitHub rendered HTML vs raw README, justifying these conventions.
+These conventions were measured to cut tokens substantially on article pages and
+GitHub HTML vs raw, justifying the approaches below.
 
 ---
 
-## Three rules for efficient web research
+## Four rules for efficient web research
 
 **(a) GitHub files — always fetch raw, never clone.**
 For any GitHub repo or file, fetch via `raw.githubusercontent.com` directly or run
@@ -28,3 +28,8 @@ Avoid loading whole raw HTML pages into context.
 Only fetch a page if you will actually use and cite its content in the output.
 Checkpoint to the output file as you go (write partial findings early; don't hold everything
 in context until the end).
+
+**(d) Never call the built-in `WebSearch` tool from the main thread.** Route ALL web research
+through subagents that use `scripts/fetch_clean.py` (discover via a fetched search URL, then
+fetch the chosen pages). This keeps the orchestrator context clean and lets research run in
+parallel and checkpoint to disk; the orchestrator applies its own judgment to subagent reports.

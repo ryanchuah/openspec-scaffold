@@ -33,13 +33,13 @@ rules:
       apply-executor's work (not a checklist rubber-stamp). The primary agent
       itself (never delegated, never trusting the executor's summary) MUST - (1) read the
       actual diffs/changed files (git diff); (2) re-run the FULL test suite
-      (.venv/bin/python -m pytest -q) - green is necessary but NOT sufficient; (3) eyeball
+      (prefer `scripts/test-cmd`, falling back to the project's documented test command when absent — never an improvised command; e.g. `.venv/bin/python -m pytest -q`) - green is necessary but NOT sufficient; (3) eyeball
       the real output the code produces - actual records/rows, the output the system
       generates, results from the relevant project CLI command or a `scripts/_*_oneoff.py`
       probe; (4) on any defect, diagnose and scope it, then re-delegate the fix to a
       FRESH apply-executor (deepseek via opencode run, one attempt; Sonnet subagent as
       fallback on operational-or-quality failure; never hand-fix beyond a trivial
-      typo/one-line change; more than ~2 lines of implementation => re-delegate).
+      typo/one-line change; more than one line of implementation => re-delegate).
       Only after this behavioral review passes, do the spec/task mapping checks.
   archive:
     - >-
