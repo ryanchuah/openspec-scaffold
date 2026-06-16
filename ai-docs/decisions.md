@@ -139,3 +139,17 @@ Durable architectural decisions and their rationale. Add an entry whenever a non
 - **Audit trail (D8):** The verification report and `notes.md` record, per pass, the model, verdict, and any defect caught (attributed to the pass that surfaced it), making the multi-model gate auditable.
 
 **Motivation:** Verify is the final gate before a change is declared "good to release," yet it rested on a single reviewer — the orchestrator's own behavioral self-review. One model's blind spots therefore decided release. Independent models reliably catch different falsifiable defects — a discipline this project already follows, and one that has repeatedly caught real blocking defects the primary missed. The highest-stakes gate should not be the one place that relies on a single set of eyes. Archive: `openspec/changes/archive/2026-06-16-verify-multimodel-gate`. New spec: `openspec/specs/verify-multimodel-gate/spec.md`. Modified spec: `openspec/specs/noninteractive-delegation-safety/spec.md`.
+
+## Decision: Commit-test-gate hook wiring live-verified — W0 smoke passed (2026-06-16)
+**Date:** 2026-06-16
+**Decision:** The commit-test-gate's live Claude Code `PreToolUse` hook wiring is verified end-to-end. The previously BLOCKING open-question — does the hook fire on `git commit`, does exit 2 block the commit, does `$CLAUDE_PROJECT_DIR` expand — is RESOLVED. Reliance on the commit-test-gate, and on the same hook-wiring mechanism W1's scaffold guard (`scaffold_check.py`) will use, is unblocked.
+**Evidence (W0 smoke, gated Claude session rooted in a throwaway hook-carrying repo):**
+- (a) `scripts/test-cmd` = `false` → `git commit` BLOCKED: `PreToolUse:Bash hook error … test-gate: tests failed — commit BLOCKED (exit code 1)`; the gate's `exit 2` propagated as a blocked tool call (the `(exit code 1)` in the message is the test command's exit, not the gate's).
+- (b) `scripts/test-cmd` = `true` → commit proceeded (`test-gate: tests passed`).
+- (c) `$CLAUDE_PROJECT_DIR` expansion proven implicitly: the hook command is `"$CLAUDE_PROJECT_DIR/scripts/test-gate.sh"`, which only ran in (a)/(b) because it resolved.
+- Script-layer smoke (all 5 `test-gate.sh` branches) re-confirmed clean from a non-gated session.
+**Procedure note (non-obvious, verified):** the live smoke MUST run from a session whose PROJECT ROOT carries the hook — Claude Code loads `PreToolUse` hooks once from the project root at startup, not dynamically from the cwd of a command. A gated session rooted elsewhere (e.g. the `workflow-optimize` meta workspace) cannot exercise it. Procedure: `docs/test/commit-gate-smoke/` + the throwaway-repo recipe.
+**Carry-forward (NOT resolved here):**
+- Audit **A5** (cwd no-op) CONFIRMED real by code-read: `test-gate.sh:21-22` resolves the test-cmd FILE via `BASH_SOURCE` (cwd-independent), but `:41`/`:49` execute the COMMAND (`command -v "$EXECUTABLE"`, `$CMD`) relative to cwd — so a relative-path `test-cmd` (e.g. `.venv/bin/pytest`) fired from a non-repo-root cwd silently takes the config-error path (exit 0), not exit 2. Fix folds into W3.
+- Audit **E5**: `opencode` is 1.17.7 (≥1.16, same family as the 1.17.4/1.17.7 pin); a functional "opencode enumerates the openspec skills" smoke still wants an in-scaffold run (deferred to W5 / next OpenCode session).
+**Source:** consolidation plan `ai-docs/consolidation-plan-2026-06-16.md` (W0); procedure `docs/test/commit-gate-smoke/`.

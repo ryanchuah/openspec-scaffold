@@ -12,6 +12,12 @@ Durable roadmap of larger improvements not yet scoped into a specific OpenSpec c
 **Dependencies / notes:** Related items, prior art, open tensions.
 -->
 
+## Scaffold consolidation — hardening + propagation (supersedes scaffold-sync)
+**Priority:** High
+**Gating condition:** Holistic map is done (`ai-docs/consolidation-plan-2026-06-16.md`). Actionable now — propose W0/W1 first. W0 (hook-wiring smoke) needs a gated Claude session.
+**Summary:** Consolidates the `scaffold-sync` review (`principal-review.md`) and the full workflow audit (`workflow-audit-2026-06-16.md`) into ONE design → an ordered family of small changes (W0…W6): fix the sync mechanism (de-gold-plated), dedup the within-scaffold delegation harness, close `_convergence.py` holes, add the missing simplicity/security gates, then do the one-time propagation last (clean snapshot). `scaffold-sync` is superseded — delete it once W1+W6 carry its surviving parts.
+**Dependencies / notes:** Full map, ordering, supersession table, and per-finding ledger in `ai-docs/consolidation-plan-2026-06-16.md`. Scope cut (which W's ship now vs. defer) decided per-change at propose time.
+
 ## Cross-change spec-conflict detection at archive
 **Priority:** Low
 **Gating condition:** Parallel changes that edit the *same* capability spec become common (multiple in-flight changes touching one capability).

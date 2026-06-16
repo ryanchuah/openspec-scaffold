@@ -1,0 +1,36 @@
+# scaffold-managed inventory — edit files in openspec-scaffold, then run scripts/sync_scaffold.py.
+# One repo-relative path per line; '#' and blank lines are ignored.
+
+# Agent definitions (.claude)
+.claude/agents/apply-executor.md
+.claude/agents/archive-executor.md
+
+# Skills (.claude)
+.claude/skills/openspec-apply-change/SKILL.md
+.claude/skills/openspec-archive-change/SKILL.md
+.claude/skills/openspec-explore/SKILL.md
+.claude/skills/openspec-onboard/SKILL.md
+.claude/skills/openspec-propose/SKILL.md
+.claude/skills/openspec-sync-specs/SKILL.md
+.claude/skills/openspec-verify-change/SKILL.md
+
+# Agent definitions (.opencode)
+.opencode/agents/apply-executor.md
+.opencode/agents/archive-executor.md
+.opencode/agents/openspec-reviewer.md
+.opencode/agents/openspec-verifier.md
+
+# AI docs
+ai-docs/fast-track-workflow.md
+ai-docs/research-fetch-convention.md
+
+# Scripts
+scripts/_convergence.py
+scripts/fetch_clean.py
+scripts/scaffold_check.py
+scripts/scaffold_manifest.txt
+scripts/test-gate.sh
+scripts/test_convergence.py
+
+# AGENTS.md — span-replace, not wholesale copy (see D3)
+AGENTS.md

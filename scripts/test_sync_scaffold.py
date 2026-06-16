@@ -1,0 +1,502 @@
+#!/usr/bin/env python3
+"""Tests for sync_scaffold.py and scaffold_check.py — stdlib unittest, no pytest."""
+
+from __future__ import annotations
+
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+# ---------------------------------------------------------------------------
+# Import modules under test (siblings in scripts/)
+# ---------------------------------------------------------------------------
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import sync_scaffold  # noqa: E402
+import scaffold_check  # noqa: E402
+
+
+# ===================================================================
+# Helper: construct fixture scaffold + target trees in a temp dir
+# ===================================================================
+
+# Minimal AGENTS.md for the scaffold — has all required anchors, no tail.
+SCAFFOLD_AGENTS = """\
+# <FILL: project name>
+
+> **MANDATORY — read before doing anything else**
+>
+> You are reading this file. Before taking any action, also read **`STATUS.md`**.
+
+## Cross-agent compatibility (load-bearing — do not weaken)
+
+This repo is worked by **both Claude and non-Claude agents** (OpenCode/DeepSeek/GLM).
+
+Maintain this discipline for the **entire session**, not just at the start.
+
+## Project context
+
+Authoritative one-paragraph summary in **`openspec/config.yaml`**.
+
+<FILL: 2-4 sentences of detailed context.>
+
+## Roles
+
+- **The primary agent is the orchestrator and reviewer — not the implementer.**
+
+## After reading this file
+Acknowledge four things before acting: (1) your role as orchestrator/reviewer.
+"""
+
+# Target with ## Project context (typical downstream)
+TARGET_AGENTS_WITH_CTX = """\
+# My Downstream Repo
+
+> **MANDATORY — read before doing anything else**
+>
+> You are reading this file.
+
+## Cross-agent compatibility (load-bearing — do not weaken)
+
+This repo is worked by **both Claude and non-Claude agents**.
+
+Maintain this discipline for the **entire session**, not just at the start.
+
+## Project context
+
+This repo builds widgets. See CONTRIBUTING.md.
+
+**Hard constraints:** none.
+
+## Roles
+
+- **The primary agent** orchestrates.
+
+## After reading this file
+Acknowledge your role.
+"""
+
+# Target WITHOUT ## Project context (extrends-like)
+TARGET_AGENTS_NO_CTX = """\
+# Extrends
+
+> **MANDATORY — read before doing anything else**
+>
+> You are reading this file.
+
+## Cross-agent compatibility (load-bearing — do not weaken)
+
+This repo is worked by **both Claude and non-Claude agents**.
+
+Maintain this discipline for the **entire session**, not just at the start.
+
+## Roles
+
+- **The primary agent** orchestrates.
+
+## After reading this file
+Acknowledge your role.
+"""
+
+# Target with a long tail after ## After reading this file (psc-monitor-like)
+TARGET_AGENTS_WITH_TAIL = """\
+# psc-monitor
+
+> **MANDATORY — read before doing anything else**
+>
+> You are reading this file.
+
+## Cross-agent compatibility (load-bearing — do not weaken)
+
+This repo is worked by **both Claude and non-Claude agents**.
+
+Maintain this discipline for the **entire session**, not just at the start.
+
+## Project context
+
+Monitoring service.
+
+## Roles
+
+- **The primary agent** orchestrates.
+
+## After reading this file
+Acknowledge your role.
+
+# Project reference
+
+This project monitors production systems.
+
+## Architecture
+
+The system consists of:
+- Collector service
+- Alert manager
+"""
+
+# Target that is >300 lines with no tail separator
+TARGET_AGENTS_LONG_NO_TAIL = (
+    "# Foo\n\n> **MANDATORY — read before doing anything else**\n\n"
+    "## Cross-agent\n\n"
+    "## Roles\n\n"
+    "## Project context\n\nHello\n\n"
+    "## After reading this file\n\n"
+    + "\n".join(f"Line {i}" for i in range(310))
+)
+
+# Scaffold that violates the tail invariant (has # heading after ## After)
+SCAFFOLD_AGENTS_WITH_TAIL = """\
+# Scaffold
+
+> **MANDATORY — read before doing anything else**
+
+## Roles
+
+## After reading this file
+Content.
+
+# Unexpected section
+This should not be in scaffold.
+"""
+
+
+def _make_fixture_scaffold(tmpdir: Path) -> Path:
+    """Create a minimal scaffold with manifest and files, return its root."""
+    scaffold = tmpdir / "scaffold"
+    scripts_dir = scaffold / "scripts"
+    scripts_dir.mkdir(parents=True)
+
+    # Fixture manifest
+    manifest_content = """\
+# fixture manifest
+test-regular.txt
+subdir/data.txt
+AGENTS.md
+"""
+    (scripts_dir / "scaffold_manifest.txt").write_text(manifest_content)
+
+    # Regular files
+    (scaffold / "test-regular.txt").write_text("regular file content\n")
+    subdir = scaffold / "subdir"
+    subdir.mkdir()
+    (subdir / "data.txt").write_text("data file content\n")
+
+    # AGENTS.md
+    (scaffold / "AGENTS.md").write_text(SCAFFOLD_AGENTS)
+
+    return scaffold
+
+
+def _make_fixture_target(tmpdir: Path) -> Path:
+    """Create a target repo (with .git) containing initial files."""
+    target = tmpdir / "target"
+    target.mkdir()
+    (target / ".git").mkdir()  # empty dir to pass the .git check
+
+    # Pre-populate files that match what sync will write
+    (target / "test-regular.txt").write_text("regular file content\n")
+    subdir = target / "subdir"
+    subdir.mkdir()
+    (subdir / "data.txt").write_text("data file content\n")
+    # Target AGENTS.md with custom project context
+    (target / "AGENTS.md").write_text(TARGET_AGENTS_WITH_CTX)
+
+    return target
+
+
+# ===================================================================
+# Tests
+# ===================================================================
+
+
+class SyncAgentsMdTest(unittest.TestCase):
+    """Tests for sync_agents_md — span-replace algorithm (task 4.2)."""
+
+    def test_project_context_preserved_byte_identical(self):
+        """## Project context from the target is preserved byte-identical."""
+        result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_WITH_CTX)
+        # The target's project context should be in the output
+        self.assertIn("This repo builds widgets. See CONTRIBUTING.md.", result)
+        # The target's title should be preserved
+        self.assertIn("# My Downstream Repo", result)
+        # Shared spans from scaffold should be present
+        self.assertIn("both Claude and non-Claude agents", result)
+
+    def test_no_project_context_no_empty_section(self):
+        """Target without ## Project context succeeds without inserting empty section."""
+        result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_NO_CTX)
+        # Title preserved
+        self.assertIn("# Extrends", result)
+        # No empty "## Project context" should appear
+        self.assertNotIn("## Project context", result)
+        # But the second shared span from scaffold should be there
+        self.assertIn("## Roles\n", result)
+        self.assertIn("## After reading this file", result)
+
+    def test_long_tail_preserved_byte_for_byte(self):
+        """psc-monitor-like long tail after ## After is preserved byte-identical."""
+        result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_WITH_TAIL)
+        # Tail content preserved
+        self.assertIn("# Project reference", result)
+        self.assertIn("This project monitors production systems.", result)
+        self.assertIn("Collector service", result)
+        # Shared spans from scaffold present
+        self.assertIn("both Claude and non-Claude agents", result)
+
+    def test_missing_target_mandatory_anchor_aborts(self):
+        """Raises ValueError when target lacks > **MANDATORY**."""
+        bad_target = "# No mandatory\n\n## Roles\n\n## After reading this file\n"
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, bad_target)
+
+    def test_missing_target_roles_anchor_aborts(self):
+        """Raises ValueError when target lacks ## Roles."""
+        bad_target = "# Foo\n\n> **MANDATORY**\n\n## After reading this file\n"
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, bad_target)
+
+    def test_missing_target_after_anchor_aborts(self):
+        """Raises ValueError when target lacks ## After reading this file."""
+        bad_target = "# Foo\n\n> **MANDATORY**\n\n## Roles\n\n"
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, bad_target)
+
+    def test_scaffold_tail_invariant_aborts(self):
+        """Raises ValueError when scaffold has unexpected tail."""
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS_WITH_TAIL, TARGET_AGENTS_WITH_CTX)
+
+    def test_300_line_no_tail_aborts(self):
+        """Raises ValueError when target >300 lines has no tail separator."""
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_LONG_NO_TAIL)
+
+    def test_idempotent_on_own_output(self):
+        """sync_agents_md applied to its own output returns identical string."""
+        first = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_WITH_CTX)
+        second = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, first)
+        self.assertEqual(first, second)
+
+    def test_no_header_injected(self):
+        """Synced output contains no 'DO NOT EDIT' header string."""
+        result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_WITH_CTX)
+        self.assertNotIn("DO NOT EDIT", result)
+        self.assertNotIn("synced from openspec-scaffold", result)
+
+
+class SyncIntegrationTest(unittest.TestCase):
+    """Full sync and --check tests using temp fixture trees (tasks 4.3–4.5, 4.7–4.8)."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.fixture_scaffold = _make_fixture_scaffold(self.tmpdir)
+        self.fixture_target = _make_fixture_target(self.tmpdir)
+
+        # Patch sync_scaffold to use fixture scaffold
+        self._scaffold_root_patcher = patch.object(
+            sync_scaffold, "_scaffold_root", return_value=self.fixture_scaffold
+        )
+        self._scaffold_root_patcher.start()
+
+    def tearDown(self):
+        self._scaffold_root_patcher.stop()
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    # -- idempotency (4.3) --
+
+    def test_sync_twice_is_idempotent(self):
+        """Syncing a fixture target twice leaves files unchanged; --check exits 0."""
+        sync_scaffold.sync(str(self.fixture_target))
+        sync_scaffold.sync(str(self.fixture_target))
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 0)
+
+    # -- --check tests (4.4) --
+
+    def test_check_exits_0_when_synced(self):
+        """--check exits 0 when target matches scaffold."""
+        sync_scaffold.sync(str(self.fixture_target))
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 0)
+
+    def test_check_exits_1_after_one_byte_edit(self):
+        """--check exits 1 and names the file after a one-byte edit."""
+        sync_scaffold.sync(str(self.fixture_target))
+        # Corrupt one regular file
+        f = self.fixture_target / "test-regular.txt"
+        f.write_text("EDITED\n")
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 1)
+        # Also verify DIFFERS was printed — can't easily capture output here
+        # but the exit code is the contract.
+
+    def test_check_exits_1_on_missing_file(self):
+        """--check exits 1 when a file is missing from target."""
+        sync_scaffold.sync(str(self.fixture_target))
+        os.remove(self.fixture_target / "test-regular.txt")
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 1)
+
+    def test_check_agents_identical_when_only_context_differs(self):
+        """--check reports AGENTS.md IDENTICAL when only ##Project context/tail differ."""
+        # Create a target with different project context but shared spans matching
+        target_agents_diff_ctx = TARGET_AGENTS_WITH_CTX.replace(
+            "This repo builds widgets. See CONTRIBUTING.md.",
+            "This repo builds DIFFERENT THINGS.",
+        )
+        (self.fixture_target / "AGENTS.md").write_text(target_agents_diff_ctx)
+        sync_scaffold.sync(str(self.fixture_target))
+        # After sync, the project context was replaced ... wait, no.
+        # Actually let me rethink. For this test we want to verify that
+        # --check identifies AGENTS.md as IDENTICAL when only the project
+        # context differs between scaffold and target.
+        # After sync, the shared spans match. Then we change the target's
+        # project context. --check's AGENTS.md compare uses:
+        #   expected = sync_agents_md(scaffold_text, target_text)
+        #   compare expected == target_text
+        # Since sync_agents_md extracts project context FROM the target,
+        # the target edit is picked up and expected matches target_text.
+        # So it's IDENTICAL.
+        target_edited = (self.fixture_target / "AGENTS.md").read_text()
+        target_edited_alt = target_edited.replace(
+            "This repo builds widgets. See CONTRIBUTING.md.",
+            "DIFFERENT context now.",
+        )
+        (self.fixture_target / "AGENTS.md").write_text(target_edited_alt)
+        # --check should still pass because only project context differs
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 0)
+
+    # -- no-header (4.5) --
+
+    def test_synced_output_contains_no_header(self):
+        """Synced files contain no 'DO NOT EDIT' header."""
+        sync_scaffold.sync(str(self.fixture_target))
+        for fname in ["test-regular.txt", "AGENTS.md"]:
+            content = (self.fixture_target / fname).read_text()
+            self.assertNotIn("DO NOT EDIT", content)
+            self.assertNotIn("synced from openspec-scaffold", content)
+
+    # -- sync abort (4.7) --
+
+    def test_sync_aborts_on_nonexistent_target(self):
+        """sync aborts when target does not exist."""
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync("/nonexistent/path")
+
+    def test_sync_aborts_on_target_without_git(self):
+        """sync aborts when target lacks .git."""
+        no_git = self.tmpdir / "no-git"
+        no_git.mkdir()
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync(str(no_git))
+
+    def test_sync_aborts_on_missing_scaffold_source(self):
+        """sync aborts when a manifest-listed source is missing in scaffold."""
+        # Remove a file from the fixture scaffold that the manifest lists
+        (self.fixture_scaffold / "test-regular.txt").unlink()
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync(str(self.fixture_target))
+
+    # -- parent dir creation (4.8) --
+
+    def test_sync_creates_parent_dirs(self):
+        """sync creates parent dirs and writes at correct nested path."""
+        # Add an entry with a deeper directory to the fixture manifest
+        manifest = (
+            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
+        )
+        original = manifest.read_text()
+        manifest.write_text(original + "deep/nested/file.txt\n")
+        deep_file = self.fixture_scaffold / "deep" / "nested" / "file.txt"
+        deep_file.parent.mkdir(parents=True)
+        deep_file.write_text("deep content\n")
+
+        sync_scaffold.sync(str(self.fixture_target))
+        self.assertTrue(
+            (self.fixture_target / "deep" / "nested" / "file.txt").exists()
+        )
+        self.assertEqual(
+            (self.fixture_target / "deep" / "nested" / "file.txt").read_text(),
+            "deep content\n",
+        )
+
+    def test_sync_abort_makes_no_changes(self):
+        """Verify no files written on abort (missing source)."""
+        target_original = (self.fixture_target / "AGENTS.md").read_text()
+        (self.fixture_scaffold / "test-regular.txt").unlink()
+        try:
+            sync_scaffold.sync(str(self.fixture_target))
+        except SystemExit:
+            pass
+        # AGENTS.md should be unchanged
+        self.assertEqual(
+            (self.fixture_target / "AGENTS.md").read_text(),
+            target_original,
+        )
+
+
+class ScaffoldCheckGuardTest(unittest.TestCase):
+    """Tests for scaffold_check.py guard (task 4.6)."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        # Create a temp manifest for the guard
+        self.manifest = self.tmpdir / "scaffold_manifest.txt"
+        self.manifest.write_text("scripts/foo.py\nAGENTS.md\n")
+
+    def tearDown(self):
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    def test_guard_returns_2_when_manifest_file_staged(self):
+        """scaffold_check.main() returns 2 when a manifest path is staged."""
+        with patch.object(scaffold_check, "Path") as mock_Path:
+            mock_Path.return_value.resolve.return_value.parent = self.tmpdir
+            with patch.object(
+                scaffold_check.subprocess, "check_output"
+            ) as mock_git:
+                mock_git.return_value.decode.return_value = (
+                    "scripts/foo.py\nother.py\n"
+                )
+                rc = scaffold_check.main()
+                self.assertEqual(rc, 2)
+
+    def test_guard_returns_0_when_no_manifest_file_staged(self):
+        """scaffold_check.main() returns 0 when no manifest path is staged."""
+        with patch.object(scaffold_check, "Path") as mock_Path:
+            mock_Path.return_value.resolve.return_value.parent = self.tmpdir
+            with patch.object(
+                scaffold_check.subprocess, "check_output"
+            ) as mock_git:
+                mock_git.return_value.decode.return_value = "other.py\n"
+                rc = scaffold_check.main()
+                self.assertEqual(rc, 0)
+
+    def test_guard_returns_0_when_nothing_staged(self):
+        """Returns 0 when nothing is staged."""
+        with patch.object(scaffold_check, "Path") as mock_Path:
+            mock_Path.return_value.resolve.return_value.parent = self.tmpdir
+            with patch.object(
+                scaffold_check.subprocess, "check_output"
+            ) as mock_git:
+                mock_git.return_value.decode.return_value = ""
+                rc = scaffold_check.main()
+                self.assertEqual(rc, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
