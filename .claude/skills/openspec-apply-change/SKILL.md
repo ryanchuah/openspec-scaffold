@@ -154,30 +154,50 @@ Implement tasks from an OpenSpec change.
         `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
         Empty/unparseable → operational crash.
 
-   3. **Determine success vs. failure** by reading back from disk (not just the report):
+    3. **Determine success vs. failure** by reading back from disk (not just the report):
 
-      - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
-        the completion report does not declare an unresolved blocker.
-      - **Operational crash** = non-zero exit (including a `timeout` kill — exit
-        124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
-        fallback-warning match from step 2.
-      - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
-        says it got stuck / output shows it gave up.
+       - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
+         the completion report does not declare an unresolved blocker.
+       - **Operational crash** = non-zero exit (including a `timeout` kill — exit
+         124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
+         fallback-warning match from step 2.
+       - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
+         says it got stuck / output shows it gave up.
+         **Distinguish** whether the completion report contains a declared blocker
+         by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
 
-   4. **Failure ladder:**
+         ```bash
+         if grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-out.jsonl 2>/dev/null \
+            || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
+           echo "DECLARED_BLOCKER"
+         else
+           echo "OPAQUE_GIVE_UP"
+         fi
+         ```
 
-      - **Operational crash** → **retry the `opencode run` once** (if it timed out,
-        retry with a **tight brief**: name the exact files to read, front-load the facts
-        you've already verified as given, and forbid codebase re-exploration — the wrapper
-        is a hard ceiling and the executor otherwise burns its budget re-deriving context
-        you already have). Second crash → spawn a **Sonnet subagent**
-        apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
-        `tasks.md`.
-      - **Non-crash failure** → **immediately** spawn the Sonnet subagent
-        apply-executor (no retry).
-      - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
-        output in Step 7 MUST state (a) the deepseek/opencode failure and how it
-        manifested, and (b) that Sonnet finished the work.
+    4. **Failure ladder:**
+
+       - **Operational crash** → **retry the `opencode run` once** (if it timed out,
+         retry with a **tight brief**: name the exact files to read, front-load the facts
+         you've already verified as given, and forbid codebase re-exploration — the wrapper
+         is a hard ceiling and the executor otherwise burns its budget re-deriving context
+         you already have). Second crash → spawn a **Sonnet subagent**
+         apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
+         `tasks.md`.
+       - **Non-crash failure — declared blocker** (the completion report contains
+         `### NON-CONVERGENCE BLOCKER`) → route to **orchestrator triage**, NOT
+         reflexive Sonnet. Triage options:
+         - *Brief/plan gap* → tighten the brief and dispatch a **fresh** executor
+           (not the same one — a new invocation with the amended brief).
+         - *Artifact/decision gap* → escalate to the user.
+         - *Model-capability gap* → spawn a **Sonnet** subagent (only when the
+           blocker's cause is the model itself, not the plan).
+       - **Non-crash failure — opaque give-up** (no `### NON-CONVERGENCE BLOCKER`
+         heading) → **immediately** spawn the Sonnet subagent apply-executor
+         (no retry; identical to the pre-change behavior).
+       - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
+         output in Step 7 MUST state (a) the deepseek/opencode failure and how it
+         manifested, and (b) that Sonnet finished the work.
 
    5. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
       `git diff` to confirm all tasks are checked off and changes are on disk.
@@ -200,7 +220,14 @@ Implement tasks from an OpenSpec change.
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
-   - Error or blocker encountered → report and wait for guidance
+   - **Error or blocker encountered** → inspect the executor output for a
+     `### NON-CONVERGENCE BLOCKER` heading:
+     - **Declared blocker found** → report it to the user with the triage
+       options (tighten brief + fresh executor / escalate to user for
+       artifact/decision gap / Sonnet only if model-capability gap).
+     - **No declared blocker** (opaque give-up) → dispatch a **fresh**
+       `@apply-executor` (do NOT route to Sonnet), or escalate to the user
+       if another retry is unlikely to help.
    - User interrupts
 
 7. **On completion or pause, show status**

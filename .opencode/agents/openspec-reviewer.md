@@ -96,7 +96,16 @@ not as mandatory named headings.
 - Is the acceptance criterion for each task testable?
 - Are there tasks that will require modifying files outside the stated scope?
 
-## Output Format
+## Output Format — Incremental Emission
+
+Emit the review **progressively** so that a timeout cutoff still yields usable
+output. Do NOT buffer everything to a final block.
+
+1. Print the `## Review Round N — [artifact]` header **immediately**.
+2. Print summary and findings as you determine them (🔴 first, then 🟡, then 💡).
+3. Print the **Verdict last**.
+
+Example structure (emitted in order, not batched):
 
 ```
 ## Review Round N — [artifact batch reviewed]

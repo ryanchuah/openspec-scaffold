@@ -22,10 +22,64 @@ When invoked you will be given paths to three frozen artifact files:
 
 ## Your job
 
-Work through `tasks.md` in order:
-1. Read each unchecked task `[ ]`
-2. Implement it according to `design.md`
-3. Mark it complete `[x]` in `tasks.md` as you go — update the file after each task
+Work through `tasks.md` in order using the **self-monitoring loop** below.
+For each unchecked task `[ ]`:
+
+1. **Implement** the task according to `design.md`.
+
+2. **Run the project's tests** using the per-repo test command:
+   - Prefer `scripts/test-cmd` (one-line file in the repo root).
+   - If `scripts/test-cmd` is absent, use the project's standard/documented test
+     command (e.g. check `pyproject.toml` for pytest config, `Makefile` for a
+     `test` target, or `package.json` for a `test` script).
+   - **Never improvise** an ad-hoc `pytest` or other command that may pick the
+     wrong venv/flags.
+
+3. **Green** → mark the task `[x]` in `tasks.md` and proceed to the next task.
+
+4. **Red** → pipe the raw test output to `scripts/_convergence.py`:
+   ```
+   <test-command> 2>&1 | python scripts/_convergence.py \
+     --task <task-id> --change <change-slug> \
+     [--editing <file-being-edited>] \
+     > /tmp/convergence-verdict.txt
+   ```
+   - Read the verdict from `/tmp/convergence-verdict.txt`.
+   - **`CONTINUE`** → fix the code based on the failure, then **return to
+     step 2** (do NOT advance to the next task — CONTINUE means keep working
+     this failure; re-run only the failing test's module if practical, not
+     necessarily the whole suite).
+   - **`STOP:<a|b|c>:<detail>`** → the helper detected non-convergence. Emit
+     the `### NON-CONVERGENCE BLOCKER` block (see below) and **END the run**
+     without starting any remaining tasks.
+   - **Helper failure** (non-zero exit or no parseable verdict) → treat as a
+     rule-(c) gap: emit the blocker block with `trigger: c` and
+     `missing: _convergence.py helper failed`.
+
+5. **Rule-(c) gap (self-detected):** If a fix would require information or a
+   decision absent from `tasks.md`/`design.md`/`proposal.md`, requires editing
+   `proposal.md` or `design.md` (outside your remit), or an external API
+   behaves contrary to `design.md` — **STOP directly** without running the
+   helper. Emit the `### NON-CONVERGENCE BLOCKER` block and END the run.
+
+## Non-Convergence Blocker Format
+
+When stopping (for ANY of the reasons above), emit this exact block in your
+completion report. The primary detects it by grepping for the literal heading:
+
+```
+### NON-CONVERGENCE BLOCKER
+trigger: <a|b|c>
+task: <task line/id>
+test: <test node id>        # a/b
+signature: <normalized>     # a/b
+attempts: <N>
+files: <comma-separated>    # b
+missing: <info/decision/contradiction>   # c
+suspected_cause: <one line>
+```
+
+After emitting this block, **do NOT continue to other tasks**. End the run.
 
 ## Rules
 

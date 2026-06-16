@@ -107,29 +107,30 @@ I'll create artifacts with review:
         1. Run the reviewer (substituting actual paths for `<changeRoot>` and
            `<artifact>`), **capturing stdout and stderr to separate files**:
 
-           timeout -k 15 300 opencode run \
-             --agent openspec-reviewer \
-             --model deepseek/deepseek-v4-pro \
-             --format json \
-             "Review the artifact at <changeRoot>/<artifact>.md. \
-              Also read the explore-brief if it exists and openspec/specs/ \
-              for context." \
-             > /tmp/review-out.jsonl 2> /tmp/review-err.log
+            timeout -k 15 780 opencode run \
+              --agent openspec-reviewer \
+              --model deepseek/deepseek-v4-pro \
+              --format json \
+              "Review the artifact at <changeRoot>/<artifact>.md. \
+               Also read the explore-brief if it exists and openspec/specs/ \
+               for context." \
+              > /tmp/review-out.jsonl 2> /tmp/review-err.log
 
-           If the user specified a different reviewer model, substitute it
-           for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
-           reviewer's role prompt and tools; `--model` selects which LLM runs.
+            If the user specified a different reviewer model, substitute it
+            for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
+            reviewer's role prompt and tools; `--model` selects which LLM runs.
 
-           **Bounded wait + surgical kill.** The `timeout -k 15 300` wrapper
-           caps the wait at 5 minutes; if the reviewer is still running it gets
-           SIGTERM, then SIGKILL 15s later. This kills **only the opencode
-           process this command launched** — it leaves any other concurrent
-           opencode processes untouched and orphans no children (verified). A
-           timeout surfaces as exit code 124 (or 137 if SIGKILL was needed) —
-           treat it as an `opencode run` failure and follow step 4 (escalate to
-           the user). **Never** `pkill opencode` / `killall opencode`: there are
-           routinely other opencode processes running, and that would kill them
-           too.
+            **Bounded wait + surgical kill.** The `timeout -k 15 780` wrapper
+            caps the wait at 13 minutes (780s); if the reviewer is still running
+            it gets SIGTERM, then SIGKILL 15s later. The cap is a runaway
+            backstop, not a target — a thorough review may use the full budget.
+            This kills **only the opencode process it launched** — it leaves any
+            other concurrent opencode processes untouched and orphans no children
+            (verified). A timeout surfaces as exit code 124 (or 137 if SIGKILL
+            was needed) — treat it per step 4's salvage path (do NOT simply
+            escalate). **Never** `pkill opencode` / `killall opencode`: there
+            are routinely other opencode processes running, and that would kill
+            them too.
 
         2. **Assert the real reviewer actually ran (do this BEFORE trusting any
            output — `opencode run` exits 0 even when it silently used the wrong
@@ -165,9 +166,21 @@ I'll create artifacts with review:
              total; escalate to user if still unresolved after 3.)
            - If no 🔴 issues → the artifact is frozen; move to the next one
 
-        4. If `opencode run` fails (non-zero exit, timeout, or no review text):
-           do NOT self-review. Escalate to the user with the exact error,
-           exit code, and stderr.
+         4. If `opencode run` fails (non-zero exit, timeout, or no review text):
+            do NOT self-review. Salvage whatever review text was emitted:
+            - Extract partial review text from the jsonl:
+              ```bash
+              grep '"type":"text"' /tmp/review-out.jsonl | jq -r '.part.text' \
+                > /tmp/review-partial.txt 2>/dev/null || true
+              ```
+            - If partial text exists, append it to `review-log.md` marked with
+              `**PARTIAL — reviewer timed out**` at the top of the block.
+            - **Decide: re-run or escalate.** If the partial review contains at
+              least one finding (🔴/🟡/💡) OR the reviewer ran for more than
+              120s before being killed → re-run ONCE at full budget (go back to
+              step 1 of the invocation). If the partial has zero findings and
+              was killed in under 120s → escalate to the user with the partial
+              output, exit code, and stderr.
 
        ---
        ### If you are OpenCode
