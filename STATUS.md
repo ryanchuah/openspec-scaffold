@@ -1,7 +1,11 @@
 # Status
 
 ## Current state
-Project initialised from openspec-scaffold. No features implemented yet.
+Project initialised from openspec-scaffold. Delegated-work governance hardened: the apply-executor now stops and reports on non-convergence instead of looping, the reviewer has a raised budget with incremental output and partial-salvage on timeout, and a Claude `PreToolUse` commit-test-gate deterministically blocks commits when tests are not green.
+
+## Latest change — harden-delegation SHIPPED (2026-06-16)
+
+Delegated-work governance hardened with three behavior-level gates: a deterministic commit-test-gate (Claude `PreToolUse` hook on `git commit` calling a shared `scripts/test-gate.sh` that reads the per-repo `scripts/test-cmd` — blocks on red, no-ops when absent), a apply-executor non-convergence guard (the executor runs `scripts/_convergence.py` after each red test to detect stalled failure / repeated touches / artifact gaps, stops with a structured `### NON-CONVERGENCE BLOCKER` block instead of looping, and the failure ladder routes declared blockers to orchestrator triage rather than reflexive Sonnet), and a reviewer budget upgrade (780s timeout in `openspec-propose`, incremental emission so partial output survives cutoff, salvage-and-rerun on timeout with findings). The scaffold ships the hook inert (no `scripts/test-cmd`); it activates wherever the per-repo command is filled. Archive: `openspec/changes/archive/2026-06-16-harden-delegation`. Verify verdict: ready for archive — tests pass, the system ran clean, the convergence helper correctly trips rule (a) after two same-signature attempts while permitting healthy iteration. No CRITICAL implementation defects; two REQUIRED follow-ups (hook live smoke-test not possible from this session; canary fixture is gameable — see open-questions.md). Full rationale and rejected alternatives in decisions.md; open follow-ons in open-questions.md.
 
 ## Immediate next action
-<FILL: first thing to do — e.g. "Set up data ingestion for X" or "Research Y API">
+No proactive build in flight. Next step: propagate the hardening to consuming repos (extrends, psc-monitor) via the forthcoming single-source change. Before relying on the commit-test-gate in a gated repo, live-smoke-test the hook in a Claude session (see open-questions.md item 1). Harden the canary fixture before relying on the e2e canary (see open-questions.md item 2).
