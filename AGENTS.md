@@ -175,6 +175,13 @@ Two tiers of state, with deliberately different write rules:
   read. **This is the single load-bearing rule that preserves token economy — do not move
   the reconciliation back into the working session.**
 
+> **Rollback branch — archived change was wrong:** If an archived change is later
+> found wrong: `git revert` its commit(s) and open a **new** corrective OpenSpec
+> change that references the reverted one in its proposal. Do not edit or un-archive
+> the original — the archive is an immutable handoff record. (This is the
+> *correctly-archived-but-wrong* situation, distinct from a *botched archive* run,
+> which is handled by the archive skill's recovery procedure.)
+
 ## Working process
 
 - **Default to scripts over LLM token-burn for deterministic work — everywhere.** When a

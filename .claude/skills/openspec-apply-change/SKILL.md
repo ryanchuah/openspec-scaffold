@@ -83,7 +83,9 @@ Implement tasks from an OpenSpec change.
    ---
    ### If you are Claude Code
 
-   Drive the OpenCode `apply-executor` (deepseek-v4-flash) via `opencode run`.
+   Drive the deepseek `apply-executor` via `opencode run` (harness contract:
+   `ai-docs/delegation-harness.md`); on a clean run every `tasks.md` item is `[x]`
+   and you proceed to Step 7. Everything below handles the ways that can fail.
    Do **not** implement tasks yourself, and do **not** spawn a Sonnet subagent as
    the default — use the deepseek executor first.
 
@@ -108,6 +110,7 @@ Implement tasks from an OpenSpec change.
        echo "EXIT=$?" > /tmp/apply-out.exit
        ```
 
+      **Caveats on invocation:**
       - The OpenCode agent edits files in the **same working tree** as Claude,
         so its `tasks.md` check-offs and source edits land directly on disk —
         read them back via `git diff` and re-read `tasks.md` afterward.
@@ -119,67 +122,71 @@ Implement tasks from an OpenSpec change.
         working tree (this has left duplicate work) — which is exactly why completion
         must be judged from the sentinel, not guessed from process state. If the wrapper
         fires (exit 124/137 in the exit file), the apply **timed out** — treat it as an
-        **operational crash** (step 4). For a very large change, prefer splitting
+        **operational crash** (see Failure modes). For a very large change, prefer splitting
         delegation across task ranges over raising the ceiling — gate each slice with
         orchestrator-run targeted tests, and if your diff-read finds a defect in slice N,
         fold the scoped fix as the **first item of slice N+1's brief** instead of a
         separate fix run (sequential, no concurrent writers, one fewer invocation).
 
-   2. **Assert the real executor ran (§b):** grep `/tmp/apply-err.log` for
-      `Falling back to default agent` — if found, treat as an **operational crash** (step 4).
-      Extract the completion report:
+    2. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
+       `git diff` to confirm all tasks are checked off and changes are on disk.
+       Proceed to Step 7.
+
+   #### Failure modes
+
+   If the run doesn't cleanly land every task, triage it:
+
+   1. **Assert the real executor ran (§b):** grep `/tmp/apply-err.log` for
+      `Falling back to default agent` — if found, treat as an **operational crash**
+      (ladder below). Extract the completion report:
       `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
       Empty/unparseable → operational crash. Confirm the extracted text is a non-empty
       completion summary (not a fallback message).
 
-    3. **Determine success vs. failure** by reading back from disk (not just the report):
+   2. **Determine success vs. failure** by reading back from disk (not just the report):
 
-       - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
-         the completion report does not declare an unresolved blocker.
-       - **Operational crash** = non-zero exit (including a `timeout` kill — exit
-         124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
-         fallback-warning match from step 2.
-       - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
-         says it got stuck / output shows it gave up.
-         **Distinguish** whether the completion report contains a declared blocker
-         by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
+      - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
+        the completion report does not declare an unresolved blocker.
+      - **Operational crash** = non-zero exit (including a `timeout` kill — exit
+        124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
+        fallback-warning match from the assert-ran step.
+      - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
+        says it got stuck / output shows it gave up.
+        **Distinguish** whether the completion report contains a declared blocker
+        by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
 
-         ```bash
-         if grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-out.jsonl 2>/dev/null \
-            || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
-           echo "DECLARED_BLOCKER"
-         else
-           echo "OPAQUE_GIVE_UP"
-         fi
-         ```
+        ```bash
+        if grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-out.jsonl 2>/dev/null \
+           || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
+          echo "DECLARED_BLOCKER"
+        else
+          echo "OPAQUE_GIVE_UP"
+        fi
+        ```
 
-    4. **Failure ladder:**
+   3. **Failure ladder:**
 
-       - **Operational crash** → **retry the `opencode run` once** (if it timed out,
-         retry with a **tight brief**: name the exact files to read, front-load the facts
-         you've already verified as given, and forbid codebase re-exploration — the wrapper
-         is a hard ceiling and the executor otherwise burns its budget re-deriving context
-         you already have). Second crash → spawn a **Sonnet subagent**
-         apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
-         `tasks.md`.
-       - **Non-crash failure — declared blocker** (the completion report contains
-         `### NON-CONVERGENCE BLOCKER`) → route to **orchestrator triage**, NOT
-         reflexive Sonnet. Triage options:
-         - *Brief/plan gap* → tighten the brief and dispatch a **fresh** executor
-           (not the same one — a new invocation with the amended brief).
-         - *Artifact/decision gap* → escalate to the user.
-         - *Model-capability gap* → spawn a **Sonnet** subagent (only when the
-           blocker's cause is the model itself, not the plan).
-       - **Non-crash failure — opaque give-up** (no `### NON-CONVERGENCE BLOCKER`
-         heading) → **immediately** spawn the Sonnet subagent apply-executor
-         (no retry; identical to the pre-change behavior).
-       - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
-         output in Step 7 MUST state (a) the deepseek/opencode failure and how it
-         manifested, and (b) that Sonnet finished the work.
-
-   5. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
-      `git diff` to confirm all tasks are checked off and changes are on disk.
-      Proceed to Step 7.
+      - **Operational crash** → **retry the `opencode run` once** (if it timed out,
+        retry with a **tight brief**: name the exact files to read, front-load the facts
+        you've already verified as given, and forbid codebase re-exploration — the wrapper
+        is a hard ceiling and the executor otherwise burns its budget re-deriving context
+        you already have). Second crash → spawn a **Sonnet subagent**
+        apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
+        `tasks.md`.
+      - **Non-crash failure — declared blocker** (the completion report contains
+        `### NON-CONVERGENCE BLOCKER`) → route to **orchestrator triage**, NOT
+        reflexive Sonnet. Triage options:
+        - *Brief/plan gap* → tighten the brief and dispatch a **fresh** executor
+          (not the same one — a new invocation with the amended brief).
+        - *Artifact/decision gap* → escalate to the user.
+        - *Model-capability gap* → spawn a **Sonnet** subagent (only when the
+          blocker's cause is the model itself, not the plan).
+      - **Non-crash failure — opaque give-up** (no `### NON-CONVERGENCE BLOCKER`
+        heading) → **immediately** spawn the Sonnet subagent apply-executor
+        (no retry; identical to the pre-change behavior).
+      - **Mandatory disclosure:** whenever Sonnet runs, the primary's completion
+        output in Step 7 MUST state (a) the deepseek/opencode failure and how it
+        manifested, and (b) that Sonnet finished the work.
 
    ---
    ### If you are OpenCode

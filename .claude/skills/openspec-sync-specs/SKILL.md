@@ -76,6 +76,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    d. **Create new main spec** if capability doesn't exist yet:
       - Create `openspec/specs/<capability>/spec.md`
+      - Start the file at `## Purpose`; do **not** add a `# <name> Specification` H1
+        (the repo's 7 specs share this header shape).
       - Add Purpose section (can be brief, mark as TBD)
       - Add Requirements section with the ADDED requirements
 

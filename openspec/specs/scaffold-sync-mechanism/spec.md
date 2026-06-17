@@ -1,5 +1,3 @@
-# scaffold-sync-mechanism Specification
-
 ## Purpose
 
 Define the behavioral requirements for the scaffold sync mechanism — the tooling and guards that keep

@@ -1,5 +1,3 @@
-# verify-multimodel-gate Specification
-
 ## Purpose
 
 Require independent multi-model verification passes as hard gates in the verify step, so a release decision is never gated on a single model's blind spots. This capability defines the platform-specific pass chain, the hard-gate / rerun-failed-and-after recovery semantics, the read-only delegated verifier agent contract, and the audit trail of per-pass verdicts.
