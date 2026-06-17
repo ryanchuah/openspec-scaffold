@@ -236,7 +236,7 @@ After completing all artifacts and reviews, summarize:
   - These guide what you write, but should never appear in the output
 
 **Guardrails**
-- **tasks.md MUST contain only apply-phase implementation work** — deterministic code, tests, and scripts the executor completes sequentially and checks off. Verify (live-canary eyeball, behavioral acceptance) and archive (spec sync, doc reconciliation, `notes.md` write) are NOT implementation — they need live LLM calls, human judgment, or a separate delegated pass — so they MUST NOT appear as `tasks.md` checkboxes (doing so creates a false "incomplete / in-progress" status at archive). Put change-specific acceptance criteria in a **Verification** section of `design.md` instead; the generic verify procedure lives in the verify skill, and verify results land in `notes.md`.
+- **tasks.md contains only apply-phase work** — the full rule (what may/may not be a `tasks.md` checkbox, and where change-specific acceptance criteria go) is single-sourced in `openspec/config.yaml` `rules.tasks`, which is prompt-injected into this artifact prompt. Do not restate it here.
 - Create ALL artifacts needed for implementation (as defined by schema's `apply.requires`)
 - **External-API live probe (design.md):** When design.md introduces new external-API surfaces, run a live probe against the real installed environment before self-review — record the result in design.md. See step 4a for procedure.
 - Always read dependency artifacts before creating a new one

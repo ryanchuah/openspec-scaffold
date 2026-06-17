@@ -33,6 +33,18 @@ Every change to this scaffold must be **source-traceable** (operator constraint,
 
 **Why this matters:** scaffold is upstream for every project; an invented or preference-specific rule propagates everywhere via `sync_scaffold.py` and is hard to walk back.
 
+4. **Single-source restated rules — cite, never re-expand.** Several workflow rules were historically restated 3–5× across the instruction surface, free to drift independently (audit §C2). Each now has ONE canonical home; every other site keeps only its per-context specifics plus a citation. When you edit one of these rules, edit it **only** at its home and leave the citations as citations — never re-expand the rule text at another site (a re-expanded copy is exactly what `sync_scaffold.py` then propagates as drift to all three repos). Each home carries an inline `CANONICAL:` marker.
+
+   **Single-source registry:**
+
+   | Rule | Canonical home |
+   |------|----------------|
+   | tasks.md = apply-phase only | `openspec/config.yaml` `rules.tasks` (prompt-injected) |
+   | model-assignment matrix | `AGENTS.md` `## Roles` |
+   | never record test/doc/row counts | `AGENTS.md` (the "Tests green before any commit" bullet) |
+   | mock-encoded-idealized-API war-story | `.claude/agents/apply-executor.md` (+ its byte-identical `.opencode` twin) |
+   | web-research convention | `ai-docs/research-fetch-convention.md` |
+
 ---
 
 ## 3. Opencode delegation gotchas

@@ -72,6 +72,8 @@ anything the agent must never violate — or remove this section if none.>
 
 ## Roles
 
+<!-- CANONICAL: model-assignment-matrix — cite, do not restate (registry: ai-docs/workflow-lessons.md §2) -->
+
 - **The primary agent is the orchestrator and reviewer — not the implementer.** It runs
   the OpenSpec lifecycle (explore, propose, verify, archive) and reviews output; it does
   **not** write implementation code. Implementation happens in the **apply** phase, which
@@ -216,6 +218,7 @@ Two tiers of state, with deliberately different write rules:
   writers on one working tree corrupt each other — which is exactly why apply uses a single
   sequential executor. Delegation saves time/cost only when the subtasks are genuinely
   independent.
+<!-- CANONICAL: never-record-counts — cite, do not restate (registry: ai-docs/workflow-lessons.md §2) -->
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,
@@ -254,16 +257,13 @@ Two tiers of state, with deliberately different write rules:
 
 ## Web research convention
 
-**(a) GitHub files — always fetch raw, never clone.** Fetch via
-`raw.githubusercontent.com` or run `python scripts/fetch_clean.py <github-url>`. Do NOT
-`git clone` whole repos.
-**(b) Full-page content — use `fetch_clean`** (`python scripts/fetch_clean.py <url>`).
-Use built-in WebFetch only for a targeted single-fact answer.
-**(c) Be targeted** — only fetch what you will cite; checkpoint findings to disk.
-**(d) Never call the built-in `WebSearch` tool from the main thread.** Route ALL web research
-through subagents that use `scripts/fetch_clean.py` (discover via a fetched search URL, then
-fetch the chosen pages). This keeps the orchestrator context clean and lets research run in
-parallel and checkpoint to disk; the orchestrator applies its own judgment to subagent reports.
+<!-- The full four-rule convention is single-sourced in ai-docs/research-fetch-convention.md. -->
+The full four-rule convention (raw-fetch GitHub, `fetch_clean.py` for pages, fetch-only-what-you-cite)
+is single-sourced in **`ai-docs/research-fetch-convention.md`**. The load-bearing guardrail, restated
+here so it is visible at first load: **never call the built-in `WebSearch` tool from the main thread**
+— route ALL web research through subagents that use `scripts/fetch_clean.py` (discover via a fetched
+search URL, then fetch the chosen pages), keeping the orchestrator context clean and letting research
+run in parallel and checkpoint to disk.
 
 ## After reading this file
 Acknowledge four things before acting: (1) your role as orchestrator/reviewer who runs

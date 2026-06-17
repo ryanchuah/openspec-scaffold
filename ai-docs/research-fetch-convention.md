@@ -1,5 +1,7 @@
 # Research Fetch Convention
 
+<!-- CANONICAL: web-research-convention — cite, do not restate (registry: ai-docs/workflow-lessons.md §2) -->
+
 Standard block to paste into research-subagent prompts. Established 2026-06-03.
 
 These conventions were measured to cut tokens substantially on article pages and

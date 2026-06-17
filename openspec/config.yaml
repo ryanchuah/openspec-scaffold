@@ -6,9 +6,10 @@ context: |
   Tech stack: <FILL: language/runtime, database, key libraries>
   Testing: <FILL: test framework and philosophy, e.g. "pytest; prefer property/invariant tests over output-pinning tests; 'tests pass' + 'the system ran clean' are the only live-status signals — never record test/doc/row counts in any tracked doc, even as history; only a failing/skipped test is worth a note">
   Style: no inline comments unless the WHY is non-obvious; no docstrings unless public API.
-  Web research: always use scripts/fetch_clean.py for article/doc content; WebFetch only for single-fact extraction.
+  Web research: always use scripts/fetch_clean.py for article/doc content; WebFetch only for single-fact extraction (full convention: ai-docs/research-fetch-convention.md).
 
 rules:
+  # CANONICAL: tasks-md-apply-only — cite, do not restate (registry: ai-docs/workflow-lessons.md §2)
   tasks:
     - >-
       When apply is triggered, do not implement in the primary session. Delegate to

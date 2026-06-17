@@ -63,7 +63,7 @@ Archive a completed change in the experimental workflow.
 
    Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete). By convention
    `tasks.md` holds apply-phase work ONLY — verify/archive steps are not tracked there — so
-   any incomplete task means implementation work genuinely remains (not a pending doc/spec step).
+   any incomplete task means implementation work genuinely remains (not a pending doc/spec step). (Rule canonical: `openspec/config.yaml` `rules.tasks`.)
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks

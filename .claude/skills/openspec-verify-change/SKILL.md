@@ -26,7 +26,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 >
 > **Caveats on the 5 self-review steps:**
 > - **(step 2) commit-test-gate backstop:** The commit-test-gate (`.claude/settings.json` `PreToolUse` hook on `git commit`) backstops the green-suite requirement — it blocks any commit whose tests are not green. A failing verify should be caught BEFORE the gate would block, making the gate the known last-resort enforcement rather than the first line.
-> - **(step 4) why the live smoke is mandatory:** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened on real projects: an integration shipped with wrong sort semantics and a 500-ing backfill, with mocks that encoded the *idealized* API, so a fully green suite passed over a non-functional integration. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response.
+> - **(step 4) why the live smoke is mandatory:** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This is the mock-encoded-idealized-API failure mode — the full war-story is the canonical mock-contract rule in `.claude/agents/apply-executor.md` (do not restate it here). Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response.
 > - **(step 5) do not hand-fix:** Do **not** hand-fix beyond a trivial typo / comment / one-line rename — if you would write more than one line of implementation, stop and re-delegate.
 >
 > **Fix-redelegation mechanics (Claude Code):**
@@ -195,7 +195,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
    - **Note:** by convention `tasks.md` holds apply-phase work ONLY (no verify/archive
      checkboxes), so an incomplete task genuinely means implementation work remains — CRITICAL
      is correct. The change-specific acceptance criteria you verify behaviorally against live
-     in design.md's **Verification** section, not in `tasks.md`.
+     in design.md's **Verification** section, not in `tasks.md`. (Rule canonical: `openspec/config.yaml` `rules.tasks`.)
 
    **Spec Coverage**:
    - If delta specs exist in `contextFiles.specs`:
