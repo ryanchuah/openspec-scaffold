@@ -32,6 +32,7 @@ scripts/scaffold_check.py
 scripts/scaffold_manifest.txt
 scripts/test-gate.sh
 scripts/test_convergence.py
+scripts/test_executor_body_agreement.py
 
 # AGENTS.md — span-replace, not wholesale copy (see D3)
 AGENTS.md

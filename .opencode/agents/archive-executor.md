@@ -44,7 +44,7 @@ If `<archivePath>` already exists, report the conflict and stop — do not overw
 If the primary indicated delta spec sync was requested:
 - Read each delta spec from `<archivePath>/` (the now-moved change dir)
 - Compare to the corresponding main spec at `openspec/specs/<capability>/spec.md`
-- Apply additions, modifications, and removals to the main spec
+- Apply additions, modifications, removals, and renames (RENAMED, FROM:/TO: format — see `openspec-sync-specs`) to the main spec
 - Do not invent changes not present in the delta spec
 
 If sync was not requested, skip this step.

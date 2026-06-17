@@ -35,6 +35,8 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
 ### Multi-model passes (independent verification gates)
 
+**Tier applicability:** This skill and its multi-model passes apply to MEDIUM and COMPLEX changes only. A SMALL change does its own verification per `AGENTS.md` and does **not** invoke this skill, its multi-model passes, or the verify phase-gate.
+
 After your own self-review (above) and **before** the artifact/spec mapping checklist Steps below, you MUST run independent multi-model verification passes. These passes are additional independent confirmations; they do NOT replace your own self-review — the "do not delegate this" rule above still governs the self-review.
 
 The pass sequence depends on which platform you are running on:
@@ -101,6 +103,24 @@ Each pass is a **hard gate**. When a pass returns `VERDICT: NEEDS REVISION` and 
 3. **Loop bound:** if the **same** pass returns NEEDS REVISION across **3** fix cycles without clearing, STOP and escalate to the operator with the accumulated verdicts.
 
 If your own self-review (pass 1, above) finds a defect, follow the existing behavioral-review-fails path: fix, re-run from pass 1 (the self-review).
+
+### Simplicity/quality gate (MEDIUM/COMPLEX)
+
+After the verifier passes return READY and **before** the artifact/spec mapping checklist, the orchestrator SHALL run a harness-neutral simplicity/duplication/dead-code review of the change's `git diff`:
+
+- **Under Claude Code:** the orchestrator invokes the `simplify` (or `/code-review`) skill on the change's `git diff` and folds confirmed findings into the defect path.
+- **Under OpenCode (no such skill exists):** the orchestrator itself reviews the `git diff` against this concrete checklist — (a) code duplicating functionality that already exists elsewhere in the repo; (b) abstractions introduced but used only once; (c) dead or unreachable code paths; (d) over-parameterization/config beyond the change's actual scope.
+
+Findings are leads to confirm from disk (same discipline as verifier findings); a confirmed simplification defect uses the existing defect re-delegation path. This gate does **not** block on pure style nits — it targets over-engineering, duplication, and dead code.
+
+### Security review (conditional — sensitive-surface changes)
+
+When the change touches auth, credentials/secrets, persisted data, or an external API/network surface, the orchestrator SHALL run a harness-neutral security review before declaring READY:
+
+- **Under Claude Code:** invoke the `security-review` skill on the diff.
+- **Under OpenCode (no such skill exists):** the orchestrator itself reviews the diff against this concrete checklist — (a) authn/authz bypass or missing authorization on new endpoints/queries; (b) credential/secret leakage (logged, returned in a response, or committed); (c) unsanitized external/user input reaching SQL, shell, or file paths (injection); (d) unsafe deserialization; (e) missing input-confirmation guard on a destructive operation.
+
+This is a **hard gate for COMPLEX** changes on those surfaces and a **recommended** pass for MEDIUM changes on those surfaces. Changes touching none of those surfaces do not trigger it. Confirmed findings use the existing defect re-delegation path.
 
 **PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, you MUST NOT automatically proceed to archive. Tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Never invoke archive without an explicit user request. Crossing phases without permission is a hard rule.
 
