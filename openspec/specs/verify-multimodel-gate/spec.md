@@ -11,14 +11,14 @@ The verify step SHALL run independent verification passes by additional models, 
 - **WHEN** the orchestrator is Claude Code, the change is MEDIUM or COMPLEX, and the self-review completes
 - **THEN** a `deepseek/deepseek-v4-pro` verifier pass runs, then a `deepseek/deepseek-v4-flash` verifier pass runs, before any report or `notes.md` is written
 
-#### Scenario: A MEDIUM/COMPLEX OpenCode change runs the flash pass only
+#### Scenario: A MEDIUM/COMPLEX OpenCode change runs pro then flash
 - **WHEN** the orchestrator is OpenCode, the change is MEDIUM or COMPLEX, and the self-review completes
-- **THEN** a single `deepseek/deepseek-v4-flash` verifier pass runs, and no pro pass runs
+- **THEN** a `deepseek/deepseek-v4-pro` verifier pass runs, then a `deepseek/deepseek-v4-flash` verifier pass runs, before any report or `notes.md` is written
 
-#### Scenario: A SMALL change runs self-review only (with an optional flash pass)
+#### Scenario: A SMALL change runs self-review plus a required flash pass
 - **WHEN** the change is SMALL
 - **THEN** it does NOT invoke the verify skill, its multi-model passes, or the verify phase-gate STOP
-- **AND** the orchestrator may optionally run a single `deepseek/deepseek-v4-flash` verifier pass if the orchestrator judges the change risky
+- **AND** the orchestrator SHALL run a single `deepseek/deepseek-v4-flash` verifier pass (same invocation shape as the verify skill's flash pass, outside the verify skill)
 
 #### Scenario: The self-review is preserved
 - **WHEN** the multi-model passes run (for MEDIUM/COMPLEX)
@@ -61,16 +61,12 @@ Before trusting any pass output, the orchestrator SHALL assert the real verifier
 - **WHEN** a verifier reports a defect
 - **THEN** the orchestrator reproduces or confirms it from disk before initiating a fix, and records a rationale if it overrules the finding as false
 
-### Requirement: A single verifier agent serves both models
-The verifier SHALL be defined by a single agent file `.opencode/agents/openspec-verifier.md` with default `model: deepseek/deepseek-v4-flash`. The OpenCode path SHALL invoke it via the Task tool (`subagent_type: openspec-verifier`) at its default model. The Claude Code path SHALL invoke it via `opencode run --agent openspec-verifier` and select the model per pass with `--model` (`deepseek/deepseek-v4-pro`, then `deepseek/deepseek-v4-flash`), overriding the frontmatter default.
+### Requirement: A single verifier agent serves both models, invoked via opencode run on both platforms
+The verifier SHALL be defined by a single agent file `.opencode/agents/openspec-verifier.md` with default `model: deepseek/deepseek-v4-flash`. Both platforms SHALL invoke it via `opencode run --agent openspec-verifier` with a `--model` flag per pass (`deepseek/deepseek-v4-pro`, then `deepseek/deepseek-v4-flash`), overriding the frontmatter default. Both invocations apply the full delegation harness (`< /dev/null`, `--dir`, EXIT-sentinel, bounded wait) per `ai-docs/delegation-harness.md`.
 
-#### Scenario: Claude Code selects the model per pass
-- **WHEN** the Claude Code orchestrator runs the pro pass then the flash pass
-- **THEN** each invocation passes the corresponding `--model`, overriding the agent's frontmatter default
-
-#### Scenario: OpenCode uses the frontmatter default
-- **WHEN** the OpenCode orchestrator spawns `subagent_type: openspec-verifier`
-- **THEN** the pass runs on the frontmatter default `deepseek/deepseek-v4-flash` with no model override
+#### Scenario: Both platforms select the model per pass
+- **WHEN** either a Claude Code or an OpenCode orchestrator runs the pro pass then the flash pass
+- **THEN** each invocation passes the corresponding `--model` via `opencode run`, overriding the agent's frontmatter default
 
 ### Requirement: Each pass's verdict and model are recorded
 The verification report and `notes.md` SHALL record, for each pass in the platform's sequence, the model that ran it, its verdict, and any defect it caught (attributed to the pass that surfaced it).

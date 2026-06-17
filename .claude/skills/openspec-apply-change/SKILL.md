@@ -123,10 +123,14 @@ Implement tasks from an OpenSpec change.
         must be judged from the sentinel, not guessed from process state. If the wrapper
         fires (exit 124/137 in the exit file), the apply **timed out** — treat it as an
         **operational crash** (see Failure modes). For a very large change, prefer splitting
-        delegation across task ranges over raising the ceiling — gate each slice with
-        orchestrator-run targeted tests, and if your diff-read finds a defect in slice N,
-        fold the scoped fix as the **first item of slice N+1's brief** instead of a
-        separate fix run (sequential, no concurrent writers, one fewer invocation).
+        delegation across task ranges over raising the ceiling. **Why split:** the executor's
+        hard timeout budget (~600s) is the ceiling on any single invocation — splitting keeps
+        each run within budget, not to create intermediate review checkpoints. Between slices
+        the primary reads `git diff` and runs targeted tests as a smoke (crash/blocker
+        detection only, not a behavioral review); the real behavioral review happens at verify.
+        If your diff-read finds a defect in slice N, fold the scoped fix as the **first item
+        of slice N+1's brief** instead of a separate fix run (sequential, no concurrent
+        writers, one fewer invocation).
 
     2. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
        `git diff` to confirm all tasks are checked off and changes are on disk.

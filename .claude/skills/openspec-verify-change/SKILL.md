@@ -31,7 +31,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 >
 > **Fix-redelegation mechanics (Claude Code):**
 > - **Claude Code:** the fresh fix executor is the deepseek `apply-executor` driven via `opencode run` (same invocation shape as in the apply skill's Step 6, but the prompt is the **self-contained fix-spec** for the specific defect, not the whole `tasks.md`). **One attempt.**
-> - **Wrap the call in `timeout -k 15 300 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix should finish well inside 5 minutes). Per `ai-docs/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 300s with `-k 15` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
+> - **Wrap the call in `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix has a 10-minute budget matching the apply/archive floor). Per `ai-docs/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 600s with `-k 30` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
 > - **Completion detection.** Per `ai-docs/delegation-harness.md` §d (EXIT-sentinel): append `; echo "EXIT=$?" > /tmp/fix-out.exit`, detect completion by `[ -f /tmp/fix-out.exit ]`. Never poll with pgrep or judge from a mid-execution snapshot. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
 > - **Assert the real agent ran (§b):** Follow the checks in `ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable).
 >
@@ -80,22 +80,32 @@ timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
 
 Both invocations follow the hardened invocation and EXIT-sentinel patterns per `ai-docs/delegation-harness.md` §a and §d.
 
-#### OpenCode invocation (one flash pass)
+#### OpenCode invocation (pro + flash, same chain as Claude Code)
 
-Under OpenCode, spawn the verifier in-process via the Task tool — it runs the frontmatter default `deepseek/deepseek-v4-flash` with no model override:
+Under OpenCode, invoke the verifier via `opencode run` with the same hardened pattern as Claude
+Code — both platforms now run the identical pro → flash chain. Apply the full delegation harness
+(`ai-docs/delegation-harness.md` §a–d) to both calls:
 
+**Pro pass:**
+```bash
+timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
+  --model deepseek/deepseek-v4-pro --format json "<the verifier prompt from design D5>" \
+  > /tmp/verify-pro-out.jsonl 2> /tmp/verify-pro-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-pro-out.exit
 ```
-subagent_type: openspec-verifier
-```
 
-Because this is an in-process Task-tool spawn (not `opencode run`), it falls under the carve-out in `ai-docs/delegation-harness.md` (exempt from §a and §c).
+**Flash pass:**
+```bash
+timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
+  --model deepseek/deepseek-v4-flash --format json "<the verifier prompt from design D5>" \
+  > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
+```
 
 #### Assert the real verifier ran
 
-Before trusting any pass output, confirm the real verifier ran per `ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable). Then add the phase-specific format check:
-
-- **For the Claude Code `opencode run` passes:** confirm the extracted output contains a `## Verify Pass` heading AND a `VERDICT:` line.
-- **For the OpenCode Task-tool path** (in-process; no `opencode run` stderr to grep): omit the §b stderr check, but still confirm the extracted text contains a `## Verify Pass` heading AND a `VERDICT:` line.
+Before trusting any pass output (both platforms), confirm the real verifier ran per
+`ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract
+`part.text` via `jq`, confirm parseable). Then confirm the extracted output contains a
+`## Verify Pass` heading AND a `VERDICT:` line.
 
 #### Judge findings from disk
 

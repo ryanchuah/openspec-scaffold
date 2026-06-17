@@ -72,9 +72,9 @@ jsonl mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows nonz
 |-------|------|-----------------|------------|------------|-------|
 | apply | apply-executor | `-k 30 600` | 600 | 30s | Full `tasks.md` can run several minutes; extra grace reduces SIGKILL risk during a legitimate slow step. |
 | archive | archive-executor | `-k 30 600` | 600 | 30s | Multi-step reconciliation; same rationale as apply. |
-| verify | fix-executor | `-k 15 300` | 300 | 15s | Scoped single-defect fix; finishes well inside 5 minutes; faster kill appropriate. |
-| verify | verifier (pro pass) | `-k 15 780` | 780 | 15s | Independent verification pass; focused scope makes faster kill appropriate. |
-| verify | verifier (flash pass) | `-k 15 780` | 780 | 15s | Same as pro pass. |
+| verify | fix-executor | `-k 30 600` | 600 | 30s | Scoped single-defect fix; 10-minute floor matches the apply/archive budget. |
+| verify | verifier (pro pass) | `-k 15 780` | 780 | 15s | Independent verification pass; both platforms use this budget. |
+| verify | verifier (flash pass) | `-k 15 780` | 780 | 15s | Same as pro pass; both platforms. |
 | propose | reviewer | `-k 15 780` | 780 | 15s | Per the `reviewer-budget` capability spec — cross-referenced, not duplicated here. |
 
 The budgets above are extraction-faithful — this table is the single authoritative source for all
@@ -83,10 +83,9 @@ the `reviewer-budget` capability spec.
 
 ---
 
-## Carve-out: verify's in-process passes
+## Carve-out: verify's in-process self-review
 
-Verify's **in-process self-review pass** (the primary agent's own review) and the **OpenCode
-Task-tool verifier spawn** (`subagent_type: openspec-verifier`) are Task-tool spawns, not
-`opencode run` — there is no separate process and no TTY-stdin. They are therefore **exempt**
+Verify's **in-process self-review pass** (the primary agent's own review) is a Task-tool spawn,
+not `opencode run` — there is no separate process and no TTY-stdin. It is therefore **exempt**
 from the `< /dev/null` / `--dir` hardening (§a) and the bounded-wait/surgical-kill wrapper (§c).
-A skill citing this doc for an in-process pass must not apply (a) or (c) to it.
+The delegated verifier passes (pro + flash, both platforms) use `opencode run` and are NOT exempt.
