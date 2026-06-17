@@ -24,9 +24,9 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 > 4. **If the change touches an external API / network service, RUN ITS LIVE SMOKE yourself against the real endpoint.** The mock-based suite is *structurally blind* to whether the mocks match reality — a fully green suite can encode a **wrong** API contract (wrong sort semantics, wrong field types, wrong error codes) and so pass while the real integration collects nothing. This has already happened on real projects: an integration shipped with wrong sort semantics and a 500-ing backfill, with mocks that encoded the *idealized* API, so a fully green suite passed over a non-functional integration. Therefore: run the change's opt-in live test (e.g. `LIVE_TESTS=1 .venv/bin/python -m pytest tests/test_<x>.py -k live -v`) and inspect a real response. **A *skipped* live smoke is NOT a *passed* one.** If an external-API change has no live smoke at all, that is itself a **CRITICAL** gap — require one to be added before archive.
 > 5. **On any defect:** diagnose and scope it yourself (reproduce it, run DB queries, read diffs), then **re-delegate the fix to a FRESH apply-executor** with a self-contained fix-spec that cites the exact file:line evidence and the concrete fix. Do **not** hand-fix beyond a trivial typo / comment / one-line rename — if you would write more than one line of implementation, stop and re-delegate. Then re-verify from step 1.
 >    - **Claude Code:** the fresh fix executor is the deepseek `apply-executor` driven via `opencode run` (same invocation shape as in the apply skill's Step 6, but the prompt is the **self-contained fix-spec** for the specific defect, not the whole `tasks.md`). **One attempt.**
->    - **Wrap the call in `timeout -k 15 300 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix should finish well inside 5 minutes; `--dir <repoRoot>` and `< /dev/null` so that a non-interactive permission prompt cannot hang the call — see the `noninteractive-delegation-safety` capability spec). The wrapper kills **only the opencode process it launched** — other concurrent opencode processes are untouched and no children are orphaned. **Never** `pkill`/`killall opencode`. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
->    - **Completion detection — EXIT-file sentinel, never process liveness (binding).** Append `; echo "EXIT=$?" > /tmp/fix-out.exit` to the wrapped command, run it with `run_in_background: true`, and detect completion by `[ -f /tmp/fix-out.exit ]` (or the harness background-completion notification). **NEVER poll with `pgrep -f "<pattern>"`** (it self-matches the poller's own command line) and **never judge a run from a mid-execution jsonl snapshot** — a slow run is NOT a crash. Conclude crash ONLY if the exit file shows nonzero/124/137, OR no opencode PID remains AND no exit file was ever written. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
->    - Reuse the same "assert the real agent ran" checks (fallback-warning grep + parseable output).
+>    - **Wrap the call in `timeout -k 15 300 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix should finish well inside 5 minutes). Per `ai-docs/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 300s with `-k 15` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
+>    - **Completion detection.** Per `ai-docs/delegation-harness.md` §d (EXIT-sentinel): append `; echo "EXIT=$?" > /tmp/fix-out.exit`, detect completion by `[ -f /tmp/fix-out.exit ]`. Never poll with pgrep or judge from a mid-execution snapshot. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
+>    - **Assert the real agent ran (§b):** Follow the checks in `ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable).
 >    - **Escalate to a Sonnet subagent** if that one attempt yields **either**: (a) an operational failure (crash / no usable output), **or** (b) a quality failure — i.e. the orchestrator's re-verification (re-run from MANDATORY step 1) still finds the defect, or finds a newly-introduced one.
 >    - After Sonnet fixes it, re-verify again from step 1.
 >    - **Mandatory disclosure:** if Sonnet was used, say so in the verification report / `notes.md` field 3 ("defect found and how it was fixed — and who fixed it"), explicitly noting the deepseek attempt failed and Sonnet took over.
@@ -53,7 +53,7 @@ VERDICT: READY            # or exactly: VERDICT: NEEDS REVISION
 
 #### Claude Code invocation (two passes)
 
-For each pass, invoke the verifier via a hardened `opencode run` (the same EXIT-sentinel/background pattern used for the fix-executor invocation):
+For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `ai-docs/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above):
 
 **Pro pass:**
 ```bash
@@ -69,7 +69,7 @@ timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
   > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
 ```
 
-Both invocations close stdin (`< /dev/null`), pass `--dir <repoRoot>`, and use the EXIT-file sentinel for completion detection (same pattern as the fix-executor invocation above). See the `noninteractive-delegation-safety` spec for the rationale.
+Both invocations follow the hardened invocation and EXIT-sentinel patterns per `ai-docs/delegation-harness.md` §a and §d.
 
 #### OpenCode invocation (one flash pass)
 
@@ -79,14 +79,14 @@ Under OpenCode, spawn the verifier in-process via the Task tool — it runs the 
 subagent_type: openspec-verifier
 ```
 
-Because this is an in-process Task-tool spawn (not `opencode run`), it is **not** subject to the `< /dev/null` / `--dir` hardening — there is no separate process and no TTY-stdin to block.
+Because this is an in-process Task-tool spawn (not `opencode run`), it falls under the carve-out in `ai-docs/delegation-harness.md` (exempt from §a and §c).
 
 #### Assert the real verifier ran
 
-Before trusting any pass output, you MUST confirm the real verifier ran and produced usable output:
+Before trusting any pass output, confirm the real verifier ran per `ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable). Then add the phase-specific format check:
 
-- **For the Claude Code `opencode run` passes:** grep stderr for `Falling back to default agent`. If found, do NOT use the output — escalate (the invocation silently fell back to a different model). Then confirm the extracted output contains a `## Verify Pass` heading AND a `VERDICT:` line.
-- **For the OpenCode Task-tool path** (in-process; no `opencode run` stderr to grep): confirm the extracted text contains a `## Verify Pass` heading AND a `VERDICT:` line; there is no stderr to grep for the fallback warning.
+- **For the Claude Code `opencode run` passes:** confirm the extracted output contains a `## Verify Pass` heading AND a `VERDICT:` line.
+- **For the OpenCode Task-tool path** (in-process; no `opencode run` stderr to grep): omit the §b stderr check, but still confirm the extracted text contains a `## Verify Pass` heading AND a `VERDICT:` line.
 
 #### Judge findings from disk
 

@@ -127,49 +127,41 @@ Archive a completed change in the experimental workflow.
    Do **not** perform the archive yourself, and do **not** spawn a Sonnet subagent as
    the default — use the deepseek executor first.
 
-    1. **Invoke the executor** (substitute real paths and the sync decision), capturing
-       stdout and stderr to separate files.
-       `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
-       prompt cannot hang the call — see the `noninteractive-delegation-safety`
-       capability spec for the full rationale.
+     1. **Invoke the executor** (substitute real paths and the sync decision), capturing
+        stdout and stderr to separate files.
+        Per `ai-docs/delegation-harness.md` §a (hardened invocation): `< /dev/null`
+        + `--dir <repoRoot>`. Budget 600s with `-k 30` per the table in §e.
+        Note: the archive invocation **omits the EXIT-sentinel** — this is a
+        pre-existing drift documented in §d and left as-is.
 
-       ```bash
-       timeout -k 30 600 opencode run \
-         --dir <repoRoot> \
-         --agent archive-executor \
-         --model deepseek/deepseek-v4-pro \
-         --format json \
-         "Archive the OpenSpec change. changeRoot: <changeRoot>. \
-          archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
-          Delta spec sync requested: <yes/no>. \
-          Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
-          Move the change dir to the archive path, sync delta specs if requested, \
-          and reconcile the three project docs from the archived notes.md / \
-          proposal.md / design.md. Do not commit. End with a brief completion \
-          report (what was moved, which specs synced, which docs reconciled, \
-          anything the primary should double-check)." \
-         > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null
-       ```
+        ```bash
+        timeout -k 30 600 opencode run \
+          --dir <repoRoot> \
+          --agent archive-executor \
+          --model deepseek/deepseek-v4-pro \
+          --format json \
+          "Archive the OpenSpec change. changeRoot: <changeRoot>. \
+           archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
+           Delta spec sync requested: <yes/no>. \
+           Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
+           Move the change dir to the archive path, sync delta specs if requested, \
+           and reconcile the three project docs from the archived notes.md / \
+           proposal.md / design.md. Do not commit. End with a brief completion \
+           report (what was moved, which specs synced, which docs reconciled, \
+           anything the primary should double-check)." \
+          > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null
+        ```
 
-       - The OpenCode agent edits files in the **same working tree** as Claude, so
-         its moves and doc edits land directly on disk — verify by reading back.
-      - **Bounded wait + surgical kill.** The `timeout -k 30 600` wrapper caps the
-        wait at 10 minutes (TERM at the deadline, then SIGKILL 30s later). It kills
-        **only the opencode process this command launched** — other concurrent
-        opencode processes are left untouched and no children are orphaned. **Never**
-        `pkill opencode` / `killall opencode`. Because reconciliation can run several
-        minutes, run this Bash call with `run_in_background: true`. Exit 124 (or 137
-        if SIGKILL was needed) = operational crash (step 4 of the ladder).
+        - The OpenCode agent edits files in the **same working tree** as Claude, so
+          its moves and doc edits land directly on disk — verify by reading back.
+       - **Bounded wait + surgical kill.** Per `ai-docs/delegation-harness.md` §c
+         (surgical kill — never `pkill`). Because reconciliation can run several
+         minutes, run this Bash call with `run_in_background: true`. Exit 124 (or 137
+         if SIGKILL was needed) = operational crash (step 4 of the ladder).
 
-   2. **Assert the real executor ran** (do this BEFORE trusting output —
-      `opencode run` exits 0 even on silent agent fallback):
-
-      - `grep -q "Falling back to default agent" /tmp/archive-err.log` → if it
-        matches, the deepseek executor was **not** loaded. Treat as an
-        **operational crash** (step 4 of the ladder).
-      - Extract the completion report:
-        `grep '"type":"text"' /tmp/archive-out.jsonl | tail -1 | jq -r '.part.text'`
-        Empty/unparseable → operational crash.
+    2. **Assert the real executor ran:** Per `ai-docs/delegation-harness.md` §b
+       (grep stderr for `Falling back to default agent`, extract `part.text` via
+       `jq`, confirm parseable). Empty/unparseable → operational crash.
 
    3. **Judge success from disk** (not just the report):
 

@@ -21,6 +21,7 @@
 .opencode/agents/openspec-verifier.md
 
 # AI docs
+ai-docs/delegation-harness.md
 ai-docs/fast-track-workflow.md
 ai-docs/research-fetch-convention.md
 

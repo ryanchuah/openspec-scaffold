@@ -60,3 +60,38 @@ The scaffold→downstream sync mechanism shipped: `scripts/sync_scaffold.py` (by
 - **Manifest staleness (R3).** The manifest is self-managed; a newly-added shared file that nobody lists is invisible to sync until the manifest is updated. No automated catch in W1 — W6's drift check is the backstop. Also: `ai-docs/opencode-delegation-notes.md` is deliberately **absent** from the manifest (it does not exist in scaffold yet); it must be promoted into scaffold + added to the manifest in a later dedup/propagation change before it can sync.
 - **R1 line-anchored span risk (accepted).** A downstream `## Project context` that itself contained a literal line `## Roles` would mis-slice the AGENTS.md span boundaries. Accepted as low-risk (project context is short, hand-curated) and noted in design R1. No guard added by choice.
 - **Live guard hook smoke is W6.** The guard's `git diff --cached` integration is unit-stubbed here; the live `git commit` hook smoke in downstream repos (verifying the PreToolUse wiring blocks on exit 2) is W6, riding the W0-verified exit-2 mechanism.
+
+## dedup-scaffold (W2) follow-ons (shipped 2026-06-17)
+
+W2 single-sourced the `opencode run` delegation harness: the shared invocation/assert-ran/surgical-kill/
+EXIT-sentinel prose + the timeout budgets now live once in `ai-docs/delegation-harness.md`, with the four
+delegating skills (apply/verify/propose/archive) reduced to citations + their per-phase specifics. Scope
+was C1 + B3 only (C2 rule-restatements → W6; C4 `.claude`/`.opencode` body-agreement guard → W4). Archive:
+`openspec/changes/archive/2026-06-17-dedup-scaffold` (pending). Three follow-ups surfaced and are logged
+here at operator instruction:
+
+- **[BUG — archive-executor omits the EXIT-sentinel] (MED, pre-existing).** `openspec-archive-change`
+  backgrounds its executor (`run_in_background: true`) but its `opencode run` invocation does **not** append
+  `; echo "EXIT=$?" > /tmp/archive-out.exit` — it is the only backgrounded delegation missing the sentinel
+  (apply + verify have it; propose is synchronous and correctly doesn't need it). So the harness §(d)
+  completion-detection contract (poll `[ -f …archive-out.exit ]`; conclude crash/timeout only on exit
+  124/137) **cannot work for archive**, and the archive skill's own "exit 124 = operational crash" line
+  references an exit code it never captures. Latent because archive usually finishes fast / leans on the
+  harness background-completion notification, but timeout/crash detection there is unreliable. **One-line
+  fix:** append the sentinel exactly like apply. Pre-existing C1 drift, surfaced (and documented inline in
+  the archive skill + doc §d) by W2 but deliberately **not fixed** (extraction-not-redesign). Candidate for
+  a tiny standalone follow-up change.
+- **[Orchestration — stress slicing large changes into task ranges] (MED).** The first W2 apply **timed
+  out** (`EXIT=124`): all 13 tasks were dispatched to deepseek-flash in one 600s `opencode run`; flash was
+  making real progress (it finished the doc + the apply skill) but the budget couldn't cover the whole
+  extraction. The apply skill *already* advises "prefer splitting delegation across task ranges over
+  raising the ceiling" — but the guidance is easy to miss and was missed here (monolithic dispatch). The
+  harness's EXIT-sentinel correctly **detected** the timeout (it's a completion-*detection* mechanism, not
+  a budget fix) and the tight-brief + 780s retry recovered it. Follow-up: make the "slice big MEDIUM/COMPLEX
+  changes" guidance more load-bearing/prominent (apply skill and/or the tier-confirmation+plan step), so
+  the orchestrator slices rather than dispatching a fat change in one shot.
+- **[Tier-scale the delegation timeout budgets] (MED).** The `delegation-harness.md` §(e) timeout table is
+  fixed per phase (apply 600s regardless of change size), so a large change pays the same budget as a
+  one-task change → spurious timeouts like the one above. Consider scaling the apply/verify budgets by
+  change tier or task count (rhymes with audit **B2** "verify gate not tier-scaled"). Currently a deliberate
+  non-goal; revisit as a hardening change. Pairs naturally with the slicing item above.

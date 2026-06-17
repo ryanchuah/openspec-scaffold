@@ -104,55 +104,36 @@ I'll create artifacts with review:
         reviewer programmatically via `opencode run`. Do NOT review the artifact
         yourself — the review must come from a different model.
 
-         1. Run the reviewer (substituting actual paths for `<changeRoot>` and
-            `<artifact>`), **capturing stdout and stderr to separate files**.
-            `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
-            prompt cannot hang the call — see the `noninteractive-delegation-safety`
-            capability spec for the full rationale.
+          1. Run the reviewer (substituting actual paths for `<changeRoot>` and
+             `<artifact>`), **capturing stdout and stderr to separate files**.
+             Per `ai-docs/delegation-harness.md` §a (hardened invocation): `< /dev/null`
+             + `--dir <repoRoot>`. Budget 780s with `-k 15` per the table in §e.
 
-            timeout -k 15 780 opencode run \
-              --dir <repoRoot> \
-              --agent openspec-reviewer \
-              --model deepseek/deepseek-v4-pro \
-              --format json \
-              "Review the artifact at <changeRoot>/<artifact>.md. \
-               Also read the explore-brief if it exists and openspec/specs/ \
-               for context." \
-              > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
+             timeout -k 15 780 opencode run \
+               --dir <repoRoot> \
+               --agent openspec-reviewer \
+               --model deepseek/deepseek-v4-pro \
+               --format json \
+               "Review the artifact at <changeRoot>/<artifact>.md. \
+                Also read the explore-brief if it exists and openspec/specs/ \
+                for context." \
+               > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
 
-            If the user specified a different reviewer model, substitute it
-            for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
-            reviewer's role prompt and tools; `--model` selects which LLM runs.
+             If the user specified a different reviewer model, substitute it
+             for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
+             reviewer's role prompt and tools; `--model` selects which LLM runs.
 
-            **Bounded wait + surgical kill.** The `timeout -k 15 780` wrapper
-            caps the wait at 13 minutes (780s); if the reviewer is still running
-            it gets SIGTERM, then SIGKILL 15s later. The cap is a runaway
-            backstop, not a target — a thorough review may use the full budget.
-            This kills **only the opencode process it launched** — it leaves any
-            other concurrent opencode processes untouched and orphans no children
-            (verified). A timeout surfaces as exit code 124 (or 137 if SIGKILL
-            was needed) — treat it per step 4's salvage path (do NOT simply
-            escalate). **Never** `pkill opencode` / `killall opencode`: there
-            are routinely other opencode processes running, and that would kill
-            them too.
+             **Bounded wait + surgical kill.** Per `ai-docs/delegation-harness.md` §c
+             (surgical kill — never `pkill`). A timeout surfaces as exit code 124
+             (or 137 if SIGKILL was needed) — treat it per step 4's salvage path
+             (do NOT simply escalate).
 
-        2. **Assert the real reviewer actually ran (do this BEFORE trusting any
-           output — `opencode run` exits 0 even when it silently used the wrong
-           agent):**
-           - Grep stderr for the fallback warning:
-             `grep -q "Falling back to default agent" /tmp/review-err.log`.
-             If it matches, the reviewer was NOT loaded (a `mode:` regression —
-             it must be `mode: all` or a primary). Do NOT use the output, do NOT
-             self-review. Escalate to the user with the stderr line.
-           - Extract the review: filter the JSON Lines for `"type":"text"`,
-             take the last one, extract `part.text`:
-             `grep '"type":"text"' /tmp/review-out.jsonl | tail -1 | jq -r '.part.text'`
-           - Confirm the extracted text contains the reviewer's own format —
-             a `## Review Round` heading AND at least one severity marker
-             (🔴/🟡/💡). If either is missing, the output did not come from the
-             reviewer prompt: do NOT proceed, escalate with the raw output.
-           - If the output is empty or unparseable: do NOT proceed. Escalate
-             to the user with the raw output and the exact command that ran.
+         2. **Assert the real reviewer actually ran:** Per `ai-docs/delegation-harness.md`
+            §b (grep stderr for `Falling back to default agent`, extract `part.text` via
+            `jq`, confirm parseable). Then add the reviewer-specific format check:
+            confirm the extracted text contains a `## Review Round` heading AND at least
+            one severity marker (🔴/🟡/💡). If either is missing, the output did not come
+            from the reviewer prompt: do NOT proceed, escalate with the raw output.
 
         3. Process the review:
            - Append the review text to `review-log.md` with round number

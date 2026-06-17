@@ -88,10 +88,9 @@ Implement tasks from an OpenSpec change.
    the default — use the deepseek executor first.
 
     1. **Invoke the executor** (substitute real `<changeRoot>` paths), capturing
-       stdout and stderr to separate files.
-       `< /dev/null` + `--dir <repoRoot>` so that a non-interactive permission
-       prompt cannot hang the call — see the `noninteractive-delegation-safety`
-       capability spec for the full rationale.
+       stdout and stderr to separate files. See `ai-docs/delegation-harness.md` §a–d
+       for the shared harness contract (hardened invocation, assert-ran, bounded wait,
+       EXIT-sentinel); budgets are in that doc's table (§e).
 
        ```bash
        timeout -k 30 600 opencode run \
@@ -109,54 +108,29 @@ Implement tasks from an OpenSpec change.
        echo "EXIT=$?" > /tmp/apply-out.exit
        ```
 
-       The trailing `echo "EXIT=$?" > /tmp/apply-out.exit` is the **completion
-       sentinel** — it is MANDATORY (completion detection below depends on it).
-
       - The OpenCode agent edits files in the **same working tree** as Claude,
         so its `tasks.md` check-offs and source edits land directly on disk —
         read them back via `git diff` and re-read `tasks.md` afterward.
       - If the user named a different executor model, substitute it for
         `deepseek/deepseek-v4-flash`.
-      - **Bounded wait + surgical kill.** The `timeout -k 30 600` wrapper caps the
-        wait at 10 minutes (TERM at the deadline, then SIGKILL 30s later). It kills
-        **only the opencode process this command launched** — other concurrent
-        opencode processes are left untouched and no children are orphaned
-        (verified). **Never** `pkill opencode` / `killall opencode`: other opencode
-        processes routinely run, and that would kill them too. Because a full
-        `tasks.md` can run several minutes (and exceed the Bash tool's 600 000 ms
-        cap), run this Bash call with `run_in_background: true`.
-      - **Completion detection — poll for the EXIT-file sentinel, never process
-        liveness (binding).** Detect completion by `[ -f /tmp/apply-out.exit ]`
-        in a bounded sleep loop (or simply wait for the harness
-        background-completion notification); the `timeout` wrapper guarantees the
-        sentinel appears within ~N+grace seconds. **NEVER poll with
-        `until ! pgrep -f "<pattern>"`** — the pattern self-matches the poller's
-        own `bash -c` command line, so the loop exits while the run is still
-        going; and **never judge a run from a mid-execution jsonl snapshot** —
-        deepseek-v4-flash/pro can legitimately take >5 minutes and a short jsonl
-        mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows
-        nonzero (124 = timeout, 137 = SIGKILL), OR no opencode PID remains AND no
-        exit file was ever written (genuine truncation). A premature retry or
-        Sonnet fallback spawns CONCURRENT writers on the same working tree (this
-        has left duplicate work) — which is exactly why completion must be judged
-        from the sentinel, not guessed from process state. If the wrapper fires
-        (exit 124/137 in the exit file), the apply **timed out** — treat it as an
+      - **Bounded wait + EXIT-sentinel (§c–d):** Run this Bash call with
+        `run_in_background: true`; detect completion via `[ -f /tmp/apply-out.exit ]`.
+        A premature retry or Sonnet fallback spawns CONCURRENT writers on the same
+        working tree (this has left duplicate work) — which is exactly why completion
+        must be judged from the sentinel, not guessed from process state. If the wrapper
+        fires (exit 124/137 in the exit file), the apply **timed out** — treat it as an
         **operational crash** (step 4). For a very large change, prefer splitting
         delegation across task ranges over raising the ceiling — gate each slice with
         orchestrator-run targeted tests, and if your diff-read finds a defect in slice N,
         fold the scoped fix as the **first item of slice N+1's brief** instead of a
         separate fix run (sequential, no concurrent writers, one fewer invocation).
 
-   2. **Assert the real executor ran** (do this BEFORE trusting output —
-      `opencode run` exits 0 even on silent agent fallback):
-
-      - `grep -q "Falling back to default agent" /tmp/apply-err.log` → if it
-        matches, the deepseek executor was **not** loaded. Treat as an
-        **operational crash** (step 4).
-      - Confirm `/tmp/apply-out.jsonl` is non-empty and parseable, and extract
-        the completion report:
-        `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
-        Empty/unparseable → operational crash.
+   2. **Assert the real executor ran (§b):** grep `/tmp/apply-err.log` for
+      `Falling back to default agent` — if found, treat as an **operational crash** (step 4).
+      Extract the completion report:
+      `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
+      Empty/unparseable → operational crash. Confirm the extracted text is a non-empty
+      completion summary (not a fallback message).
 
     3. **Determine success vs. failure** by reading back from disk (not just the report):
 
