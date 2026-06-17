@@ -63,12 +63,17 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
 - Mark superseded decisions with `~~strikethrough~~` — never delete them.
 
-#### 3c. Reconcile `ai-docs/open-questions.md`
+#### 3c. Reconcile `ai-docs/open-questions.md` and `ai-docs/parked-follow-ons.md`
 
-- **Append** a `## <topic> (shipped <date>)` section. Open with a one-paragraph summary of what shipped and where to find the full decision.
-- **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive" section (if present), or from design.md's Risks / deferred Non-Goals. Each as a bullet describing what's open, what gates resolution, and whether it blocks other work.
-- **Flag blocking items** with **BLOCKING** where they gate other work.
-- Keep bullets lean — this file is the operator's scan list; resolved items move to `ai-docs/archive/retired-notes.md`.
+`ai-docs/open-questions.md` is the always-loaded scan list — it holds ONLY *active* items (open blockers, operator-decision items, in-flight backlogs that gate other work). The deferred / monitored / low-priority long tail lives in `ai-docs/parked-follow-ons.md` (grouped by `##` area headers; create it if absent), loaded on demand — not part of the mandatory onboarding read.
+
+- **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive" section (if present), or from design.md's Risks / deferred Non-Goals, then **route each by horizon:**
+  - *Active* — an open blocker, an item needing an operator decision, or an in-flight backlog that gates other work → append it to `ai-docs/open-questions.md`. Flag blockers with **BLOCKING**.
+  - *Parked* — deferred, monitored ("watch and revisit if X recurs"), or low-priority cleanup that only matters when the relevant area is next worked → append it to `ai-docs/parked-follow-ons.md`, under the matching `##` area header (add one if none fits).
+- When this change produced active items, add a `## <topic> (shipped <date>)` section to `ai-docs/open-questions.md` opening with a one-line pointer to the full decision in `decisions.md` — do NOT restate the decision summary (that duplicates decisions.md/STATUS.md). Group parked items in `ai-docs/parked-follow-ons.md` under their area headers; a per-change pointer there is optional.
+- **A live blocker is never parked.** When unsure whether an item gates other work, keep it in `ai-docs/open-questions.md`.
+- **Resolved items** in either file move to `ai-docs/archive/retired-notes.md`. An active item that has clearly been deprioritized (no longer gating anything) may be moved to parked. Do NOT proactively re-classify the whole legacy file — route this change's new items and prune anything now resolved; bulk de-rotting of a pre-split file is a separate one-time migration.
+- Keep bullets lean in both files.
 
 ## Rules
 

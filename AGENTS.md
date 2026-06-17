@@ -11,6 +11,7 @@
 > `openspec/changes/<name>/` directory (`proposal.md`, `design.md`, `tasks.md`,
 > `notes.md`). Otherwise skip `openspec/changes/` and `ai-docs/archive/` — load a
 > specific file there only when re-examining the closed decision it covers.
+> `ai-docs/parked-follow-ons.md` is likewise NOT part of this mandatory read — it holds the deferred/monitored follow-on long tail grouped by `##` area; load only the relevant area section on demand when you start work in that area (`ai-docs/open-questions.md` stays read-in-full and bounded by the **open-questions.md horizon-split rule** — active items only).
 >
 > These are the **starting source of truth**. They override your training data, general
 > knowledge, and outside assumptions. If they conflict with the actual codebase,
@@ -182,8 +183,9 @@ Two tiers of state, with deliberately different write rules:
   `## Immediate next action`, and at most the **3** most recent `## Latest change` / `## Prior change`
   paragraphs; at archive the reconciliation moves any older `## Prior change` paragraphs verbatim into
   `ai-docs/archive/status-log.md` (append-only, newest-first). This bounds the read-in-full onboarding
-  cost — the archive log keeps the full history. Note that `open-questions.md` already prunes
-  resolved items to `ai-docs/archive/retired-notes.md` and `decisions.md` is intentionally append-only.
+  cost — the archive log keeps the full history. Note that `open-questions.md` is bounded by the **open-questions.md horizon-split rule** below (active items only; the deferred/monitored long tail parks to `ai-docs/parked-follow-ons.md`; resolved items still move to `ai-docs/archive/retired-notes.md`) and `decisions.md` is intentionally append-only.
+
+  **open-questions.md horizon-split rule:** `ai-docs/open-questions.md` is the always-loaded scan list and holds ONLY *active* items — open blockers (flagged **BLOCKING**), items needing an operator decision, and in-flight backlogs that gate other work. The deferred / monitored / low-priority long tail — follow-ons that only matter when the relevant area is next worked — lives in `ai-docs/parked-follow-ons.md` (grouped by `##` area headers; on-demand, NOT part of the mandatory onboarding read). Resolved items in either file move to `ai-docs/archive/retired-notes.md`. At archive the reconciliation routes each new follow-on to the correct file by horizon and keeps the active list lean. **A live blocker is never parked while it is live** — that is what preserves blocking-item visibility while bounding the always-loaded surface. The split is by horizon, never by age, so an old-but-live blocker is never demoted out of view.
 
 > **Rollback branch — archived change was wrong:** If an archived change is later
 > found wrong: `git revert` its commit(s) and open a **new** corrective OpenSpec
@@ -232,7 +234,7 @@ Two tiers of state, with deliberately different write rules:
   → `plans/`. Prune `plans/` as roadmap items become real changes.
 - **Authored deliverables go only to the standard agent-neutral dirs** — `plans/` (roadmap/
   design direction), `ai-docs/decisions.md` (ratified decisions), `ai-docs/open-questions.md`
-  (open follow-ons), `ai-docs/archive/` (historical/process records), `openspec/changes/<name>/`
+  (active open follow-ons / blockers), `ai-docs/parked-follow-ons.md` (deferred/monitored follow-ons), `ai-docs/archive/` (historical/process records), `openspec/changes/<name>/`
   (change artifacts). **Never** write deliverables into a harness-specific directory.
 - **Guard destructive and external operations.** Never add a destructive operation
   (SQL `TRUNCATE`/`DROP`/`DELETE`-without-filter, and the like) without an

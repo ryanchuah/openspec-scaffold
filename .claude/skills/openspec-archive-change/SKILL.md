@@ -233,8 +233,7 @@ Archive a completed change in the experimental workflow.
        (see AGENTS.md) — then link the archive path and name the next concrete step.
      - `ai-docs/decisions.md` entry must carry the "why" for each key design choice
        with alternatives rejected — not a paraphrase of the problem.
-     - `ai-docs/open-questions.md` entry must list the open follow-ons from notes.md
-       or design.md, with BLOCKING flags where appropriate.
+     - `ai-docs/open-questions.md` entry must contain ONLY active items (open follow-ons / blockers with **BLOCKING** flags where appropriate); deferred, monitored, or low-priority follow-ons must have been routed to `ai-docs/parked-follow-ons.md` under `##` area headers; and **no live blocker was parked**.
      - `STATUS.md` retains at most **3** change paragraphs (`## Latest change` / `## Prior change`) and any overflow was moved to `ai-docs/archive/status-log.md`.
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
