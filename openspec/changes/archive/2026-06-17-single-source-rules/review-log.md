@@ -48,3 +48,24 @@ all four 🟡 fixes hold. 3 minor 💡s: (1) task 2.2 drop the "propose-specific
 (2) task 3.2 tighten to "confirm, likely no-op" since AGENTS.md tail already cites the ladder — APPLIED;
 (3) criteria 1/8 + task 7.4 overlap on "home carries text" — LEFT AS-IS (deliberate redundancy for
 info-loss-sensitive work; reviewer noted it is cheap/not harmful). **Frozen for apply.**
+
+## Verify phase — multi-model verifier passes — deepseek (openspec-verifier) — 2026-06-17
+
+**Pro + flash passes (apply deliverable):** both VERDICT: READY, zero defects. Confirmed no behavior
+change (no `--model`/`model:` altered), each canonical home retains its full rule verbatim, each
+collapsed site is a correct citation, apply-executor bodies byte-identical, `openspec validate` green.
+
+## Archive phase — independent info-loss review — deepseek-v4-pro — 2026-06-17
+
+Audited the `open-questions.md` per-section-summary cleanup (info-loss-sensitive deliverable).
+**Result: the cleanup itself CLEARED** — all 48 legacy bullets preserved verbatim across 11 sections;
+only leading restating-prose paragraphs were collapsed to one-line decisions.md pointers; no
+RESOLVED/BLOCKING/monitored item lost; parked-follow-ons additions intact.
+
+One 🔴 raised — but against the primary's *separate* reconciliation edit (marking the now-stale
+`[C2 — NOT shipped]` bullet resolved), not the cleanup: the primary had rewritten that bullet
+wholesale, dropping its historical narrative. **Disposition — ACCEPTED + FIXED:** restored the
+original C2 bullet verbatim and appended a "→ RESOLVED 2026-06-17 …" marker, following this file's
+established RESOLVED-in-place append convention (cf. the `harden-delegation` item) — no narrative lost.
+The executor's flagged item #2 (a `cap-status-log` RESOLVED item not yet moved to retired-notes) is the
+separate parked one-time `open-questions.md` migration — left for that migration, out of scope here.

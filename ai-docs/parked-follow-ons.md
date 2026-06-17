@@ -16,3 +16,4 @@ items move to `ai-docs/archive/retired-notes.md`.
 ## instruction-surface
 
 - **Redundant per-section summary paragraphs in legacy `open-questions.md` (LOW, overlaps C2/W7).** Each legacy `open-questions.md` section opens with a paragraph restating decisions.md/STATUS.md. The new §3c archive rule stops authoring these for new sections (one-line decisions.md pointer instead). Dropping the existing ones is a cleanup that pairs with the migration and with the C2/W7 rule-restatement dedup. Originating change: `split-open-questions`.
+- **config.yaml `rules:` block per-repo drift risk (LOW).** `openspec/config.yaml` `rules:` block is per-repo and NOT manifest-synced, so workflow `rules` could drift between repos over time. A future hardening could sync the `rules:` block via span-logic (like the AGENTS.md span). Originating change: `single-source-rules`.
