@@ -29,20 +29,23 @@ work + an in-flight `invoice-payment-failed-alert` change — sync when its tree
 - [x] live guard smoke: scaffold_check.py exits 2 on a staged managed file (closes W1 follow-up)
 - [x] scoped commit (`git add -- <explicit paths>`, `git commit --no-verify`)
 
-## psc-monitor — PENDING (separate session, when tree is clean)
-- [ ] (no relocation needed — pure lag, no unique content)
-- [ ] `sync_scaffold.py /home/pang/Projects/psc-monitor`
-- [ ] post-sync `--check` = all IDENTICAL
-- [ ] diff-review: only managed files changed (billing.py / STATUS.md / in-flight
-      change must stay untouched — stage by explicit path, never `-A`)
-- [ ] `.claude/settings.json` — **merge** hooks block into existing (preserve permissions)
-- [ ] test-cmd: dormant unless its Postgres-backed suite is gate-safe
-- [ ] synced unit tests + `openspec validate --strict`
-- [ ] live guard smoke (exit 2)
-- [ ] scoped commit (`--no-verify`)
+## psc-monitor — DONE 2026-06-17 (commit 6541a9d, LOCAL/unpushed)
+- [x] (no relocation needed — pure lag, no unique content)
+- [x] `sync_scaffold.py /home/pang/Projects/psc-monitor` (exit 0; tree was clean)
+- [x] post-sync `--check` = all IDENTICAL
+- [x] diff-review: only managed files changed; AGENTS.md span-merge preserved
+      title/`## Project context`/technical reference (20 psc markers intact)
+- [x] `.claude/settings.json` — merged hooks block into existing (permissions preserved)
+- [x] test-cmd: dormant (none created — matches scaffold/extrends)
+- [x] synced unit tests: 30 passed
+- [x] live guard smoke: scaffold_check.py exit 2
+- [x] scoped commit (`git add -- <explicit paths>`, `git commit --no-verify`)
+- NOTE: pre-existing, out of scope — `openspec validate --strict` flags
+  report-quota / historical-reports / invoice-payment-failed-alert for missing
+  `## Purpose` sections (untouched by sync; psc's own spec hygiene).
 
-## Close-out (after psc-monitor lands)
-- [ ] delete superseded `openspec/changes/scaffold-sync/` (untracked, frozen)
-- [ ] commit the design records (`ai-docs/consolidation-plan-2026-06-16.md`,
+## Close-out — DONE 2026-06-17
+- [x] delete superseded `openspec/changes/scaffold-sync/` (untracked, frozen)
+- [x] commit the design records (`ai-docs/consolidation-plan-2026-06-16.md`,
       `ai-docs/workflow-audit-2026-06-16.md`)
-- [ ] reconcile STATUS.md + decisions.md + improvement-roadmap.md; archive this change
+- [x] reconcile STATUS.md + decisions.md + improvement-roadmap.md; archive this change
