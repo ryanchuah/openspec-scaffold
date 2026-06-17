@@ -235,6 +235,7 @@ Archive a completed change in the experimental workflow.
        with alternatives rejected — not a paraphrase of the problem.
      - `ai-docs/open-questions.md` entry must list the open follow-ons from notes.md
        or design.md, with BLOCKING flags where appropriate.
+     - `STATUS.md` retains at most **3** change paragraphs (`## Latest change` / `## Prior change`) and any overflow was moved to `ai-docs/archive/status-log.md`.
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
      re-delegate to the archive-executor with a specific fix-spec and re-review.

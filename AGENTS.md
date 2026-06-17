@@ -2,8 +2,11 @@
 
 > **MANDATORY — read before doing anything else**
 >
-> You are reading this file. Before taking any action, also read **`STATUS.md`**,
-> **`ai-docs/decisions.md`**, and **`ai-docs/open-questions.md`** in full. If you are
+> You are reading this file. Before taking any action, also read **`STATUS.md`** and
+> **`ai-docs/open-questions.md`** in full (both stay bounded); for
+> **`ai-docs/decisions.md`** read the `## ` section headers (it is append-only
+> and grows in a long-lived repo) and then read in full only the entries
+> relevant to the current task. If you are
 > *resuming an in-progress OpenSpec change*, also read that change's
 > `openspec/changes/<name>/` directory (`proposal.md`, `design.md`, `tasks.md`,
 > `notes.md`). Otherwise skip `openspec/changes/` and `ai-docs/archive/` — load a
@@ -15,7 +18,11 @@
 >
 > On resume specifically, sanity-check freshness before trusting `STATUS.md`: run
 > `git log --oneline -5` and confirm `STATUS.md` reflects those latest commits — if it
-> lags, reconcile it to reality first.
+> lags, reconcile it to reality first. Process/scaffold-maintenance commits that
+> do not change project state (e.g. tooling, scaffold-rule, or doc-formatting commits)
+> do NOT obligate a `STATUS.md` "Latest change" entry — the lag-check targets
+> feature/change-shipping commits, so their absence from `STATUS.md` is not a lag to
+> reconcile.
 >
 > **Treat this file as stable.** Edit it only to add durable project context any future
 > agent needs to orient — project purpose, constraints, process decisions. Current
@@ -170,6 +177,13 @@ Two tiers of state, with deliberately different write rules:
   keeps the expensive multi-file reconciliation cheap: low context in, structured source
   read. **This is the single load-bearing rule that preserves token economy — do not move
   the reconciliation back into the working session.**
+
+  **STATUS.md cap rule:** `STATUS.md` holds only the current-state preamble,
+  `## Immediate next action`, and at most the **3** most recent `## Latest change` / `## Prior change`
+  paragraphs; at archive the reconciliation moves any older `## Prior change` paragraphs verbatim into
+  `ai-docs/archive/status-log.md` (append-only, newest-first). This bounds the read-in-full onboarding
+  cost — the archive log keeps the full history. Note that `open-questions.md` already prunes
+  resolved items to `ai-docs/archive/retired-notes.md` and `decisions.md` is intentionally append-only.
 
 > **Rollback branch — archived change was wrong:** If an archived change is later
 > found wrong: `git revert` its commit(s) and open a **new** corrective OpenSpec
