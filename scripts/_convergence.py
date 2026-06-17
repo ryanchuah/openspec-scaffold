@@ -18,9 +18,11 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from typing import Any, Optional
 
@@ -30,6 +32,7 @@ from typing import Any, Optional
 
 _STATE_DIR = "/tmp"
 _SIGIL = "apply-convergence-"
+_MAX_ATTEMPTS = 20  # Absolute backstop ceiling — never interrupt healthy iteration
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -97,8 +100,11 @@ def _normalize_signature(raw_output: str) -> str:
     """
     text = raw_output
 
-    # Strip absolute paths: /foo/bar/baz.py
-    text = re.sub(r'/\S+', ' <PATH> ', text)
+    # Strip real filesystem paths (A4): /foo/bar/baz.py — matches only
+    # /-separated runs ending in name.ext, leaving non-path / content
+    # (regex literals, URLs, math) intact.  Must run BEFORE line-number
+    # stripping (ordering comment below is load-bearing).
+    text = re.sub(r'(?:/[\w.\-]+)*/[\w.\-]+\.\w+', ' <PATH> ', text)
 
     # Strip ISO/epoch timestamps BEFORE line-number stripping because
     # timestamps contain ":digits" sequences that the line-number regex
@@ -130,6 +136,68 @@ def _normalize_signature(raw_output: str) -> str:
     return '\n'.join(lines)
 
 
+# ---- Section boundaries for A2 scoped signature ----
+
+_BOUNDARY_PATTERNS = [
+    # Another test header: pytest FAILED ...
+    re.compile(r'FAILED\s+\S+(?:::\S+)?'),
+    # Another test header: unittest FAIL: or ERROR
+    re.compile(r'(?:FAIL|ERROR)(?:\s+collecting)?\s+\S+'),
+    # pytest separator run: ===== ... ===== or _____ ... _____
+    re.compile(r'^[=_]+\s.*[=_]+\s*$'),
+    # Summary line: === ... passed/failed/error ... ===
+    re.compile(r'^=+.*(?:passed|failed|error).*=+$', re.IGNORECASE),
+]
+
+
+def _extract_test_section(raw_output: str, test_id: str) -> str:
+    """Slice raw_output to just the failing test's section.
+
+    Starts at the line matching the failing *test_id*, ends at the next
+    test header / separator / summary.  Falls back to whole output if the
+    start line cannot be located (preserving legacy behavior).
+    """
+    lines = raw_output.splitlines()
+    start_idx = None
+    # Walk lines looking for the line containing the test_id
+    for i, line in enumerate(lines):
+        if test_id in line:
+            start_idx = i
+            break
+
+    if start_idx is None:
+        # Fallback: whole-output normalization
+        return raw_output
+
+    # End at the first boundary line *after* start_idx
+    end_idx = None
+    for i in range(start_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if any(p.search(stripped) for p in _BOUNDARY_PATTERNS):
+            end_idx = i
+            break
+
+    if end_idx is None:
+        # No boundary found — take up to 40 lines after start
+        end_idx = min(start_idx + 40, len(lines))
+
+    return '\n'.join(lines[start_idx:end_idx])
+
+
+def _normalize_test_key(test_id: str) -> str:
+    """Reduce a node id to a path-stable form for state keys.
+
+    Splits on ``::``, replaces the file part with ``os.path.basename()``,
+    so both absolute and relative paths map to the same key.
+    """
+    if '::' in test_id:
+        parts = test_id.split('::', 1)
+        file_part = os.path.basename(parts[0])
+        return f"{file_part}::{parts[1]}"
+    # No :: separator — return as-is (probably a non-pytest format)
+    return test_id
+
+
 def _load_state(change_slug: str) -> dict[str, Any]:
     """Load convergence state from disk. Returns empty dict if missing/corrupt."""
     path = os.path.join(_STATE_DIR, f"{_SIGIL}{change_slug}.json")
@@ -159,6 +227,61 @@ def _save_state(change_slug: str, state: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Git-based file fingerprint helpers (A3)
+# ---------------------------------------------------------------------------
+
+# Top-level state key for the per-change fingerprint map
+_FINGERPRINTS_KEY = "file_fingerprints"
+
+
+def _try_git_delta(repo_root: str, old_fingerprints: dict[str, str]) -> tuple[list[str], dict[str, str], bool]:
+    """Try to determine which files were edited this attempt via git.
+
+    Returns (delta_files, new_fingerprints, ok):
+        delta_files — list of files whose content changed since last call
+        new_fingerprints — updated {file: sha1_hex} map for next call
+        ok — True if git succeeded, False if degraded
+    """
+    try:
+        # Get list of changed (unstaged + staged) files vs HEAD
+        result = subprocess.run(
+            ["git", "-C", repo_root, "diff", "--name-only", "HEAD"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode != 0:
+            return [], {}, False
+
+        changed_files = [f for f in result.stdout.splitlines() if f.strip()]
+        if not changed_files:
+            # No changes at all
+            return [], old_fingerprints, True
+
+        # Compute SHA1 fingerprints for changed files
+        new_fingerprints = dict(old_fingerprints)
+        delta: list[str] = []
+
+        for rel_path in changed_files:
+            abs_path = os.path.join(repo_root, rel_path)
+            try:
+                with open(abs_path, "rb") as fh:
+                    sha1 = hashlib.sha1(fh.read()).hexdigest()
+            except (OSError, IOError):
+                # File might have been deleted; skip it
+                continue
+
+            old_fp = new_fingerprints.get(rel_path)
+            if old_fp is None or old_fp != sha1:
+                delta.append(rel_path)
+                new_fingerprints[rel_path] = sha1
+
+        return delta, new_fingerprints, True
+
+    except (subprocess.SubprocessError, OSError, ValueError):
+        # Any failure — degrade gracefully (no crash)
+        return [], {}, False
+
+
+# ---------------------------------------------------------------------------
 # Core logic
 # ---------------------------------------------------------------------------
 
@@ -168,6 +291,7 @@ def _verdict(
     editing_file: Optional[str],
     change_slug: str,
     task_id: str,
+    repo_root: Optional[str] = None,
 ) -> str:
     """Examine state and return a verdict string.
 
@@ -175,6 +299,9 @@ def _verdict(
         "CONTINUE"
         "STOP:a:<detail>"
         "STOP:b:<detail>"
+
+    Ordering (task 2.3): rule-(a) consecutive, rule-(b) repeated-touch,
+    oscillation (A1), absolute backstop ceiling (A1).
     """
     state = _load_state(change_slug)
 
@@ -182,49 +309,112 @@ def _verdict(
     if "failures" not in state:
         state["failures"] = {}
 
-    failure_key = test_id
+    failure_key = _normalize_test_key(test_id)
     now = state["failures"].get(failure_key, {
         "attempts": 0,
+        "prev_signature": None,
         "last_signature": None,
         "files_edited": [],
     })
 
     attempts = now["attempts"] + 1
+    prev_sig = now.get("prev_signature")
     last_sig = now["last_signature"]
     files_edited: list[str] = now.get("files_edited", [])
 
+    # Slide signatures for state update (used on all non-early-return paths)
+    next_prev = last_sig
+    next_last = signature
+
     # --- Rule (a): same signature after 2 consecutive attempts ---
     if last_sig is not None and last_sig == signature and attempts >= 2:
+        # Save with current files_edited (no new edits recorded yet)
         state["failures"][failure_key] = {
             "attempts": attempts,
-            "last_signature": signature,
+            "prev_signature": next_prev,
+            "last_signature": next_last,
             "files_edited": files_edited,
         }
         _save_state(change_slug, state)
         return f"STOP:a:Task {task_id} — test {test_id} failed with the same normalized error after {attempts} attempts"
 
-    # --- Rule (b): about to edit file already edited 2+ times for this failure ---
-    if editing_file is not None:
-        # Count how many times this file has been edited for this failure
-        edit_count = sum(1 for f in files_edited if f == editing_file)
+    # --- Determine files edited this attempt (A3) ---
+    # Try git-based derivation first; fall back to --editing hint
+    attempts_files: list[str] = []
+    git_ok = False
+
+    if repo_root:
+        delta_files, new_fingerprints, git_ok = _try_git_delta(
+            repo_root, state.get(_FINGERPRINTS_KEY, {}),
+        )
+        if git_ok:
+            state[_FINGERPRINTS_KEY] = new_fingerprints
+            attempts_files = delta_files
+
+    if not git_ok:
+        # Fall back to --editing hint
+        if editing_file is not None:
+            attempts_files = [editing_file]
+
+    # Warn if git was attempted but failed and no --editing coverage
+    if not attempts_files and editing_file is None and repo_root and not git_ok:
+        print(
+            "WARNING: git-diff failed and no --editing; "
+            "rule (b) has zero coverage",
+            file=sys.stderr,
+        )
+
+    # --- Rule (b): file already edited 2+ times for this failure ---
+    for edit_file in attempts_files:
+        edit_count = sum(1 for f in files_edited if f == edit_file)
         if edit_count >= 2:
+            from_source = "git-diff" if git_ok else "--editing"
             state["failures"][failure_key] = {
                 "attempts": attempts,
-                "last_signature": signature,
+                "prev_signature": next_prev,
+                "last_signature": next_last,
                 "files_edited": files_edited,
             }
             _save_state(change_slug, state)
-            return f"STOP:b:Task {task_id} — would edit {editing_file} a {edit_count + 1}th time for test {test_id}"
+            return (
+                f"STOP:b:Task {task_id} — {edit_file} has been edited "
+                f"{edit_count + 1} times for test {test_id} ({from_source})"
+            )
 
-        # Record the pending edit
-        files_edited.append(editing_file)
+        # Record this edit for this failure
+        files_edited.append(edit_file)
+
+    # --- Oscillation detection (A1): S(n) == S(n-2) and attempts >= 3 ---
+    if prev_sig is not None and prev_sig == signature and attempts >= 3:
+        state["failures"][failure_key] = {
+            "attempts": attempts,
+            "prev_signature": next_prev,
+            "last_signature": next_last,
+            "files_edited": files_edited,
+        }
+        _save_state(change_slug, state)
+        return f"STOP:a:Task {task_id} — test {test_id} oscillating between two error signatures after {attempts} attempts, not converging"
+
+    # --- Absolute backstop ceiling (A1): attempts >= _MAX_ATTEMPTS ---
+    if attempts >= _MAX_ATTEMPTS:
+        state["failures"][failure_key] = {
+            "attempts": attempts,
+            "prev_signature": next_prev,
+            "last_signature": next_last,
+            "files_edited": files_edited,
+        }
+        _save_state(change_slug, state)
+        return f"STOP:a:Task {task_id} — test {test_id} reached {_MAX_ATTEMPTS} attempts without converging"
 
     # --- CONTINUE: update state and allow further attempts ---
     state["failures"][failure_key] = {
         "attempts": attempts,
-        "last_signature": signature,
+        "prev_signature": next_prev,
+        "last_signature": next_last,
         "files_edited": files_edited,
     }
+    if git_ok:
+        state[_FINGERPRINTS_KEY] = new_fingerprints
     _save_state(change_slug, state)
     return "CONTINUE"
 
@@ -250,7 +440,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--editing",
         default=None,
-        help="File path about to be edited (load-bearing for rule b)",
+        help="File path about to be edited (optional hint; git-diff is primary for rule b)",
     )
     return parser.parse_args(argv)
 
@@ -267,16 +457,18 @@ def main(argv: Optional[list[str]] = None) -> int:
         print("STOP:c:Could not extract failing test id from test output")
         return 0
 
-    # Normalize the error signature
-    signature = _normalize_signature(raw_output)
+    # Normalize the error signature over the failing test's section (A2)
+    section = _extract_test_section(raw_output, test_id)
+    signature = _normalize_signature(section)
 
-    # Determine verdict
+    # Determine verdict — pass cwd as repo_root for git-based derivation (A3)
     verdict = _verdict(
         test_id=test_id,
         signature=signature,
         editing_file=args.editing,
         change_slug=args.change,
         task_id=args.task,
+        repo_root=os.getcwd(),
     )
     print(verdict)
     return 0

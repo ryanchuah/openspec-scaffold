@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 
 # ---------------------------------------------------------------------------
 # Import the module under test (sibling in scripts/)
@@ -280,6 +280,197 @@ class NormalizeSignatureTest(unittest.TestCase):
             task_id="T2",
         )
         self.assertTrue(v.startswith("CONTINUE"))
+
+    # --- A1: oscillation detection ---
+
+    def test_oscillation_detected_after_alternation(self):
+        """Alternating signatures (S1→S2→S1) at attempt 3+ triggers STOP:a."""
+        change_slug = "test-osc"
+        raw1 = "FAILED test_foo.py::test_bar - AssertionError: version 1"
+        raw2 = "FAILED test_foo.py::test_bar - AssertionError: version 2"
+        sig1 = _convergence._normalize_signature(raw1)
+        sig2 = _convergence._normalize_signature(raw2)
+
+        # Attempt 1: S1 → CONTINUE
+        v1 = _convergence._verdict(
+            test_id="test_foo.py::test_bar", signature=sig1,
+            editing_file=None, change_slug=change_slug, task_id="T1",
+        )
+        self.assertTrue(v1.startswith("CONTINUE"))
+
+        # Attempt 2: S2 → CONTINUE (different signature, progress)
+        v2 = _convergence._verdict(
+            test_id="test_foo.py::test_bar", signature=sig2,
+            editing_file=None, change_slug=change_slug, task_id="T1",
+        )
+        self.assertTrue(v2.startswith("CONTINUE"))
+
+        # Attempt 3: S1 → S(n) == S(n-2) oscillating → STOP:a
+        v3 = _convergence._verdict(
+            test_id="test_foo.py::test_bar", signature=sig1,
+            editing_file=None, change_slug=change_slug, task_id="T1",
+        )
+        self.assertTrue(v3.startswith("STOP:a"), f"Expected STOP:a, got: {v3}")
+        self.assertIn("oscillating", v3)
+
+    def test_backstop_ceiling_after_max_attempts(self):
+        """After _MAX_ATTEMPTS always-different signatures, backstop ceiling fires."""
+        change_slug = "test-ceil"
+        # --_MAX_ATTEMPTS is 20; we iterate 19 different sigs, then 20th stops
+        # Each raw output must be observably different so rule (a) + oscillations don't fire
+        attempts_needed = _convergence._MAX_ATTEMPTS + 1  # 21 to trigger at attempt 20
+        for i in range(1, _convergence._MAX_ATTEMPTS):
+            raw = f"FAILED test_foo.py::test_bar - AssertionError: attempt {i}"
+            sig = _convergence._normalize_signature(raw)
+            v = _convergence._verdict(
+                test_id="test_foo.py::test_bar", signature=sig,
+                editing_file=None, change_slug=change_slug, task_id="T1",
+            )
+            self.assertTrue(v.startswith("CONTINUE"),
+                            f"Attempt {i} should CONTINUE, got: {v}")
+
+        # Final attempt (20th) → ceiling reached
+        raw_last = f"FAILED test_foo.py::test_bar - AssertionError: final"
+        sig_last = _convergence._normalize_signature(raw_last)
+        v_last = _convergence._verdict(
+            test_id="test_foo.py::test_bar", signature=sig_last,
+            editing_file=None, change_slug=change_slug, task_id="T1",
+        )
+        self.assertTrue(v_last.startswith("STOP:a"), f"Expected STOP:a, got: {v_last}")
+        self.assertIn("20 attempts", v_last)
+
+    # --- A3: git-diff per-attempt delta (mocked git) ---
+
+    def test_a3_delta_same_file_re_edited_stops_at_third(self):
+        """Same file in git delta 3 times → STOP:b."""
+        change_slug = "test-delta-b"
+        state = {"failures": {}, _convergence._FINGERPRINTS_KEY: {}}
+
+        with patch.object(_convergence, "_try_git_delta") as mock_delta:
+            # Each call returns foo.py as the sole delta file
+            mock_delta.return_value = (["foo.py"], {"foo.py": "abc"}, True)
+
+            # 1st delta attempt → CONTINUE
+            v1 = _convergence._verdict(
+                test_id="test_a.py::test_a1", signature="SIG_A",
+                editing_file=None, change_slug=change_slug,
+                task_id="T1", repo_root="/fake",
+            )
+            self.assertTrue(v1.startswith("CONTINUE"))
+
+            # 2nd delta attempt with different git fingerprint → CONTINUE
+            mock_delta.return_value = (["foo.py"], {"foo.py": "def"}, True)
+            v2 = _convergence._verdict(
+                test_id="test_a.py::test_a1", signature="SIG_B",
+                editing_file=None, change_slug=change_slug,
+                task_id="T1", repo_root="/fake",
+            )
+            self.assertTrue(v2.startswith("CONTINUE"))
+
+            # 3rd delta attempt → STOP:b
+            mock_delta.return_value = (["foo.py"], {"foo.py": "ghi"}, True)
+            v3 = _convergence._verdict(
+                test_id="test_a.py::test_a1", signature="SIG_C",
+                editing_file=None, change_slug=change_slug,
+                task_id="T1", repo_root="/fake",
+            )
+            self.assertTrue(v3.startswith("STOP:b"), f"Expected STOP:b, got: {v3}")
+
+    def test_a3_delta_different_files_continue(self):
+        """Different files in git delta → CONTINUE (no rule b)."""
+        change_slug = "test-delta-cont"
+        state = {"failures": {}, _convergence._FINGERPRINTS_KEY: {}}
+
+        with patch.object(_convergence, "_try_git_delta") as mock_delta:
+            # First call: foo.py edited
+            mock_delta.return_value = (["foo.py"], {"foo.py": "abc"}, True)
+            v1 = _convergence._verdict(
+                test_id="test_a.py::test_a1", signature="SIG_A",
+                editing_file=None, change_slug=change_slug,
+                task_id="T1", repo_root="/fake",
+            )
+            self.assertTrue(v1.startswith("CONTINUE"))
+
+            # Second call: bar.py edited (different file)
+            mock_delta.return_value = (["bar.py"], {"bar.py": "xyz"}, True)
+            v2 = _convergence._verdict(
+                test_id="test_a.py::test_a1", signature="SIG_B",
+                editing_file=None, change_slug=change_slug,
+                task_id="T1", repo_root="/fake",
+            )
+            self.assertTrue(v2.startswith("CONTINUE"))
+
+    # --- A4: path-normalization safety ---
+
+    def test_distinct_path_substrings_stay_distinct(self):
+        """Different errors with path-ish diffs keep distinct signatures (no false STOP:a)."""
+        a = "  ValueError: /home/user/project/src/main.py:42 — file not found"
+        b = "  ValueError: /var/log/app/error.log:17 — disk full"
+        self.assertNotEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    def test_non_path_slash_not_swallowed(self):
+        """A regex literal like 'a/b' in an error message is NOT swallowed."""
+        a = "  re.error: bad escape at position a/b/c"
+        b = "  re.error: bad escape at position x/y/z"
+        # Neither has a name.ext token, so both pass through untouched
+        self.assertNotEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    def test_extensionless_path_not_swallowed(self):
+        """An extensionless path like /usr/bin/python is NOT matched by path regex."""
+        a = "  Error running /usr/bin/python"
+        b = "  Error running /usr/bin/node"
+        self.assertNotEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    def test_trailing_slash_dir_not_swallowed(self):
+        """A trailing-slash dir like /tmp/build/ is NOT matched by path regex."""
+        a = "  Build failed in /tmp/build/"
+        b = "  Build failed in /var/tmp/"
+        self.assertNotEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    def test_cosmetic_diffs_still_collapse_with_path_regex(self):
+        """Cosmetic-only diffs still collapse under the new A4 path regex."""
+        a = '  File "/home/user/project/foo.py", line 10, in bar'
+        b = '  File "/home/other/project/foo.py", line 20, in bar'
+        self.assertEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    def test_tmp_paths_still_collapse(self):
+        """/tmp/... paths still collapse (they match the name.ext pattern)."""
+        a = "  Error in /tmp/test_123/input.txt"
+        b = "  Error in /tmp/test_456/input.txt"
+        self.assertEqual(
+            _convergence._normalize_signature(a),
+            _convergence._normalize_signature(b),
+        )
+
+    # --- A2: key normalization ---
+
+    def test_normalize_test_key_absolute_and_relative(self):
+        """Absolute and relative node ids map to the same normalized key."""
+        abs_key = _convergence._normalize_test_key("/abs/path/tests/test_foo.py::test_bar")
+        rel_key = _convergence._normalize_test_key("tests/test_foo.py::test_bar")
+        self.assertEqual(abs_key, "test_foo.py::test_bar")
+        self.assertEqual(rel_key, "test_foo.py::test_bar")
+        self.assertEqual(abs_key, rel_key)
+
+    def test_normalize_test_key_no_separator(self):
+        """A test id without :: is returned as-is."""
+        key = _convergence._normalize_test_key("test_bar")
+        self.assertEqual(key, "test_bar")
 
     # --- State isolation between different failures ---
 

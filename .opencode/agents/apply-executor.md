@@ -47,6 +47,8 @@ For each unchecked task `[ ]`:
      [--editing <file-being-edited>] \
      > /tmp/convergence-verdict.txt
    ```
+   The helper derives the edited-file set from `git diff`; `--editing` is
+   an optional hint, no longer load-bearing for rule (b).
    - Read the verdict from `/tmp/convergence-verdict.txt`.
    - **`CONTINUE`** → fix the code based on the failure, then **return to
      step 2** (do NOT advance to the next task — CONTINUE means keep working

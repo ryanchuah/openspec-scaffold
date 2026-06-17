@@ -19,6 +19,7 @@ set -euo pipefail
 
 GATE_NAME="test-gate"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || dirname "$SCRIPT_DIR")"
 CMD_FILE="${SCRIPT_DIR}/test-cmd"
 
 # --- No command file → no-op ---
@@ -35,6 +36,9 @@ if [ -z "$CMD" ]; then
   echo "${GATE_NAME}: scripts/test-cmd is empty/whitespace-only; skipping (no-op)"
   exit 0
 fi
+
+# --- cd to repo root so repo-relative test commands resolve ---
+cd "$REPO_ROOT"
 
 # --- Extract the executable name to check if it resolves ---
 EXECUTABLE="$(echo "$CMD" | awk '{print $1}')"

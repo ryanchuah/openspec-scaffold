@@ -8,7 +8,7 @@ Stop the apply-executor from looping on a stuck failure by giving it an objectiv
 The apply-executor SHALL continue healthy `write → test → fix` iteration, but SHALL stop editing and
 report a blocker when it detects non-convergence, defined as ANY of: (a) the same failing test still
 fails with the same normalized error signature after 2 consecutive fix attempts aimed at it; (b) it
-is about to edit the same file a 3rd time to resolve the same failure; (c) the fix requires
+has edited the same file a 3rd time to resolve the same failure; (c) the fix requires
 information or a decision absent from the artifacts, requires editing `proposal.md`/`design.md`, or
 an external API behaves contrary to `design.md`. For its test runs the executor SHALL prefer the
 same per-repo test command as the commit-test-gate (`scripts/test-cmd`), falling back to the
@@ -20,7 +20,7 @@ command. After emitting a blocker the executor SHALL end the run and SHALL NOT s
 - **THEN** the executor stops editing and emits a structured blocker
 
 #### Scenario: Repeated touch (rule b)
-- **WHEN** the executor is about to edit a file it has already edited twice for the same failure
+- **WHEN** the executor has edited a file a third time for the same failure
 - **THEN** the executor stops editing and emits a structured blocker
 
 #### Scenario: Knowledge or artifact gap (rule c)
@@ -29,8 +29,24 @@ command. After emitting a blocker the executor SHALL end the run and SHALL NOT s
 
 #### Scenario: Healthy iteration is not interrupted
 - **WHEN** consecutive attempts produce *different* normalized error signatures (the failure is changing)
-- **THEN** the executor keeps iterating and is NOT stopped
+- **THEN** the executor keeps iterating and is NOT stopped, UNLESS the high backstop ceiling
+  `_MAX_ATTEMPTS` (20) is reached — at which point a declared blocker is emitted regardless of
+  whether the signature is changing, as a final guarantee against a wall-clock timeout
 - **AND** it stays on the *same* failure (fix → re-run that failing test's module, not necessarily the whole suite), rather than advancing to another task
+
+#### Scenario: Oscillation is detected and stopped
+- **WHEN** the normalized error signature alternates between two values (S1→S2→S1→S2…) such that
+  `signature == prev_signature` and `attempts >= 3`
+- **THEN** the executor stops and emits a declared blocker with trigger `a` naming the oscillation,
+  even though consecutive signatures are different
+- **AND** a genuinely progressing run (always-different signatures) is NOT interrupted before the
+  high backstop ceiling
+
+#### Scenario: Absolute backstop ceiling catches pathological cases
+- **WHEN** the attempt count for a failure reaches `_MAX_ATTEMPTS` (20)
+- **THEN** the executor stops and emits a declared blocker with trigger `a` naming the ceiling,
+  even if the oscillation detection missed the pattern — this is the final guarantee that the run
+  ends in a declared blocker rather than a wall-clock timeout
 
 #### Scenario: Stopping ends the run
 - **WHEN** the executor emits a `### NON-CONVERGENCE BLOCKER` for a task
@@ -39,10 +55,10 @@ command. After emitting a blocker the executor SHALL end the run and SHALL NOT s
 ### Requirement: Non-convergence detection is deterministic, not in-context judgment
 The rule (a) and (b) checks SHALL be computed by a helper script that normalizes the error signature
 and maintains durable per-change state, so detection does not depend on the executor model's
-in-context tracking. The executor SHALL pass the helper the raw test output and, when about to edit
-a file, the `--editing <file>` input (load-bearing for rule (b)'s file-touch tracking). If the
-helper cannot run or returns no parseable verdict, the executor SHALL treat that as a rule (c) gap
-and stop.
+in-context tracking. The executor SHALL pass the helper the raw test output. The helper derives the
+edited-file set from `git diff` content fingerprints; the `--editing` input is an optional hint,
+no longer load-bearing for rule (b)'s file-touch tracking. If the helper cannot run or returns no
+parseable verdict, the executor SHALL treat that as a rule (c) gap and stop.
 
 #### Scenario: Cosmetic-only differences count as no progress
 - **WHEN** two test outputs differ only in line numbers, paths, timestamps, or hex addresses
@@ -51,6 +67,35 @@ and stop.
 #### Scenario: Genuinely different failures stay distinct
 - **WHEN** two attempts fail with substantively different errors
 - **THEN** the normalizer yields different signatures and rule (a) does NOT trip
+
+#### Scenario: The signature is scoped to the failing test's section
+- **WHEN** the test run produces output for several tests, only one of which fails
+- **THEN** the convergence helper extracts only the failing test's section of the output before
+  normalizing, so unrelated churn (summary counts, other failures, warnings) does NOT change the
+  signature — rule (a) correctly fires when that targeted test fails identically
+- **AND** if the section boundary cannot be located, the helper falls back to whole-output
+  normalization (preserving legacy behavior)
+
+#### Scenario: The state key is path-stable across node id formats
+- **WHEN** the same test is identified with different path prefixes (e.g. absolute
+  `/abs/tests/test_foo.py::test_bar` vs relative `tests/test_foo.py::test_bar`)
+- **THEN** the helper reduces both to the same normalized key (`test_foo.py::test_bar`), so
+  state tracking is robust against node id format changes — the raw `test_id` is preserved for
+  human-readable detail
+
+#### Scenario: Error messages differing only in path-ish substrings stay distinct
+- **WHEN** two error messages differ only in their filesystem-like `/path/to/file.ext` substrings
+- **THEN** the path normalizer matches only concrete `name.ext`-terminated paths, NOT extensionless
+  paths (`/usr/bin/python`) or trailing-slash dirs (`/tmp/build/`) or non-path `/` tokens (regex
+  `a/b`), so genuinely distinct errors do NOT collapse to the same signature
+
+#### Scenario: Git-diff-derived edited files drive rule (b)
+- **WHEN** the helper is invoked
+- **THEN** it derives the list of edited files (per-attempt delta) from `git diff --name-only HEAD`
+  content fingerprints, and tracks `files_edited` per failure — so rule (b) fires after 3 distinct
+  edit events for the same file, even when the executor omits `--editing`
+- **AND** `--editing` is retained as an optional hint; when git is unavailable the helper falls
+  back to `--editing`-only, and when both are absent logs a warning about zero rule-(b) coverage
 
 #### Scenario: Helper failure is fail-safe
 - **WHEN** the convergence helper exits non-zero or emits no parseable verdict
