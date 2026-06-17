@@ -95,3 +95,12 @@ here at operator instruction:
   one-task change → spurious timeouts like the one above. Consider scaling the apply/verify budgets by
   change tier or task count (rhymes with audit **B2** "verify gate not tier-scaled"). Currently a deliberate
   non-goal; revisit as a hardening change. Pairs naturally with the slicing item above.
+
+## lifecycle-gates (W4) follow-ons (shipped 2026-06-17)
+
+The verify gate was tier-scaled (SMALL exempted from multi-model passes), a simplicity/quality gate and a conditional security gate were added to verify, the archive-executor bodies were hardened for RENAMED spec requirements, and a new `scripts/test_executor_body_agreement.py` guard byte-compares each executor pair's body. Six audit findings (E1/B2/D-ii/E3/D-i/C4) folded into one MEDIUM change. Full decision in `ai-docs/decisions.md` ("lifecycle-gates (2026-06-17)"). Archive: `openspec/changes/archive/2026-06-17-lifecycle-gates`. Modified spec: `openspec/specs/verify-multimodel-gate/spec.md`.
+
+- **C4 guard coverage is partial (LOW).** `test_executor_body_agreement.py` checks only the apply-executor + archive-executor pairs. The `openspec-reviewer` and `openspec-verifier` agents exist as `.opencode`-only agents (no `.claude` twin), so they are out of scope today. If a `.claude` counterpart is ever added for either, extend the guard to that pair.
+- **Gates reference Claude-only harness skills (MED).** The simplicity gate (`simplify`/`/code-review`) and security gate (`security-review`) reference Claude Code built-in skills that do not live in the scaffold tree. If those skills are renamed or removed harness-side, the Claude path silently degrades — the concrete OpenCode checklists are the durable floor. No automated detection of this degradation exists.
+- **SMALL is now formally exempt from the verify gate (MED).** A SMALL change does its own verification and MAY run a single optional flash pass at orchestrator discretion. Monitor that risky SMALL changes (e.g., auth or data-touching one-liners) aren't under-verified in practice. The orchestrator's judgment on what constitutes "risky" is the sole gate.
+- **Scaffold-only; propagation is W6 (HIGH).** The new `scripts/test_executor_body_agreement.py` guard and its manifest entry join the W6 one-time snapshot to extrends/psc-monitor. Until then, the guard is inert downstream — executor-pair drift in consuming repos is not checked.
