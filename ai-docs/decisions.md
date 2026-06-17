@@ -233,3 +233,17 @@ Durable architectural decisions and their rationale. Add an entry whenever a non
 - Timeout floor: 300s was below the 10-minute minimum the operator set for all executor invocations; raised to match apply/archive.
 
 **Alternatives considered:** Keeping OpenCode flash-only (rejected by operator). Adding a second pro verifier agent file so OpenCode could use Task tool (rejected: adds an agent file and a maintenance surface for no gain over `opencode run --model`). Raising verifier/reviewer budgets from 780s to 600s (rejected: 780s was set to prevent starvation; "increase to 10 min" means floor, not ceiling).
+
+## cap-status-log — STATUS.md cap rule, decisions.md read-directive change (2026-06-17)
+
+**Decision:** STATUS.md is now capped at 3 change paragraphs (one `## Latest change` + at most two `## Prior change`); older entries move verbatim to `ai-docs/archive/status-log.md` (newest-first append-only log) during archive reconciliation. AGENTS.md's MANDATORY read directive was changed: decisions.md switches from "read in full" to reading `##` section headers then relevant entries only (it legitimately grows append-only); STATUS.md and open-questions.md stay "read in full" but are bounded (the cap + the existing `ai-docs/archive/retired-notes.md` prune). A freshness carve-out exempts process/scaffold-maintenance commits from the resume-time lag-check in STATUS.md. The prune mechanic lives in both archive-executor bodies (`.claude/` and `.opencode/`), kept byte-identical, and is asserted by the archive skill's verify checklist.
+
+**Why now / why this shape:**
+- The scaffold's archive-executor appended a `## Latest change` paragraph and demoted the prior at every archive, but **nothing pruned** — STATUS.md grew by one dense paragraph per change forever. In the scaffold itself this was at 9 paragraphs (tolerable). In **extrends** (a real working repo that inherited the rule via sync) STATUS.md hit 449 lines / ~27k tokens with 38 change headers — exceeding the Read tool's cap so AGENTS.md's "read in full" directive was literally unsatisfiable. decisions.md (1,322 lines) and open-questions.md (794) were similarly large.
+- Fix by bounding the files, not by weakening the read directive wholesale: keep "read in full" for STATUS.md (capped) and open-questions.md (pruned); only decisions.md — which legitimately grows append-only — switches to header-scan + relevant entries.
+- The cap runs inside the existing archive-executor reconciliation pass — no new gate, no new run, no new spec. The prune bullet is the mechanical realization of the rule.
+- Freshness carve-out prevents process-commit noise: without it, a resume-time `git log --oneline -5` check would flag process commits as "STATUS.md lags" and drive spurious reconciliation edits.
+- extrends cleanup and psc-monitor are explicitly out of scope — the cap is the *rule*; the per-repo backlog cleanup is separate.
+- Byte-identical executor bodies preserve the C4 guard invariant.
+
+**Motivation:** A live extrends agent reported hitting the Read tool's length cap on STATUS.md during onboarding — the "read in full" directive in AGENTS.md's MANDATORY block was literally unsatisfiable. Root cause was scaffold-authored: the archive reconciliation appended but never pruned. Fixing it in scaffold and propagating via `sync_scaffold.py` fixes the mechanism everywhere. Archive: `openspec/changes/archive/2026-06-17-cap-status-log`.
