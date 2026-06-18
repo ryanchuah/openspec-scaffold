@@ -50,7 +50,7 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     """Merge shared spans from *scaffold_text* into *target_text*.
 
     Raises ``ValueError`` if either file is missing a required anchor, if the
-    scaffold carries an unexpected tail, or if a long (≥300 line) target has
+    scaffold carries an unexpected tail, or if a long (≥350 line) target has
     no tail separator.
     """
     # --- Scaffold anchors ---
@@ -88,7 +88,7 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     if tail_match:
         tail = target_text[after_start + tail_match.start():]
     else:
-        if len(target_text.splitlines()) > 300:
+        if len(target_text.splitlines()) > 350:
             raise ValueError(
                 "target AGENTS.md is long but no tail-separator found — "
                 "check anchors"

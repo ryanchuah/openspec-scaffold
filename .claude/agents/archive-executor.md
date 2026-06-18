@@ -53,6 +53,7 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 - **Demote the previous `## Latest change`** heading to `## Prior change` (preserve its content exactly — do not edit or summarize it).
 - **Prune** — after adding the new `## Latest change` and demoting the prior one, if more than **3** `## Latest change`/`## Prior change` sections now exist, move the oldest ones (verbatim, headers included) into `ai-docs/archive/status-log.md` (create it if absent; prepend so newest-first), leaving the **3** most recent in `STATUS.md`. Do not edit the moved content; do not touch the preamble or `## Immediate next action`.
 - **Read `## Immediate next action`** near the file end. If this change removes a block or completes a pending build, update accordingly: state there is **no proactive build in flight** (if true) and name the next concrete step. If the change adds new gated work, mention it.
+- **Bound each retained entry** (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule"): each `` ## Latest change``/`` ## Prior change`` section is a ≤150-word headline summary (what shipped, key verify outcome, where details live). If the source narrative is longer, keep the ≤150-word headline and ensure the full narrative lives in the change archive. **before trimming**, confirm the archived `notes.md` holds the salient 'why'; if it is thin, copy that context there first, then trim — never drop 'why' context that exists only in `STATUS.md`.
 
 #### 3b. Reconcile `ai-docs/decisions.md`
 
@@ -62,6 +63,7 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
   - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md). Include the archive path and new/modified capability spec paths.
 - **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
 - Mark superseded decisions with `~~strikethrough~~` — never delete them.
+- Every new entry carries `**Date:** YYYY-MM-DD` and `**Status:** ACTIVE` (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule"); change-record entries (`fix-*`/`add-*`/`tune-*`) are capped at ≤300 words with full rationale in the change archive.
 
 #### 3c. Reconcile `ai-docs/open-questions.md` and `ai-docs/parked-follow-ons.md`
 
@@ -74,6 +76,7 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 - **A live blocker is never parked.** When unsure whether an item gates other work, keep it in `ai-docs/open-questions.md`.
 - **Resolved items** in either file move to `ai-docs/archive/retired-notes.md`. An active item that has clearly been deprioritized (no longer gating anything) may be moved to parked. Do NOT proactively re-classify the whole legacy file — route this change's new items and prune anything now resolved; bulk de-rotting of a pre-split file is a separate one-time migration.
 - Keep bullets lean in both files.
+- **Reduce shipped-change sections** — reduce each shipped-change section in `open-questions.md` to its **BLOCKING** items plus a one-line pointer stub (`<area>: tune-after-evidence items → parked-follow-ons.md § <area>`); park every non-BLOCKING bullet to `parked-follow-ons.md`. Never leave a non-blocking shipped-change bullet in `open-questions.md` (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule").
 
 ## Rules
 

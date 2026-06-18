@@ -138,14 +138,14 @@ The system consists of:
 - Alert manager
 """
 
-# Target that is >300 lines with no tail separator
+# Target that is >350 lines with no tail separator
 TARGET_AGENTS_LONG_NO_TAIL = (
     "# Foo\n\n> **MANDATORY — read before doing anything else**\n\n"
     "## Cross-agent\n\n"
     "## Roles\n\n"
     "## Project context\n\nHello\n\n"
     "## After reading this file\n\n"
-    + "\n".join(f"Line {i}" for i in range(310))
+    + "\n".join(f"Line {i}" for i in range(360))
 )
 
 # Scaffold that violates the tail invariant (has # heading after ## After)
@@ -270,8 +270,8 @@ class SyncAgentsMdTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS_WITH_TAIL, TARGET_AGENTS_WITH_CTX)
 
-    def test_300_line_no_tail_aborts(self):
-        """Raises ValueError when target >300 lines has no tail separator."""
+    def test_350_line_no_tail_aborts(self):
+        """Raises ValueError when target >350 lines has no tail separator."""
         with self.assertRaises(ValueError):
             sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_LONG_NO_TAIL)
 
