@@ -54,6 +54,13 @@ carve-out is the shipped commit-test-gate `PreToolUse` hook in `.claude/settings
 `ai-docs/decisions.md`. This is a Claude-only, deliberate exception and does not weaken
 the harness-private-state ban above.)
 
+**Claude Code harness memory — deliberately not used.** The Claude Code harness ships a
+persistent cross-session memory store (`~/.claude/.../memory/`, indexed by `MEMORY.md`). It is
+harness-*private* — invisible to OpenCode/DeepSeek — so it falls squarely under the ban above:
+we **deliberately do not use it for project state**. This is a stated non-use, **not** a
+carve-out. All durable project knowledge lives in `ai-docs/` + the OpenSpec artifacts, which
+every agent can read; nothing project-bearing may live only in harness memory.
+
 Maintain this discipline for the **entire session**, not just at the start.
 
 ## Project context
@@ -72,7 +79,7 @@ anything the agent must never violate — or remove this section if none.>
 
 ## Roles
 
-<!-- CANONICAL: model-assignment-matrix — cite, do not restate (registry: ai-docs/workflow-lessons.md §2) -->
+<!-- CANONICAL: model-assignment-matrix — cite, do not restate -->
 
 - **The primary agent is the orchestrator and reviewer — not the implementer.** It runs
   the OpenSpec lifecycle (explore, propose, verify, archive) and reviews output; it does
@@ -185,7 +192,10 @@ Two tiers of state, with deliberately different write rules:
   `## Immediate next action`, and at most the **3** most recent `## Latest change` / `## Prior change`
   paragraphs; at archive the reconciliation moves any older `## Prior change` paragraphs verbatim into
   `ai-docs/archive/status-log.md` (append-only, newest-first). This bounds the read-in-full onboarding
-  cost — the archive log keeps the full history. Note that `open-questions.md` is bounded by the **open-questions.md horizon-split rule** below (active items only; the deferred/monitored long tail parks to `ai-docs/parked-follow-ons.md`; resolved items still move to `ai-docs/archive/retired-notes.md`) and `decisions.md` is intentionally append-only.
+  cost — the archive log keeps the full history. **Any `##` section that narrates a shipped change
+  counts toward this cap regardless of its heading title** (e.g. an `## Operations …` section
+  describing a shipped fix is bound by the cap and prunes like a `## Prior change`); only the
+  structural sections — the current-state preamble and `## Immediate next action` — are exempt. Note that `open-questions.md` is bounded by the **open-questions.md horizon-split rule** below (active items only; the deferred/monitored long tail parks to `ai-docs/parked-follow-ons.md`; resolved items still move to `ai-docs/archive/retired-notes.md`) and `decisions.md` is intentionally append-only.
 
   **open-questions.md horizon-split rule:** `ai-docs/open-questions.md` is the always-loaded scan list and holds ONLY *active* items — open blockers (flagged **BLOCKING**), items needing an operator decision, and in-flight backlogs that gate other work. The deferred / monitored / low-priority long tail — follow-ons that only matter when the relevant area is next worked — lives in `ai-docs/parked-follow-ons.md` (grouped by `##` area headers; on-demand, NOT part of the mandatory onboarding read). Resolved items in either file move to `ai-docs/archive/retired-notes.md`. At archive the reconciliation routes each new follow-on to the correct file by horizon and keeps the active list lean. **A live blocker is never parked while it is live** — that is what preserves blocking-item visibility while bounding the always-loaded surface. The split is by horizon, never by age, so an old-but-live blocker is never demoted out of view.
 
@@ -218,7 +228,7 @@ Two tiers of state, with deliberately different write rules:
   writers on one working tree corrupt each other — which is exactly why apply uses a single
   sequential executor. Delegation saves time/cost only when the subtasks are genuinely
   independent.
-<!-- CANONICAL: never-record-counts — cite, do not restate (registry: ai-docs/workflow-lessons.md §2) -->
+<!-- CANONICAL: never-record-counts — cite, do not restate -->
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,

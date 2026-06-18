@@ -9,7 +9,7 @@ context: |
   Web research: always use scripts/fetch_clean.py for article/doc content; WebFetch only for single-fact extraction (full convention: ai-docs/research-fetch-convention.md).
 
 rules:
-  # CANONICAL: tasks-md-apply-only — cite, do not restate (registry: ai-docs/workflow-lessons.md §2)
+  # CANONICAL: tasks-md-apply-only — cite, do not restate
   tasks:
     - >-
       When apply is triggered, do not implement in the primary session. Delegate to

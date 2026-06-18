@@ -498,5 +498,105 @@ class ScaffoldCheckGuardTest(unittest.TestCase):
                 self.assertEqual(rc, 0)
 
 
+class TestCheckReferences(unittest.TestCase):
+    """Tests for --check-refs (referential-integrity pass)."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    def _write(self, rel, text):
+        p = self.tmpdir / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+        return p
+
+    def test_clean_when_all_refs_resolve(self):
+        self._write("AGENTS.md", "## Roles\nSee `ai-docs/parked-follow-ons.md`.\n")
+        self._write("ai-docs/parked-follow-ons.md", "# Parked\n")
+        self._write("ai-docs/decisions.md", "## Decision: Bulk FK thing\n")
+        self._write(
+            "doc.md",
+            'See AGENTS.md § "Roles" and `ai-docs/decisions.md` § "Bulk FK thing".\n',
+        )
+        rc = sync_scaffold.check_references(
+            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
+        )
+        self.assertEqual(rc, 0)
+
+    def test_dangling_when_cited_aidoc_file_missing(self):
+        self._write("AGENTS.md", "## Roles\nSee `ai-docs/parked-follow-ons.md`.\n")
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
+        self.assertEqual(rc, 1)
+
+    def test_dangling_when_section_missing(self):
+        self._write("AGENTS.md", "## Roles\n")
+        self._write("doc.md", 'See AGENTS.md § "Nonexistent Section".\n')
+        rc = sync_scaffold.check_references(
+            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
+        )
+        self.assertEqual(rc, 1)
+
+    def test_parenthetical_prose_not_false_flagged(self):
+        # The loose `AGENTS.md (...)` form is deliberately NOT matched — it fires
+        # on explanatory prose. Only the `§ "..."` standard form is checked.
+        self._write("AGENTS.md", "## Roles\n")
+        self._write("doc.md", "See `AGENTS.md` (the Roles section, optionally).\n")
+        rc = sync_scaffold.check_references(
+            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
+        )
+        self.assertEqual(rc, 0)
+
+    def test_agents_bold_label_resolves(self):
+        # AGENTS.md rules are often cited by a bold label, not a heading.
+        self._write("AGENTS.md", "## State\n\n  **STATUS.md cap rule:** holds only ...\n")
+        self._write("doc.md", 'See AGENTS.md § "STATUS.md cap rule".\n')
+        rc = sync_scaffold.check_references(
+            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
+        )
+        self.assertEqual(rc, 0)
+
+    def test_aidoc_section_citation_checks_file_existence_only(self):
+        # ai-docs section titles drift (dates/ellipses) → only file existence is
+        # policed: present file passes regardless of the cited section text...
+        self._write("AGENTS.md", "## Roles\n")
+        self._write("ai-docs/decisions.md", "## Some heading that differs\n")
+        self._write(
+            "doc.md", 'See `ai-docs/decisions.md` § "drifted title (2026-06-16)".\n'
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc.md"])
+        self.assertEqual(rc, 0)
+        # ...but a citation to a missing ai-docs file is still flagged.
+        self._write("doc2.md", 'See `ai-docs/gone.md` § "anything".\n')
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc2.md"])
+        self.assertEqual(rc, 1)
+
+    def test_fenced_code_block_citations_ignored(self):
+        self._write("AGENTS.md", "## Roles\n")
+        self._write("doc.md", '```\nSee AGENTS.md § "Imaginary Example".\n```\n')
+        rc = sync_scaffold.check_references(
+            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
+        )
+        self.assertEqual(rc, 0)
+
+    def test_tracked_markdown_excludes_frozen_dirs(self):
+        self._write("doc.md", "x\n")
+        self._write("docs/reviews/2026-06/r.md", "x\n")
+        self._write("ai-docs/archive/old.md", "x\n")
+        self._write("openspec/changes/c/proposal.md", "x\n")
+        rels = sync_scaffold._tracked_markdown(self.tmpdir)
+        self.assertIn("doc.md", rels)
+        self.assertNotIn("docs/reviews/2026-06/r.md", rels)
+        self.assertNotIn("ai-docs/archive/old.md", rels)
+        self.assertNotIn("openspec/changes/c/proposal.md", rels)
+
+
 if __name__ == "__main__":
     unittest.main()

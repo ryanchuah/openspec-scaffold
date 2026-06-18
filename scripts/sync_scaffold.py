@@ -8,6 +8,7 @@ that preserves each repo's title, ## Project context, and tail.
 Usage:
     scripts/sync_scaffold.py <target-repo-path>
     scripts/sync_scaffold.py --check <target-repo-path>
+    scripts/sync_scaffold.py --check-refs <target-repo-path>
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import argparse
 import filecmp
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -192,6 +194,136 @@ def check(target_path_str: str) -> int:
     return exit_code
 
 
+# ── Reference-integrity check (--check-refs) ────────────────────────────────
+#
+# `--check` verifies BYTE convergence (synced files match the scaffold). It does
+# NOT verify that the citations *inside* those files resolve to targets that
+# exist in the target repo — a synced rule that cites a per-repo state file
+# passes IDENTICAL while the cited file is absent downstream. `--check-refs`
+# closes that gap. It is a SEPARATE subcommand (own 0/1 exit) so `--check`'s
+# contract is untouched.
+
+# Frozen / historical record dirs whose markdown is out of scope for the scan.
+_REF_SCAN_EXCLUDE = ("openspec/changes/", "ai-docs/archive/", "docs/reviews/")
+# `ai-docs/....md` path citations (e.g. in synced rules).
+_AIDOC_PATH_RE = re.compile(r"ai-docs/[\w./-]+\.md")
+# `<file>.md § "Section"` citations (any file; we only resolve canonical docs).
+# The `§ "..."` form is the project's standard citation format; the loose
+# `AGENTS.md (...)` parenthetical form is deliberately NOT matched (it fires on
+# explanatory prose) — the one historical parenthetical ref is normalised to the
+# `§` form during the repoint, and the standard form is enforced going forward.
+_SECTION_RE = re.compile(r"`?([\w./-]+\.md)`?\s*§\s*\"([^\"]+)\"")
+# Fenced code blocks — stripped before scanning to avoid illustrative-example
+# false positives (inline-backtick citations stay in scope).
+_FENCED_RE = re.compile(r"```.*?```", re.S)
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
+def _tracked_markdown(repo: Path) -> list[str]:
+    """Repo-relative markdown to scan: git-tracked if available, else a walk.
+
+    Excludes frozen/historical record directories (`_REF_SCAN_EXCLUDE`).
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "*.md"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        rels = [ln for ln in out.splitlines() if ln]
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        rels = [str(p.relative_to(repo)) for p in sorted(repo.rglob("*.md"))]
+    return [r for r in rels if not any(x in r for x in _REF_SCAN_EXCLUDE)]
+
+
+_BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+
+
+def _section_anchors(path: Path) -> list[str]:
+    """Normalised AGENTS.md section anchors: `#` headings AND bold inline labels.
+
+    Many AGENTS.md rules are cited by a bold label (e.g. ``**STATUS.md cap rule:**``)
+    rather than a heading, so both are valid citation targets.
+    """
+    if not path.exists():
+        return []
+    anchors: list[str] = []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    for line in text.splitlines():
+        if line.lstrip().startswith("#"):
+            anchors.append(_norm(line.lstrip("#").strip()))
+    anchors.extend(_norm(m.group(1)) for m in _BOLD_RE.finditer(text))
+    return anchors
+
+
+def _synced_files() -> list[str]:
+    """Manifest entries that carry inline citations: AGENTS.md + synced ai-docs/*.md."""
+    return [
+        line for line in _read_manifest()
+        if line == "AGENTS.md" or (line.startswith("ai-docs/") and line.endswith(".md"))
+    ]
+
+
+def check_references(target_path_str: str, md_files: list[str] | None = None) -> int:
+    """Verify cited files/sections resolve in the target repo. 0 = clean, 1 = dangling.
+
+    - `ai-docs/*.md` path citations in the SYNCED files (AGENTS.md + synced ai-docs)
+      must point at files that exist in the target.
+    - `AGENTS.md`/`ai-docs/*` section citations (``§ "..."``) anywhere in tracked
+      markdown must point at a file that exists; AGENTS.md citations must also
+      resolve to a heading or bold label (substring match). Section *titles* in
+      `ai-docs/*` are NOT resolved — their headings carry drifting qualifiers
+      (dates, ``…`` ellipses), so only file existence is policed there.
+    """
+    target = Path(target_path_str).resolve()
+    rels = md_files if md_files is not None else _tracked_markdown(target)
+    agents_anchors = _section_anchors(target / "AGENTS.md")
+    dangling = 0
+
+    # (a) ai-docs/*.md path citations in the synced files must exist.
+    for rel in _synced_files():
+        p = target / rel
+        if not p.exists():
+            continue
+        text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
+        for m in _AIDOC_PATH_RE.finditer(text):
+            cited = m.group(0)
+            if not (target / cited).exists():
+                print(f"DANGLING  {rel}: missing file '{cited}'")
+                dangling += 1
+
+    # (b) section citations to canonical docs anywhere: file must exist; for
+    #     AGENTS.md the section must also resolve (other docs' titles drift).
+    for rel in rels:
+        p = target / rel
+        if not p.exists():
+            continue
+        text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
+        for m in _SECTION_RE.finditer(text):
+            cited_file, section = m.group(1), m.group(2)
+            if cited_file != "AGENTS.md" and not cited_file.startswith("ai-docs/"):
+                continue
+            if not (target / cited_file).exists():
+                print(f"DANGLING  {rel}: missing file '{cited_file}' (§ '{section}')")
+                dangling += 1
+            elif cited_file == "AGENTS.md":
+                # Citation must be contained in a real anchor (anchor may carry a
+                # trailing ':' or qualifier). NOT the reverse — a short bold
+                # emphasis span must not mask a longer dangling citation.
+                n = _norm(section)
+                if not any(n in a for a in agents_anchors):
+                    print(f"DANGLING  {rel}: AGENTS.md has no section '{n}'")
+                    dangling += 1
+
+    if dangling:
+        print(f"FAIL  {dangling} dangling reference(s)")
+        return 1
+    print(f"OK  no dangling references ({len(rels)} markdown files scanned)")
+    return 0
+
+
 # ── CLI ────────────────────────────────────────────────────────────────────
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -207,11 +339,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Drift-report mode: compare files, exit 1 on any difference",
     )
+    parser.add_argument(
+        "--check-refs",
+        action="store_true",
+        help="Reference-integrity mode: exit 1 if a cited file/section is missing",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.check_refs:
+        return check_references(args.target)
     if args.check:
         return check(args.target)
     sync(args.target)
