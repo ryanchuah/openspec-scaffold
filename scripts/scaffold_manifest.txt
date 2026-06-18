@@ -30,9 +30,11 @@ scripts/_convergence.py
 scripts/fetch_clean.py
 scripts/scaffold_check.py
 scripts/scaffold_manifest.txt
+scripts/status_lint.py
 scripts/test-gate.sh
 scripts/test_convergence.py
 scripts/test_executor_body_agreement.py
+scripts/test_status_lint.py
 
 # AGENTS.md — span-replace, not wholesale copy (see D3)
 AGENTS.md

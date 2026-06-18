@@ -238,6 +238,12 @@ Archive a completed change in the experimental workflow.
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
      re-delegate to the archive-executor with a specific fix-spec and re-review.
+   - **Lint before committing:** run `python scripts/status_lint.py <repo>` from the
+     repo root and resolve any STATUS.md cap/word-budget or `decisions.md` Date/Status
+     violations it reports (the executor's `#### 3d` step should already have cleaned
+     these; this is the primary's gate). If a retained legacy entry trips the budget,
+     trim it to a ≤150-word headline — moving the surplus prose **verbatim** into
+     `ai-docs/archive/status-log.md` — before committing.
    - **Commit once satisfied** (the executor never commits; the primary always owns
      the commit):
      ```

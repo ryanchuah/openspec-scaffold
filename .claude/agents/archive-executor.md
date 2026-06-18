@@ -78,6 +78,10 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 - Keep bullets lean in both files.
 - **Reduce shipped-change sections** — reduce each shipped-change section in `open-questions.md` to its **BLOCKING** items plus a one-line pointer stub (`<area>: tune-after-evidence items → parked-follow-ons.md § <area>`); park every non-BLOCKING bullet to `parked-follow-ons.md`. Never leave a non-blocking shipped-change bullet in `open-questions.md` (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule").
 
+#### 3d. Lint the reconciled state files
+
+After 3a–3c, run `python scripts/status_lint.py <repo>` from the repo root. It mechanically enforces the bounds in `AGENTS.md §"State, write discipline, and the archive-as-handoff rule"` (STATUS.md 3-entry cap + ≤150-word change-entry budget; `decisions.md` `**Date:**`/`**Status:**` fields + ≤300-word change-record budget). Resolve every reported violation — for an over-budget STATUS entry, trim it to a ≤150-word headline and move the surplus prose **verbatim** to `ai-docs/archive/status-log.md`; for a `decisions.md` entry missing `**Status:**` add `**Status:** ACTIVE`, and trim an over-300-word change-record entry (its full rationale already lives in the change archive) — then re-run until it exits clean before writing your completion report; note the clean result in the report.
+
 ## Rules
 
 - **Do not commit.** The primary agent reviews the reconciliation and commits.
