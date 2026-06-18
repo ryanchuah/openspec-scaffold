@@ -54,3 +54,9 @@ Thumbs.db
 .claude/settings.local.json
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+
+# Local reference clone of upstream OpenSpec (not part of this repo)
+OpenSpec/
+
+# Session scratch / exploration temp files
+tmp_*.md
