@@ -135,6 +135,11 @@ split-open-questions shipped 2026-06-17. Rationale: `ai-docs/decisions.md`; arch
 
 ## single-source-rules (shipped 2026-06-17)
 
-Decision and rationale: `ai-docs/decisions.md`; archive: `openspec/changes/archive/2026-06-17-single-source-rules`.
+Decision and rationale: `ai-docs/decisions.md`; archive: `openspec/changes/archive/2026-06-17-single-source-rules`. All follow-ons resolved — Phase 2 propagation completed 2026-06-18; resolution record in `ai-docs/archive/retired-notes.md`.
 
-- **Phase 2 propagation to extrends + psc-monitor — DONE (2026-06-18).** `sync_scaffold.py` carried this change's 7 managed files (AGENTS.md span-merge + `research-fetch-convention.md` + the propose/verify/archive skills + both apply-executor bodies) to extrends (`8812533`) and psc-monitor (`92beaec`); `--check` then ALL IDENTICAL on both. Each AGENTS.md span-merge was diff-reviewed (title / `## Project context` / tail preserved — extrends' TrendScope context and psc-monitor's `# Project reference` body intact). `config.yaml` and `ai-docs/workflow-lessons.md` are intentionally per-repo (not in the manifest) and did not propagate — by design. All commits local/unpushed. (Former known cosmetic — RESOLVED 2026-06-18 by `fix-propagation-dangling-refs`: the `(registry: ai-docs/workflow-lessons.md §2)` pointer was stripped from all `CANONICAL:` markers so they are now self-contained; the §2 registry stays in scaffold's `workflow-lessons.md` for editors but is no longer cited inline, so nothing dangles in repos that lack the file.)
+## lean-boot-context (shipped 2026-06-18)
+
+Decision and rationale: `ai-docs/decisions.md`; archive: `openspec/changes/archive/2026-06-18-lean-boot-context`.
+
+- **Enforcement untested against a live archive — monitor.** The 3 state-bounding rules are forward-only — they bind at each repo's *next* archive, not retroactively. Watch the next real archive (any repo) to confirm the archive-executor applies the ≤150-word STATUS budget, the open-questions parking+pointer-stub, and the decisions Date/Status+≤300-word cap.
+- state-bounding / sync-mechanism / psc-monitor: tune-after-evidence items → parked-follow-ons.md § state-bounding, § sync-mechanism, § psc-monitor

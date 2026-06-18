@@ -277,3 +277,38 @@ Durable architectural decisions and their rationale. Add an entry whenever a non
 - **Moving every rule into `AGENTS.md`.** Rejected — some homes are the right home for intrinsic reasons: `config.yaml` `rules.tasks` is the irreducible prompt-injection point; the war-story is operationally in the executor's body; the web-research convention is already a clean standalone doc.
 
 **Motivation:** The 2026-06-16 workflow audit (§C2) flagged five rules restated 3–5× across the instruction surface, free to drift independently — the last open finding from the consolidation plan. After W6 (the one-time scaffold→downstream propagation snapshot), the live sync pipe now faithfully propagates whatever rule-restatements (and any drift among the copies) to all three repos — the "don't pump duplicated content through the pipe" concern applied to rules. This change closes that finding by applying the same single-source-then-cite pattern `dedup-scaffold`/C1 used for the delegation harness. Archive: `openspec/changes/archive/2026-06-17-single-source-rules`.
+
+## lean-boot-context (2026-06-18)
+
+**Date:** 2026-06-18
+**Status:** ACTIVE
+
+**Decision:** Three state-file bounding conventions added to AGENTS.md §"State, write discipline…"
+(enforced at archive): ≤150-word STATUS entries, decisions Date/Status + ≤300-word cap, and
+open-questions shipped-change sections reduced to BLOCKING items + pointer stubs with remaining
+bullets parked. Conventions are forward-only — bind at each repo's *next* archive, never
+retroactively; a data-loss safety check (verify archive holds rationale before trimming STATUS prose)
+is baked into both archive-executor bodies. psc-monitor's ~412-line inlined AGENTS.md reference
+appendix relocated verbatim to 5 on-demand ai-docs/ files (schema-reference, api-reference,
+repo-layout, ops-runbook, project-reference) with an On-demand references table, slimming AGENTS.md
+707→321 lines. sync_scaffold.py tail-guard raised 300→350 to accommodate lean repos after rule
+propagation pushed extrends/AGENTS.md over 300.
+
+**Why now / why this shape:**
+- **Forward-only bounding (not retroactive summarization):** Retroactive summarization by the flash
+executor was rejected as flash-unsafe with real data-loss risk — the forward-only approach
+materializes the win as changes accumulate; old over-budget entries are never auto-trimmed.
+- **ai-docs/ relocation (not config.yaml, not copier):** psc-monitor's appendix was the largest
+inlined reference mass among the three repos. On-demand ai-docs/ files preserve detail verbatim while
+keeping mandatory-onboarding AGENTS.md lean — the model extrends already uses. Copier ruled out
+earlier; config.yaml is the prompt-injection point, not a reference dump. Every appendix section got
+a recorded disposition (promoted, moved, or explicitly dropped-as-redundant); no load-bearing
+constraint was silently deleted.
+- **Sync guard 300→350 (not the `---` band-aid):** The executor's `---` tail-separator workaround
+was rejected; bumping the threshold accommodates real growth while keeping the guard active. If the
+synced span keeps growing, revisit.
+
+**Motivation:** Two priorities from the agent-context-infra exploration: bound mutable state files
+so the always-loaded onboarding surface stays bounded (P3), and relocate psc-monitor's bloated
+AGENTS.md appendix before it hits the Read-tool cap (P2). Archive:
+openspec/changes/archive/2026-06-18-lean-boot-context.
