@@ -312,3 +312,38 @@ synced span keeps growing, revisit.
 so the always-loaded onboarding surface stays bounded (P3), and relocate psc-monitor's bloated
 AGENTS.md appendix before it hits the Read-tool cap (P2). Archive:
 openspec/changes/archive/2026-06-18-lean-boot-context.
+
+## add-status-lint (2026-06-18)
+
+**Date:** 2026-06-18
+**Status:** ACTIVE
+
+**Decision:** A stdlib `scripts/status_lint.py` gate (exit 0/2, mirroring `scaffold_check.py`
+conventions) was built to mechanize the forward-only state-file bounds from AGENTS.md §"State, write
+discipline…": STATUS.md's 3-entry cap + ≤150-word change-entry budget, and `ai-docs/decisions.md`'s
+`**Date:**`/`**Status:**` fields + ≤300-word change-record budget. Wired into both archive-executor
+bodies as the archive-phase `#### 3d` lint step and into the archive skill as the primary's
+pre-commit gate. Propagated via `sync_scaffold.py` to extrends + psc-monitor.
+
+**Why now / why this shape:**
+- **`--since=2026-06-18` backfill-safe cutoff (Slice-1 smoke finding):** The initial spec scoped
+  enforcement to entries declaring `**Date:**`, but a live run disproved this — 12 legacy
+  entries predating the `**Status:**` requirement plus the unparseable template were all
+  flagged, forcing prohibited retroactive backfill. The `--since` flag scopes enforcement to
+  entries dated on/after the adoption date; entries without a parseable Date or before the
+  cutoff are skipped — the minimal correct discriminator.
+- **Archive-time wiring, not per-commit hook:** STATUS.md/decisions.md are reconciled only at
+  archive; a per-commit hook would fire on unrelated commits. The archive-phase lint step +
+  skill pre-commit gate is proportionate.
+- **Operator decision — dropped psc-monitor's SMALL disposal clause:** a SMALL-tier clause ("SMALL
+  change dir deleted on commit; no archive entry") lived only in psc-monitor's managed span, not the
+  scaffold or extrends. The operator let the sync drop it (conform to canonical) — intentionally not
+  preserved.
+- **No retroactive trimming in this change:** The tool ships first; Phase B (linter-driven
+  one-time STATUS/decisions cleanup across all three repos) remains a separate follow-on.
+
+**Motivation:** The state-bounding conventions from `lean-boot-context` were prose rules with
+no mechanical enforcement — an external review found extrends' retained STATUS entries at
+324/280/289 words against the ≤150 budget. This change makes the bounds machine-gated,
+ensuring every archive reconciliation is checked before commit. Archive:
+`openspec/changes/archive/2026-06-18-add-status-lint`.
