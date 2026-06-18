@@ -144,16 +144,4 @@ Decision and rationale: `ai-docs/decisions.md`; archive: `openspec/changes/archi
 - **Enforcement untested against a live archive — monitor.** The 3 state-bounding rules are forward-only — they bind at each repo's *next* archive, not retroactively. Watch the next real archive (any repo) to confirm the archive-executor applies the ≤150-word STATUS budget, the open-questions parking+pointer-stub, and the decisions Date/Status+≤300-word cap.
 - state-bounding / sync-mechanism / psc-monitor: tune-after-evidence items → parked-follow-ons.md § state-bounding, § sync-mechanism, § psc-monitor
 
-## add-status-lint (shipped 2026-06-18)
-
-Decision and rationale: `ai-docs/decisions.md`; archive: `openspec/changes/archive/2026-06-18-add-status-lint`.
-
-- **Phase B — linter-driven one-time STATUS/decisions cleanup (active).** Once the linter ships, the
-  primary (with archive-executor on pro tier where summarization is needed) uses it to drive the
-  cleanup the external review called for: extrends — trim the 3 retained STATUS entries (324/280/289)
-  to ≤150-word headlines (surplus → `status-log.md` verbatim), trim the over-budget
-  `## Immediate next action`, relocate `ai-docs/improvement-roadmap.md` → `plans/` and update
-  cross-refs; scaffold — trim its over-budget `split-open-questions` STATUS entry; psc-monitor — run
-  the linter and trim any flagged entries. Each is reconciliation/summarization (judgment), gated by
-  `status_lint.py` going green — not mechanical flash work, which is why it is split out of this
-  tool-shipping change.
+_(add-status-lint Phase B cleanup — resolved 2026-06-18; moved to `ai-docs/archive/retired-notes.md`.)_
