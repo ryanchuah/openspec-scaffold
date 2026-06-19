@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Linter for memory/STATUS.md and memory/decisions/INDEX.md mechanical invariants.
+"""Linter for knowledge/STATUS.md and knowledge/decisions/INDEX.md mechanical invariants.
 
 Enforces the bounds specified in design.md §D-E:
 
-  - memory/STATUS.md: at most 3 change-entry sections, each <=150 words.
-  - memory/decisions/INDEX.md: every line matching the date-bullet anchor
+  - knowledge/STATUS.md: at most 3 change-entry sections, each <=150 words.
+  - knowledge/decisions/INDEX.md: every line matching the date-bullet anchor
     ``^- **YYYY-MM-DD**`` must be a valid registry entry of the form:
       - **YYYY-MM-DD** · <slug> · <one-line essence> → `openspec/changes/archive/<dir>/`
     or:
@@ -126,8 +126,8 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
 # ---------------------------------------------------------------------------
 
 def _check_status_md(repo_root: Path) -> list[str]:
-    """Check memory/STATUS.md invariants.  Returns list of violation strings."""
-    status_path = repo_root / "memory" / "STATUS.md"
+    """Check knowledge/STATUS.md invariants.  Returns list of violation strings."""
+    status_path = repo_root / "knowledge" / "STATUS.md"
     if not status_path.exists():
         return []
 
@@ -149,7 +149,7 @@ def _check_status_md(repo_root: Path) -> list[str]:
         excess = change_entries[3:]  # beyond the 3 most recent
         excess_headings = [h for h, _b, _n in excess]
         violations.append(
-            f"  memory/STATUS.md: {len(change_entries)} change-entries (max 3); "
+            f"  knowledge/STATUS.md: {len(change_entries)} change-entries (max 3); "
             f"excess: {', '.join(excess_headings)}"
         )
 
@@ -159,21 +159,21 @@ def _check_status_md(repo_root: Path) -> list[str]:
         wc = _word_count(body_clean)
         if wc > 150:
             violations.append(
-                f"  memory/STATUS.md: {heading} body has {wc} words (max 150)"
+                f"  knowledge/STATUS.md: {heading} body has {wc} words (max 150)"
             )
 
     return violations
 
 
 def _check_decisions_index(repo_root: Path) -> list[str]:
-    """Check memory/decisions/INDEX.md registry invariants.
+    """Check knowledge/decisions/INDEX.md registry invariants.
 
     Every line matching the date-bullet anchor ``^- **YYYY-MM-DD**`` must be
     a valid registry entry with a resolving pointer or an ``[inline]``
     rationale.  All other lines are ignored.
     Returns list of violation strings.
     """
-    decisions_path = repo_root / "memory" / "decisions" / "INDEX.md"
+    decisions_path = repo_root / "knowledge" / "decisions" / "INDEX.md"
     if not decisions_path.exists():
         return []
 
@@ -191,7 +191,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
         parts = line.split(_REGISTRY_SEP, 2)
         if len(parts) != 3:
             violations.append(
-                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"  knowledge/decisions/INDEX.md:{lineno}: malformed registry line "
                 f"(expected 3 parts separated by ' · '): {line!r}"
             )
             continue
@@ -200,7 +200,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
 
         if not slug_part.strip():
             violations.append(
-                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"  knowledge/decisions/INDEX.md:{lineno}: malformed registry line "
                 f"(empty slug): {line!r}"
             )
             continue
@@ -212,7 +212,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
         m = _POINTER_RE.search(text_part)
         if not m:
             violations.append(
-                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"  knowledge/decisions/INDEX.md:{lineno}: malformed registry line "
                 f"(text is neither [inline] nor a valid → `pointer`): {line!r}"
             )
             continue
@@ -222,7 +222,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
         archive_path = repo_root / archive_rel
         if not archive_path.is_dir():
             violations.append(
-                f"  memory/decisions/INDEX.md:{lineno}: dangling pointer "
+                f"  knowledge/decisions/INDEX.md:{lineno}: dangling pointer "
                 f"`{m.group(1)}` does not resolve to an existing directory"
             )
 
@@ -235,7 +235,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Lint memory/STATUS.md and memory/decisions/INDEX.md invariants."
+        description="Lint knowledge/STATUS.md and knowledge/decisions/INDEX.md invariants."
     )
     parser.add_argument(
         "repo_root",
@@ -254,29 +254,29 @@ def main(argv: list[str] | None = None) -> int:
 
     total_violations: list[str] = []
 
-    # memory/STATUS.md
+    # knowledge/STATUS.md
     status_violations = _check_status_md(repo_root)
-    status_path = repo_root / "memory" / "STATUS.md"
+    status_path = repo_root / "knowledge" / "STATUS.md"
     if status_path.exists():
         if status_violations:
-            print("memory/STATUS.md: FAIL")
+            print("knowledge/STATUS.md: FAIL")
             for v in status_violations:
                 print(v)
             total_violations.extend(status_violations)
         else:
-            print("memory/STATUS.md: OK")
+            print("knowledge/STATUS.md: OK")
 
-    # memory/decisions/INDEX.md
+    # knowledge/decisions/INDEX.md
     decisions_violations = _check_decisions_index(repo_root)
-    decisions_path = repo_root / "memory" / "decisions" / "INDEX.md"
+    decisions_path = repo_root / "knowledge" / "decisions" / "INDEX.md"
     if decisions_path.exists():
         if decisions_violations:
-            print("memory/decisions/INDEX.md: FAIL")
+            print("knowledge/decisions/INDEX.md: FAIL")
             for v in decisions_violations:
                 print(v)
             total_violations.extend(decisions_violations)
         else:
-            print("memory/decisions/INDEX.md: OK")
+            print("knowledge/decisions/INDEX.md: OK")
 
     if total_violations:
         print(f"status_lint: FAILED — {len(total_violations)} violation(s)")

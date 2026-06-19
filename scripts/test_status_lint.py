@@ -28,16 +28,16 @@ def _make_repo(
     status_md: str | None = None,
     decisions_index: str | None = None,
 ) -> Path:
-    """Create a temporary repo and write optional memory/STATUS.md /
-    memory/decisions/INDEX.md."""
+    """Create a temporary repo and write optional knowledge/STATUS.md /
+    knowledge/decisions/INDEX.md."""
     repo = tmpdir / "repo"
     repo.mkdir()
     if status_md is not None:
-        mem = repo / "memory"
+        mem = repo / "knowledge"
         mem.mkdir(parents=True, exist_ok=True)
         (mem / "STATUS.md").write_text(status_md, encoding="utf-8")
     if decisions_index is not None:
-        dec = repo / "memory" / "decisions"
+        dec = repo / "knowledge" / "decisions"
         dec.mkdir(parents=True, exist_ok=True)
         (dec / "INDEX.md").write_text(decisions_index, encoding="utf-8")
     return repo

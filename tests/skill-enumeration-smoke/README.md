@@ -6,7 +6,7 @@ This directory contains a repeatable smoke procedure for verifying that `opencod
 The dual-harness design (Claude Code + OpenCode) rests on opencode's ability to
 read `.claude/skills/**/SKILL.md` files. This is gated by the environment variable
 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` — when unset (the default), opencode
-automatically loads these skill definitions. See `memory/decisions/INDEX.md` for the
+automatically loads these skill definitions. See `knowledge/decisions/INDEX.md` for the
 decision record. An opencode upgrade could silently stop cross-loading skills (the
 whole skill layer would vanish for the OpenCode harness, with zero signal) — this
 smoke is the check that catches that regression.
@@ -60,7 +60,7 @@ from the scaffold root: PASS.**
   `…/openspec-scaffold/.claude/skills/openspec-*/SKILL.md` — confirming opencode
   cross-loads them from `.claude/skills/` (there is no second `.opencode/skills/` copy).
 - `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` was `<unset>` — the cross-load path is active by default.
-- Closes the W0 carry-forward / audit-E5 item (see `memory/decisions/INDEX.md`
-  "opencode skill-enumeration smoke" and the resolved entry in `memory/questions/INDEX.md`).
+- Closes the W0 carry-forward / audit-E5 item (see `knowledge/decisions/INDEX.md`
+  "opencode skill-enumeration smoke" and the resolved entry in `knowledge/questions/INDEX.md`).
 - The ~119 KB file capture is the authoritative method; the direct-pipe form flaked to a
   3–4 skill subset before file-capture was adopted (see Gotcha).

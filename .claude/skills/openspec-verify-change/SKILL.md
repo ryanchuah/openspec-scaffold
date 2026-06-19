@@ -302,8 +302,8 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
    5. **forward-looking items for the project docs — the load-bearing, easily-missed one.** Enumerate
       every **open question, tuning item, deferred-scope decision, follow-on, or monitored risk** that
       surfaced during design OR verify and is **recorded nowhere else** (not in `proposal.md` /
-      `design.md` / `specs/` and not already in `memory/questions/INDEX.md`). These exist to be folded
-      into `memory/questions/INDEX.md` (and where relevant `memory/decisions/INDEX.md`) at archive. Be
+      `design.md` / `specs/` and not already in `knowledge/questions/INDEX.md`). These exist to be folded
+      into `knowledge/questions/INDEX.md` (and where relevant `knowledge/decisions/INDEX.md`) at archive. Be
       exhaustive — typical sources you MUST scan for:
         - **"tune after real runs" items** — any new threshold/default/knob this change introduced that
           has not been validated against real production output (e.g. a new config default);
@@ -315,7 +315,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
         - anything you said "out of scope / revisit later / could add" about during this session.
 
    Also write a short **"Still owned by archive"** pointer list (what the fresh archive session
-   must still reconcile: `memory/STATUS.md`, `memory/decisions/INDEX.md`, `memory/questions/INDEX.md`, spec
+   must still reconcile: `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`, `knowledge/questions/INDEX.md`, spec
    promotion into `openspec/specs/`, and any cleanup). Do NOT edit those project-tracked docs yourself
    here — they are reconciled at archive per the write-discipline rule; your job at verify is to make
    the change dir self-sufficient so that reconciliation loses nothing.
@@ -325,7 +325,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
    the change dir, not this conversation. Verify is the step that manufactures these durable facts,
    and anything left only in this context **dies at the session boundary** — the archive-executor
    is blind to it. **Field 5 is the one that bites:** a new open-question or tuning item that
-   exists only in this conversation is simply *lost* — it never reaches `memory/questions/INDEX.md`, and
+   exists only in this conversation is simply *lost* — it never reaches `knowledge/questions/INDEX.md`, and
    the project silently forgets a decision it meant to revisit. This write is cheap because the
    context is already loaded. Do not skip it even when the verdict is a clean pass.
 
@@ -344,7 +344,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
       3. Defects + fixes — <summary, or "none">
       4. As-built deltas — <summary, or "none">
       5. Forward-looking open-questions / tuning items / follow-ons — <explicit list, or "none + why">
-      Still owned by archive — <memory/STATUS.md, memory/decisions/INDEX.md, memory/questions/INDEX.md, spec promotion, cleanup>
+      Still owned by archive — <knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md, spec promotion, cleanup>
     ```
 
     For field 5 you MUST either **name each item** carried forward (so the user can sanity-check that

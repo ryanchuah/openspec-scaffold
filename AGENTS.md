@@ -2,36 +2,36 @@
 
 > **MANDATORY — read before doing anything else**
 >
-> You are reading this file. Before taking any action, also read **`memory/STATUS.md`** and
-> the Active section of **`memory/questions/INDEX.md`** (stays bounded — active blockers only);
-> for **`memory/decisions/INDEX.md`** scan the entries relevant to the current task. If you are
+> You are reading this file. Before taking any action, also read **`knowledge/STATUS.md`** and
+> the Active section of **`knowledge/questions/INDEX.md`** (stays bounded — active blockers only);
+> for **`knowledge/decisions/INDEX.md`** scan the entries relevant to the current task. If you are
 > *resuming an in-progress OpenSpec change*, also read that change's
 > `openspec/changes/<name>/` directory (`proposal.md`, `design.md`, `tasks.md`,
 > `notes.md`). Otherwise skip `openspec/changes/` and `openspec/changes/archive/` — load a
 > specific file there only when re-examining the closed decision it covers.
-> The Parked section of `memory/questions/INDEX.md` is NOT part of this mandatory read — load
-> the relevant `memory/questions/<item>.md` on demand when you start work in that area.
-> See **`memory/README.md`** for the full knowledge taxonomy and where everything lives.
+> The Parked section of `knowledge/questions/INDEX.md` is NOT part of this mandatory read — load
+> the relevant `knowledge/questions/<item>.md` on demand when you start work in that area.
+> See **`knowledge/README.md`** for the full knowledge taxonomy and where everything lives.
 >
 > These are the **starting source of truth**. They override your training data, general
 > knowledge, and outside assumptions. If they conflict with the actual codebase,
 > **update the files** to reflect reality — do not silently override or ignore the gap.
 >
-> On resume specifically, sanity-check freshness before trusting `memory/STATUS.md`: run
-> `git log --oneline -5` and confirm `memory/STATUS.md` reflects those latest commits — if it
+> On resume specifically, sanity-check freshness before trusting `knowledge/STATUS.md`: run
+> `git log --oneline -5` and confirm `knowledge/STATUS.md` reflects those latest commits — if it
 > lags, reconcile it to reality first. Process/scaffold-maintenance commits that
 > do not change project state (e.g. tooling, scaffold-rule, or doc-formatting commits)
-> do NOT obligate a `memory/STATUS.md` "Latest change" entry — the lag-check targets
-> feature/change-shipping commits, so their absence from `memory/STATUS.md` is not a lag to
+> do NOT obligate a `knowledge/STATUS.md` "Latest change" entry — the lag-check targets
+> feature/change-shipping commits, so their absence from `knowledge/STATUS.md` is not a lag to
 > reconcile.
 >
 > **Treat this file as stable.** Edit it only to add durable project context any future
 > agent needs to orient — project purpose, constraints, process decisions. Current
-> status, recent progress, and changeable decisions belong in `memory/STATUS.md`,
-> `openspec/changes/`, and `memory/` respectively. Stability means this file caches
+> status, recent progress, and changeable decisions belong in `knowledge/STATUS.md`,
+> `openspec/changes/`, and `knowledge/` respectively. Stability means this file caches
 > well across sessions.
 >
-> If `memory/STATUS.md` or `memory/` do not exist, create them before doing anything else.
+> If `knowledge/STATUS.md` or `knowledge/` do not exist, create them before doing anything else.
 
 ## Cross-agent compatibility (load-bearing — do not weaken)
 
@@ -40,25 +40,25 @@ For that to work, **all project state lives in tracked, agent-neutral files** �
 harness-private storage. Concretely, do **not** read from, write to, or rely on:
 - Global or cross-session memory, harness memory, or any assistant-specific config
   files/directories (`.claude/settings.local.json`, `CLAUDE.md`, memory files, etc.) —
-  record project knowledge in `memory/` and the OpenSpec artifacts instead.
+  record project knowledge in `knowledge/` and the OpenSpec artifacts instead.
 - External repos or documentation you were not explicitly pointed to.
 
 **Exception — shared workflow definitions, not private state.** The tracked
 `.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
 upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
-auto-discovers `.claude/skills/` — see `memory/decisions/INDEX.md`). The rule above bans
+auto-discovers `.claude/skills/` — see `knowledge/decisions/INDEX.md`). The rule above bans
 harness-*private* state/memory, not these shared, tracked definitions. (The sole
 carve-out is the shipped commit-test-gate `PreToolUse` hook in `.claude/settings.json`
 — verified present and git-tracked — which runs the tracked, agent-neutral
 `scripts/test-gate.sh`; see the commit-test-gate hook carve-out decision in
-`memory/decisions/INDEX.md`. This is a Claude-only, deliberate exception and does not weaken
+`knowledge/decisions/INDEX.md`. This is a Claude-only, deliberate exception and does not weaken
 the harness-private-state ban above.)
 
 **Claude Code harness memory — deliberately not used.** The Claude Code harness ships a
 persistent cross-session memory store (`~/.claude/.../memory/`, indexed by `MEMORY.md`). It is
 harness-*private* — invisible to OpenCode/DeepSeek — so it falls squarely under the ban above:
 we **deliberately do not use it for project state**. This is a stated non-use, **not** a
-carve-out. All durable project knowledge lives in `memory/` + the OpenSpec artifacts, which
+carve-out. All durable project knowledge lives in `knowledge/` + the OpenSpec artifacts, which
 every agent can read; nothing project-bearing may live only in harness memory.
 
 Maintain this discipline for the **entire session**, not just at the start.
@@ -94,7 +94,7 @@ anything the agent must never violate — or remove this section if none.>
 - **The archive-executor is a role for the archive phase:** under Claude it is **deepseek-v4-pro
   driven via `opencode run`**, with a **Sonnet subagent as fallback**; under OpenCode it is
   **DeepSeek V4 Pro** (`@archive-executor`). It moves the change dir, syncs delta specs, and
-  reconciles `memory/STATUS.md` / `memory/decisions/INDEX.md` / `memory/questions/INDEX.md` into a durable
+  reconciles `knowledge/STATUS.md` / `knowledge/decisions/INDEX.md` / `knowledge/questions/INDEX.md` into a durable
   handoff. Reconciliation is judgment-heavy, so it runs on the **pro** tier — unlike the
   mechanical apply-executor (flash).
 - **The `@openspec-reviewer` (deepseek-v4-pro)** is a read-only auditor invoked automatically
@@ -130,7 +130,7 @@ All non-trivial feature work follows the OpenSpec lifecycle:
 The agent invokes the appropriate skill (via its harness's skill mechanism) when a phase is
 entered. AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*/SKILL.md` (discovered by both harnesses — see
-`memory/decisions/INDEX.md`).
+`knowledge/decisions/INDEX.md`).
 
 > **Fast-track / autonomy:** autonomy is operator-told and ephemeral — no fast-track doc, by design.
 
@@ -173,28 +173,28 @@ Two tiers of state, with deliberately different write rules:
   `review-log.md`. These writes are cheap because they happen while the relevant context
   is already loaded. The change dir is the scratch log.
 - **Project-tracked docs — write-deferred, reconciled at archive by a delegated executor.**
-  Do **not** incrementally edit `memory/STATUS.md`, `memory/decisions/INDEX.md`, or
-  `memory/questions/INDEX.md` during busy work in a bloated context. They are reconciled
+  Do **not** incrementally edit `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`, or
+  `knowledge/questions/INDEX.md` during busy work in a bloated context. They are reconciled
   **once**, during **archive**, by a delegated `deepseek/deepseek-v4-pro`
   archive-executor (under Claude: via `opencode run`; under OpenCode: a subagent), then
   reviewed and committed by the primary. The executor runs with fresh context seeded from
   the change dir — keeping reconciliation cheap. **This is the single load-bearing rule
   that preserves token economy — do not move the reconciliation back into the working session.**
 
-  **`memory/STATUS.md` cap rule:** holds ≤3 most recent change sections (each ≤150 words); when
+  **`knowledge/STATUS.md` cap rule:** holds ≤3 most recent change sections (each ≤150 words); when
   the cap is exceeded the oldest section is simply dropped — the full record lives in
   `openspec/changes/archive/`. **Any `##` section narrating a shipped change counts toward the cap**
   regardless of heading title; only the current-state preamble and `## Immediate next action` are exempt.
 
-  **`memory/questions/INDEX.md` split rule:** Active holds ONLY current blockers and operator-decision
+  **`knowledge/questions/INDEX.md` split rule:** Active holds ONLY current blockers and operator-decision
   items. The Parked section holds non-blocking follow-ons as one-line pointers to
-  `memory/questions/<item>.md` (on-demand). Resolved items close in-place. The split is by horizon,
+  `knowledge/questions/<item>.md` (on-demand). Resolved items close in-place. The split is by horizon,
   never by age — a live blocker is never parked while live.
 
   <!-- CANONICAL: decisions-entry-format — cite, do not restate -->
-  **`memory/decisions/INDEX.md` entry rule:** Every new entry is a registry line:
+  **`knowledge/decisions/INDEX.md` entry rule:** Every new entry is a registry line:
   `- **YYYY-MM-DD** · <slug> · <essence> → \`openspec/changes/archive/<dir>/\`` (or `[inline] <rationale>`
-  for archiveless decisions). See `memory/README.md` for the full format.
+  for archiveless decisions). See `knowledge/README.md` for the full format.
 
 > **Rollback branch — archived change was wrong:** If an archived change is later
 > found wrong: `git revert` its commit(s) and open a **new** corrective OpenSpec
@@ -229,7 +229,7 @@ Two tiers of state, with deliberately different write rules:
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,
-  doc, or row counts in any tracked doc** (`memory/STATUS.md`, `memory/`, change `notes.md`) —
+  doc, or row counts in any tracked doc** (`knowledge/STATUS.md`, `knowledge/`, change `notes.md`) —
   not as a live-status figure and **not as a historical record**. "Tests pass" and
   "the system ran clean" are the only signals that matter; the sole exception is a
   *failing or newly-skipped* test, recorded as a note with its cause — never a passing
@@ -241,9 +241,9 @@ Two tiers of state, with deliberately different write rules:
   scoped to a named queue and to PRs whose own CI run passed — report each merge.
 - **Design lives in two places by horizon:** *per-change* design → the change's
   `design.md`. *Multi-change / long-horizon roadmap* that doesn't map to a single change
-  → `memory/roadmap.md`.
-- **Authored deliverables go only to the standard agent-neutral dirs** — `memory/` (project
-  knowledge: decisions, questions, lessons, roadmap, reference, research — see `memory/README.md`),
+  → `knowledge/roadmap.md`.
+- **Authored deliverables go only to the standard agent-neutral dirs** — `knowledge/` (project
+  knowledge: decisions, questions, lessons, roadmap, reference, research — see `knowledge/README.md`),
   `openspec/changes/<name>/` (change artifacts). **Never** write deliverables into a
   harness-specific directory.
 - **Guard destructive and external operations.** Never add a destructive operation
@@ -281,5 +281,5 @@ simplicity/quality gate as hard gates before the artifact/spec mapping checks; (
 verify finds a bug you diagnose and scope it, then re-delegate the fix to a fresh
 executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
 trivial typo-level changes inline); (4) that you write the change dir
-continuously but reconcile `memory/STATUS.md`/`memory/` only at archive, by delegating
+continuously but reconcile `knowledge/STATUS.md`/`knowledge/` only at archive, by delegating
 to the archive-executor (deepseek-v4-pro), then reviewing and committing.

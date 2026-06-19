@@ -22,32 +22,32 @@
 
 ## 1. Scaffold — move the knowledge tree
 
-- [ ] 1.1 `git mv memory/ knowledge/` (preserves history for all files under it). Confirm the full layout
+- [x] 1.1 `git mv memory/ knowledge/` (preserves history for all files under it). Confirm the full layout
   lands at `knowledge/`: `README.md`, `STATUS.md`, `decisions/INDEX.md`, `questions/` (INDEX + per-item),
   `lessons.md`, `reference/`, `research/` (+ INDEX), `roadmap.md`. Confirm no `memory/` directory remains.
 
 ## 2. Scaffold — rewrite live `knowledge/` citations inside the moved tree
 
-- [ ] 2.1 Rewrite internal folder citations `memory/<path>` → `knowledge/<path>` in the moved knowledge
+- [x] 2.1 Rewrite internal folder citations `memory/<path>` → `knowledge/<path>` in the moved knowledge
   files that carry them — `knowledge/STATUS.md`, `knowledge/questions/INDEX.md`, `knowledge/research/INDEX.md`,
   `knowledge/README.md`, `knowledge/roadmap.md`, `knowledge/lessons.md`,
   `knowledge/questions/restructure-growth-trigger.md` — so no moved file points back at a dead `memory/` path.
-- [ ] 2.2 `knowledge/decisions/INDEX.md`: make NO content change (its only `memory/` tokens are the
+- [x] 2.2 `knowledge/decisions/INDEX.md`: make NO content change (its only `memory/` tokens are the
   historical `restructure-project-knowledge` essence — invariant (b)). The git mv in 1.1 is the only change.
-- [ ] 2.3 `knowledge/research/research-industry-standards-2026-06/D-knowledge-memory-verification.md`:
+- [x] 2.3 `knowledge/research/research-industry-standards-2026-06/D-knowledge-memory-verification.md`:
   make NO change — its only `memory/` is the `agent-memory/` URL (invariant (c)).
 
 ## 3. Scaffold — sync mechanism (scripts + manifest)
 
-- [ ] 3.1 `scripts/scaffold_manifest.txt`: change the `memory/README.md` entry → `knowledge/README.md`
+- [x] 3.1 `scripts/scaffold_manifest.txt`: change the `memory/README.md` entry → `knowledge/README.md`
   (update the section comment too if it names the path).
-- [ ] 3.2 `scripts/sync_scaffold.py`: rewrite every `memory/` literal → `knowledge/` and rename the identifier
+- [x] 3.2 `scripts/sync_scaffold.py`: rewrite every `memory/` literal → `knowledge/` and rename the identifier
   `_AIDOC_PATH_RE` → `_KNOWLEDGE_PATH_RE` at BOTH its definition and its use. Specifically:
   `_REF_SCAN_EXCLUDE` (`memory/research/` → `knowledge/research/`); `_AIDOC_PATH_RE = re.compile(r"memory/[\w./-]+\.md")`
   → `_KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")`; the `.finditer(text)` call site;
   `_synced_files()` filter `line.startswith("memory/")` → `knowledge/`; the section-citation guard
   `cited_file.startswith("memory/")` → `knowledge/`; and all docstring/comment `memory/` mentions.
-- [ ] 3.3 `scripts/status_lint.py`: rewrite every `memory/STATUS.md` and `memory/decisions/INDEX.md`
+- [x] 3.3 `scripts/status_lint.py`: rewrite every `memory/STATUS.md` and `memory/decisions/INDEX.md`
   literal → `knowledge/...` (docstrings, the path constants it lints, and all message strings). NOTE: the
   path constants are built from a SPLIT `"memory"` component — `repo_root / "memory" / "STATUS.md"` and
   `repo_root / "memory" / "decisions" / "INDEX.md"` (both appear twice). The `"memory"` string component
@@ -55,43 +55,46 @@
 
 ## 4. Scaffold — rules / instruction surface
 
-- [ ] 4.1 `.claude/agents/archive-executor.md` AND `.opencode/agents/archive-executor.md`: rewrite every
+- [x] 4.1 `.claude/agents/archive-executor.md` AND `.opencode/agents/archive-executor.md`: rewrite every
   `memory/<path>` → `knowledge/<path>` in BOTH bodies in the same pass, keeping the two bodies byte-identical
   (only the sanctioned frontmatter/intro clause may differ).
-- [ ] 4.2 `.claude/skills/openspec-archive-change/SKILL.md` and `.claude/skills/openspec-verify-change/SKILL.md`:
+- [x] 4.2 `.claude/skills/openspec-archive-change/SKILL.md` and `.claude/skills/openspec-verify-change/SKILL.md`:
   rewrite `memory/<path>` → `knowledge/<path>`.
-- [ ] 4.3 `AGENTS.md`: rewrite the tracked-folder `memory/` → `knowledge/` throughout (the mandatory-read
+- [x] 4.3 `AGENTS.md`: rewrite the tracked-folder `memory/` → `knowledge/` throughout (the mandatory-read
   block, the "where everything lives" pointers to `knowledge/README.md`, the State/write-discipline rules,
   the Roles archive-executor targets). PRESERVE invariant (a): leave `~/.claude/.../memory/` and its
   `MEMORY.md` index in the "Claude Code harness memory" section untouched. Keep the three span anchors verbatim.
-- [ ] 4.4 `openspec/config.yaml`: rewrite the `memory/STATUS.md` / `memory/decisions/INDEX.md` /
+- [x] 4.4 `openspec/config.yaml`: rewrite the `memory/STATUS.md` / `memory/decisions/INDEX.md` /
   `memory/questions/INDEX.md` references → `knowledge/...`. Keep `rules:` as the final top-level block.
-- [ ] 4.5 `README.md` and `tests/skill-enumeration-smoke/README.md`: rewrite `memory/<path>` → `knowledge/<path>`.
-- [ ] 4.6 `openspec/specs/commit-test-gate/spec.md`: hand-edit the single `memory/decisions/INDEX.md`
+- [x] 4.5 `README.md` and `tests/skill-enumeration-smoke/README.md`: rewrite `memory/<path>` → `knowledge/<path>`.
+- [x] 4.6 `openspec/specs/commit-test-gate/spec.md`: hand-edit the single `memory/decisions/INDEX.md`
   reference → `knowledge/decisions/INDEX.md` (this lone ref is a non-delta main-spec edit, per the
   prior change's precedent; the two `MODIFIED` delta specs in this change carry the rest).
 
 ## 5. Scaffold — tests + green gate
 
-- [ ] 5.1 `scripts/test_sync_scaffold.py`: repath every `memory/` fixture path and expectation → `knowledge/`
+- [x] 5.1 `scripts/test_sync_scaffold.py`: repath every `memory/` fixture path and expectation → `knowledge/`
   (incl. the manifest/`README.md` fixtures and the ref-checker fixtures). The test imports from
   `sync_scaffold`; any reference to `_AIDOC_PATH_RE` must become `_KNOWLEDGE_PATH_RE` to match the identifier
   renamed in 3.2 (the new name exists only after that task lands). Also rename the test method
   `test_memory_section_citation_checks_file_existence_only` → `test_knowledge_section_citation_checks_file_existence_only`
   for post-rename consistency.
-- [ ] 5.2 `scripts/test_status_lint.py`: repath the `memory/STATUS.md` / `memory/decisions/INDEX.md`
+- [x] 5.2 `scripts/test_status_lint.py`: repath the `memory/STATUS.md` / `memory/decisions/INDEX.md`
   fixtures and expectations → `knowledge/...`. This includes the SPLIT `"memory"` path constructions in the
   `_make_repo()` helper (`repo / "memory"` and `repo / "memory" / "decisions"`) — the `"memory"` component
   must become `"knowledge"`, same gotcha as 3.3.
-- [ ] 5.3 Run the full scaffold suite green: `pytest` (incl. `test_sync_scaffold.py`, `test_status_lint.py`,
+- [x] 5.3 Run the full scaffold suite green: `pytest` (incl. `test_sync_scaffold.py`, `test_status_lint.py`,
   `test_executor_body_agreement.py`) and `ruff check`. Resolve failures until clean.
-- [ ] 5.4 Run `openspec validate rename-memory-to-knowledge --type change --strict` → valid.
-- [ ] 5.5 Run `python3 scripts/status_lint.py` against the scaffold (now `knowledge/STATUS.md` +
+- [x] 5.4 Run `openspec validate rename-memory-to-knowledge --type change --strict` → valid.
+- [x] 5.5 Run `python3 scripts/status_lint.py` against the scaffold (now `knowledge/STATUS.md` +
   `knowledge/decisions/INDEX.md`) → exit 0, and `python3 scripts/sync_scaffold.py --check-refs
   /home/pang/Projects/openspec-scaffold` → exit 0 (no dangling `knowledge/` citation in the synced files).
-- [ ] 5.6 Final sweep: `grep -rn 'memory/' .` (excluding `/.git/` and `openspec/changes/archive/`) returns
-  hits ONLY for the three sanctioned folder-vs-feature exceptions (invariant (a)/(b)/(c)) — nothing in live
-  mechanism, specs, skills, or state files.
+- [x] 5.6 Final sweep: `grep -rn 'memory/' .` (excluding `/.git/`, `openspec/changes/` — both the frozen
+  archive AND this change's own artifacts, which describe the rename — and the two delta-covered MAIN specs
+  `openspec/specs/knowledge-organization/spec.md` + `openspec/specs/scaffold-sync-mechanism/spec.md`, which
+  legitimately retain `memory/` until the archive step PROMOTES the `MODIFIED` deltas — do NOT hand-edit
+  them, per the prior change's convention) returns hits ONLY for the three sanctioned folder-vs-feature
+  exceptions (invariant (a)/(b)/(c)) — nothing else in live mechanism, skills, or state files.
 
 ## 6. extrends migration (primary — cross-repo, run from the scaffold checkout; NOT delegated to the executor)
 

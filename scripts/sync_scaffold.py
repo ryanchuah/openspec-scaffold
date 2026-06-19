@@ -272,11 +272,11 @@ def check(target_path_str: str) -> int:
 # contract is untouched.
 
 # Frozen / historical record dirs whose markdown is out of scope for the scan.
-# memory/research/ holds period-correct historical analyses; its citations must
+# knowledge/research/ holds period-correct historical analyses; its citations must
 # NOT be ref-checked (they may cite pre-restructure paths that no longer exist).
-_REF_SCAN_EXCLUDE = ("openspec/changes/", "memory/research/")
-# `memory/....md` path citations (e.g. in synced rules).
-_AIDOC_PATH_RE = re.compile(r"memory/[\w./-]+\.md")
+_REF_SCAN_EXCLUDE = ("openspec/changes/", "knowledge/research/")
+# `knowledge/....md` path citations (e.g. in synced rules).
+_KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")
 # `<file>.md § "Section"` citations (any file; we only resolve canonical docs).
 # The `§ "..."` form is the project's standard citation format; the loose
 # `AGENTS.md (...)` parenthetical form is deliberately NOT matched (it fires on
@@ -329,22 +329,22 @@ def _section_anchors(path: Path) -> list[str]:
 
 
 def _synced_files() -> list[str]:
-    """Manifest entries that carry inline citations: AGENTS.md + synced memory/*.md."""
+    """Manifest entries that carry inline citations: AGENTS.md + synced knowledge/*.md."""
     return [
         line for line in _read_manifest()
-        if line == "AGENTS.md" or (line.startswith("memory/") and line.endswith(".md"))
+        if line == "AGENTS.md" or (line.startswith("knowledge/") and line.endswith(".md"))
     ]
 
 
 def check_references(target_path_str: str, md_files: list[str] | None = None) -> int:
     """Verify cited files/sections resolve in the target repo. 0 = clean, 1 = dangling.
 
-    - ``memory/*.md`` path citations in the SYNCED files (AGENTS.md + synced memory/)
+    - ``knowledge/*.md`` path citations in the SYNCED files (AGENTS.md + synced knowledge/)
       must point at files that exist in the target.
-    - ``AGENTS.md``/``memory/*`` section citations (``§ "..."``) anywhere in tracked
+    - ``AGENTS.md``/``knowledge/*`` section citations (``§ "..."``) anywhere in tracked
       markdown must point at a file that exists; AGENTS.md citations must also
       resolve to a heading or bold label (substring match). Section *titles* in
-      ``memory/*`` are NOT resolved — their headings carry drifting qualifiers
+      ``knowledge/*`` are NOT resolved — their headings carry drifting qualifiers
       (dates, ``…`` ellipses), so only file existence is policed there.
     """
     target = Path(target_path_str).resolve()
@@ -352,13 +352,13 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
     agents_anchors = _section_anchors(target / "AGENTS.md")
     dangling = 0
 
-    # (a) memory/*.md path citations in the synced files must exist.
+    # (a) knowledge/*.md path citations in the synced files must exist.
     for rel in _synced_files():
         p = target / rel
         if not p.exists():
             continue
         text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
-        for m in _AIDOC_PATH_RE.finditer(text):
+        for m in _KNOWLEDGE_PATH_RE.finditer(text):
             cited = m.group(0)
             if not (target / cited).exists():
                 print(f"DANGLING  {rel}: missing file '{cited}'")
@@ -373,7 +373,7 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
         text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
         for m in _SECTION_RE.finditer(text):
             cited_file, section = m.group(1), m.group(2)
-            if cited_file != "AGENTS.md" and not cited_file.startswith("memory/"):
+            if cited_file != "AGENTS.md" and not cited_file.startswith("knowledge/"):
                 continue
             if not (target / cited_file).exists():
                 print(f"DANGLING  {rel}: missing file '{cited_file}' (§ '{section}')")

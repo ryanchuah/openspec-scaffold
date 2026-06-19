@@ -53,7 +53,7 @@ Every change to this scaffold must be **source-traceable** (operator constraint,
 
 ## 3. Opencode delegation gotchas
 
-**After scaffold→downstream sync, run BOTH gates before committing.** `scripts/sync_scaffold.py --check <repo>` (byte convergence) AND `scripts/sync_scaffold.py --check-refs <repo>` (referential integrity — cited `memory/**/*.md` files must exist, and AGENTS.md section-anchor citations must resolve). Require both green before committing the sync. The old single-gate check passed convergence while the cited file was absent downstream — `--check-refs` closes that gap. Before `--check-refs` will pass, seed the per-repo state files that the synced rules cite: `memory/questions/INDEX.md`, `memory/lessons.md` — these are per-repo and intentionally NOT manifest-synced, so they must exist before the refs gate. Downstream commits touching manifest files use `git commit --no-verify`.
+**After scaffold→downstream sync, run BOTH gates before committing.** `scripts/sync_scaffold.py --check <repo>` (byte convergence) AND `scripts/sync_scaffold.py --check-refs <repo>` (referential integrity — cited `knowledge/**/*.md` files must exist, and AGENTS.md section-anchor citations must resolve). Require both green before committing the sync. The old single-gate check passed convergence while the cited file was absent downstream — `--check-refs` closes that gap. Before `--check-refs` will pass, seed the per-repo state files that the synced rules cite: `knowledge/questions/INDEX.md`, `knowledge/lessons.md` — these are per-repo and intentionally NOT manifest-synced, so they must exist before the refs gate. Downstream commits touching manifest files use `git commit --no-verify`.
 
 **Briefs MUST live INSIDE the target repo.** Opencode sandboxes file reads to the project dir and auto-rejects external paths:
 ```
@@ -121,7 +121,7 @@ This prevents the crash. If it still errors: re-run with the preamble — do NOT
 
 ## 6. Session and context hazards
 
-**Resume staleness check — run it before trusting `memory/STATUS.md`.** The T2-5 rule (and the AGENTS.md preamble) requires running `git log --oneline -5` and confirming `memory/STATUS.md` reflects those commits before acting. This has caught active state divergence — e.g. it caught that `ab96c33` already existed, preventing a duplicate decisions.md entry.
+**Resume staleness check — run it before trusting `knowledge/STATUS.md`.** The T2-5 rule (and the AGENTS.md preamble) requires running `git log --oneline -5` and confirming `knowledge/STATUS.md` reflects those commits before acting. This has caught active state divergence — e.g. it caught that `ab96c33` already existed, preventing a duplicate decisions.md entry.
 
 **Hook smoke MUST run from a session rooted in the hook-carrying repo.** Claude Code loads `PreToolUse` hooks once from the project root at startup. A session rooted elsewhere (e.g. a meta-workspace directory) cannot exercise or test the hook even if the hook-carrying repo is a subdirectory. Procedure: `tests/commit-gate-smoke/` + the throwaway-repo recipe.
 
@@ -131,7 +131,7 @@ This prevents the crash. If it still errors: re-run with the preamble — do NOT
 
 ## 7. Industry standards context
 
-The 2026-06 industry-standards research (4 parallel subagents, research artifacts in `memory/research/research-industry-standards-2026-06/`) found that **this scaffold was AHEAD of industry** on its quality gates:
+The 2026-06 industry-standards research (4 parallel subagents, research artifacts in `knowledge/research/research-industry-standards-2026-06/`) found that **this scaffold was AHEAD of industry** on its quality gates:
 - Separate-model pre-implementation review
 - Behavioral verify beyond just running tests
 - Trust-gated fast-track (autonomy strictly opt-in)

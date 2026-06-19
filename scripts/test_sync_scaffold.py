@@ -519,12 +519,12 @@ class TestCheckReferences(unittest.TestCase):
         return p
 
     def test_clean_when_all_refs_resolve(self):
-        self._write("AGENTS.md", "## Roles\nSee `memory/parked-follow-ons.md`.\n")
-        self._write("memory/parked-follow-ons.md", "# Parked\n")
-        self._write("memory/decisions/INDEX.md", "## Decision: Bulk FK thing\n")
+        self._write("AGENTS.md", "## Roles\nSee `knowledge/parked-follow-ons.md`.\n")
+        self._write("knowledge/parked-follow-ons.md", "# Parked\n")
+        self._write("knowledge/decisions/INDEX.md", "## Decision: Bulk FK thing\n")
         self._write(
             "doc.md",
-            'See AGENTS.md § "Roles" and `memory/decisions/INDEX.md` § "Bulk FK thing".\n',
+            'See AGENTS.md § "Roles" and `knowledge/decisions/INDEX.md` § "Bulk FK thing".\n',
         )
         rc = sync_scaffold.check_references(
             str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
@@ -532,7 +532,7 @@ class TestCheckReferences(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_dangling_when_cited_aidoc_file_missing(self):
-        self._write("AGENTS.md", "## Roles\nSee `memory/parked-follow-ons.md`.\n")
+        self._write("AGENTS.md", "## Roles\nSee `knowledge/parked-follow-ons.md`.\n")
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
         self.assertEqual(rc, 1)
 
@@ -563,19 +563,19 @@ class TestCheckReferences(unittest.TestCase):
         )
         self.assertEqual(rc, 0)
 
-    def test_memory_section_citation_checks_file_existence_only(self):
-        # memory/ section titles drift (dates/ellipses) → only file existence is
+    def test_knowledge_section_citation_checks_file_existence_only(self):
+        # knowledge/ section titles drift (dates/ellipses) → only file existence is
         # policed: present file passes regardless of the cited section text...
         self._write("AGENTS.md", "## Roles\n")
-        self._write("memory/decisions/INDEX.md", "## Some heading that differs\n")
+        self._write("knowledge/decisions/INDEX.md", "## Some heading that differs\n")
         self._write(
             "doc.md",
-            'See `memory/decisions/INDEX.md` § "drifted title (2026-06-16)".\n',
+            'See `knowledge/decisions/INDEX.md` § "drifted title (2026-06-16)".\n',
         )
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc.md"])
         self.assertEqual(rc, 0)
-        # ...but a citation to a missing memory/ file is still flagged.
-        self._write("doc2.md", 'See `memory/gone.md` § "anything".\n')
+        # ...but a citation to a missing knowledge/ file is still flagged.
+        self._write("doc2.md", 'See `knowledge/gone.md` § "anything".\n')
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc2.md"])
         self.assertEqual(rc, 1)
 
@@ -592,15 +592,15 @@ class TestCheckReferences(unittest.TestCase):
         self._write("docs/reviews/2026-06/r.md", "x\n")
         self._write("ai-docs/archive/old.md", "x\n")
         self._write("openspec/changes/c/proposal.md", "x\n")
-        self._write("memory/research/old-analysis.md", "x\n")
+        self._write("knowledge/research/old-analysis.md", "x\n")
         rels = sync_scaffold._tracked_markdown(self.tmpdir)
         self.assertIn("doc.md", rels)
         # docs/reviews/ and ai-docs/archive/ are no longer in _REF_SCAN_EXCLUDE.
         self.assertIn("docs/reviews/2026-06/r.md", rels)
         self.assertIn("ai-docs/archive/old.md", rels)
-        # openspec/changes/ and memory/research/ are frozen/excluded.
+        # openspec/changes/ and knowledge/research/ are frozen/excluded.
         self.assertNotIn("openspec/changes/c/proposal.md", rels)
-        self.assertNotIn("memory/research/old-analysis.md", rels)
+        self.assertNotIn("knowledge/research/old-analysis.md", rels)
 
 
 class SyncConfigYamlTest(unittest.TestCase):

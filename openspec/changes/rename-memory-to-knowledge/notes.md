@@ -29,8 +29,11 @@ hand-edit (task 4.6).
    `config.yaml` `rules:` still the final top-level block; `AGENTS.md` span anchors intact in all repos;
    psc-monitor's `AGENTS.md` `# Project reference` tail preserved.
 7. **Folder-vs-feature preserved:** run from each repo root AFTER all that repo's renames + syncs are
-   complete (a mid-rename grep yields false positives), `grep -rn 'memory/' <repo>` (excluding `/.git/` and
-   `openspec/changes/archive/**`) returns hits ONLY for the three sanctioned exceptions — the
+   complete (a mid-rename grep yields false positives), `grep -rn 'memory/' <repo>` (excluding `/.git/`,
+   `openspec/changes/` — frozen archive + this change's own artifacts — and, in the scaffold, the two
+   delta-covered MAIN specs `openspec/specs/{knowledge-organization,scaffold-sync-mechanism}/spec.md`, which
+   retain `memory/` until the archive promotes the `MODIFIED` deltas) returns hits ONLY for the three
+   sanctioned exceptions — the
    `~/.claude/.../memory/` harness path in `AGENTS.md`, the historical `restructure-project-knowledge`
    essence in `decisions/INDEX.md`, and the `agent-memory/` URL in the research file — and nothing in
    live mechanism, specs, skills, or state files.
@@ -50,4 +53,13 @@ _(filled during the verify phase — self-review + multi-model verifier verdicts
 
 ## Decisions / discoveries
 
-_(append during apply/verify.)_
+- **Apply (§1–§5) — main-spec hand-edit reverted (orchestrator correction).** The Sonnet apply-executor,
+  to satisfy the original §5.6 sweep, hand-edited the two delta-covered MAIN specs
+  (`openspec/specs/knowledge-organization/spec.md`, `scaffold-sync-mechanism/spec.md`) `memory/`→`knowledge/`.
+  That contradicts the OpenSpec convention (prior change task 6.2: *"do not hand-edit the main spec — archive
+  syncs the delta"*). Verified every `memory/` ref in both committed main specs falls inside a requirement the
+  deltas MODIFY (knowledge-organization: 4 requirements; scaffold-sync-mechanism: `manifest-declares-shared-files`),
+  so the archive promotion fully covers them. Reverted both main specs to their committed `memory/` state via
+  `git checkout HEAD --`; the deltas remain the single source and promote at archive (proven flow from the
+  prior change). Kept the `commit-test-gate` single-ref hand-edit (task 4.6 — non-delta, sanctioned). Fixed
+  §5.6 + acceptance #7 to exclude the two delta-covered main specs from the live `memory/` sweep.

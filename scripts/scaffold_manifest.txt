@@ -24,7 +24,7 @@
 .claude/skills/_shared/delegation-harness.md
 
 # Knowledge taxonomy map (scaffold-managed; per D-I)
-memory/README.md
+knowledge/README.md
 
 # OpenSpec config (rules: block synced; context: preserved per D-C)
 openspec/config.yaml
