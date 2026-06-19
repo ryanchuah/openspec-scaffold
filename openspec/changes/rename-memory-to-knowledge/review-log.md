@@ -25,3 +25,16 @@ All findings verified against the live source before applying (line numbers conf
 re-review round required; artifacts frozen.
 
 Raw review text: /tmp/review-text.md (transient).
+
+## Verify — multi-model passes — 2026-06-19
+
+- Self-review (orchestrator): mechanism diffs read (sync_scaffold.py `_KNOWLEDGE_PATH_RE` both sites;
+  status_lint.py split-component repath); full suite green; live output eyeballed; folder-vs-feature
+  exceptions intact. CLEAN.
+- deepseek-v4-pro verifier (genuine, no fallback): **VERDICT READY, 0 defects** — independently confirmed
+  delta verbatim-ness, main specs correctly left at memory/, complete mechanism repath, 3 exceptions
+  verbatim, zero over-rewrite corruption across all 3 repos, gates green.
+- deepseek-v4-flash verifier (genuine, no fallback): **VERDICT READY, 0 defects**.
+- Simplicity/quality gate (`/code-review` low, correctly scoped to d322488..HEAD): `(none)` — every code
+  hunk is a pure rename token-swap; no logic/dup/dead-code.
+- Security review: not triggered (no auth/credential/persisted-data/external-API surface).
