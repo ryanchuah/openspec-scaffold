@@ -101,18 +101,18 @@
 *Prerequisite: §1–§5 green. Work on a fresh branch in `/home/pang/Projects/extrends`. Never touch its
 `openspec/changes/archive/**`.*
 
-- [ ] 6.1 In extrends, `git mv memory/ knowledge/` (its per-repo state tree: `STATUS.md`, `decisions/`,
+- [x] 6.1 In extrends, `git mv memory/ knowledge/` (its per-repo state tree: `STATUS.md`, `decisions/`,
   `questions/`, `lessons.md`, `roadmap.md`, `reference/`, `research/`, and the synced `README.md`).
-- [ ] 6.2 Rewrite extrends' live `memory/<path>` → `knowledge/<path>` citations in its tracked files
+- [x] 6.2 Rewrite extrends' live `memory/<path>` → `knowledge/<path>` citations in its tracked files
   (the moved knowledge-tree internal citations, the `AGENTS.md` per-repo `## Project context` pointer to
   `knowledge/README.md`, and the `openspec/config.yaml` per-repo `context:` block if it cites the folder),
   EXCEPT its `openspec/changes/archive/**` and any harness-native-memory prose (invariant (a)–(c) apply here too).
-- [ ] 6.3 From the scaffold checkout, run `python3 /home/pang/Projects/openspec-scaffold/scripts/sync_scaffold.py
+- [x] 6.3 From the scaffold checkout, run `python3 /home/pang/Projects/openspec-scaffold/scripts/sync_scaffold.py
   /home/pang/Projects/extrends` (brings `knowledge/README.md`, the repathed scripts + tests, both executor
   bodies, skills, `config.yaml` `rules:`, and `AGENTS.md` shared spans).
-- [ ] 6.4 `git rm` any `memory/` sync-orphan left in extrends (defensive — the wholesale mv in 6.1 should
+- [x] 6.4 `git rm` any `memory/` sync-orphan left in extrends (defensive — the wholesale mv in 6.1 should
   leave none); confirm the `memory/` directory is gone.
-- [ ] 6.5 Gate extrends — all exit 0, run from the scaffold checkout targeting extrends:
+- [x] 6.5 Gate extrends — all exit 0, run from the scaffold checkout targeting extrends:
   `sync_scaffold.py --check /home/pang/Projects/extrends`, `sync_scaffold.py --check-refs
   /home/pang/Projects/extrends`, and `status_lint.py /home/pang/Projects/extrends`. Spot-check: no `memory/`
   dir; `knowledge/` holds the full layout; `AGENTS.md` links `knowledge/README.md`.
@@ -123,15 +123,15 @@
 `AGENTS.md` `# Project reference` tail appendix and the span anchors. Never touch its
 `openspec/changes/archive/**`.*
 
-- [ ] 7.1 In psc-monitor, `git mv memory/ knowledge/` (its per-repo state tree + the synced `README.md`).
-- [ ] 7.2 Rewrite psc-monitor's live `memory/<path>` → `knowledge/<path>` citations in its tracked files
+- [x] 7.1 In psc-monitor, `git mv memory/ knowledge/` (its per-repo state tree + the synced `README.md`).
+- [x] 7.2 Rewrite psc-monitor's live `memory/<path>` → `knowledge/<path>` citations in its tracked files
   (moved knowledge-tree internals, `AGENTS.md` `## Project context` pointer, `config.yaml` `context:` block),
   EXCEPT its `openspec/changes/archive/**` and harness-native-memory prose. Leave the `# Project reference`
   tail untouched unless it cites the folder path.
-- [ ] 7.3 From the scaffold checkout, run `python3 /home/pang/Projects/openspec-scaffold/scripts/sync_scaffold.py
+- [x] 7.3 From the scaffold checkout, run `python3 /home/pang/Projects/openspec-scaffold/scripts/sync_scaffold.py
   /home/pang/Projects/psc-monitor`.
-- [ ] 7.4 `git rm` any `memory/` sync-orphan left in psc-monitor (defensive); confirm `memory/` is gone.
-- [ ] 7.5 Gate psc-monitor — all exit 0, run from the scaffold checkout targeting psc-monitor:
+- [x] 7.4 `git rm` any `memory/` sync-orphan left in psc-monitor (defensive); confirm `memory/` is gone.
+- [x] 7.5 Gate psc-monitor — all exit 0, run from the scaffold checkout targeting psc-monitor:
   `sync_scaffold.py --check /home/pang/Projects/psc-monitor`, `sync_scaffold.py --check-refs
   /home/pang/Projects/psc-monitor`, and `status_lint.py /home/pang/Projects/psc-monitor`. Spot-check: no
   `memory/` dir; `knowledge/` holds the full layout; `AGENTS.md` links `knowledge/README.md` and the

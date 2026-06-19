@@ -63,3 +63,14 @@ _(filled during the verify phase — self-review + multi-model verifier verdicts
   `git checkout HEAD --`; the deltas remain the single source and promote at archive (proven flow from the
   prior change). Kept the `commit-test-gate` single-ref hand-edit (task 4.6 — non-delta, sanctioned). Fixed
   §5.6 + acceptance #7 to exclude the two delta-covered main specs from the live `memory/` sweep.
+- **Apply (§6–§7) — downstream migrations (parallel Sonnet subagents, orchestrator-verified).** extrends and
+  psc-monitor migrated concurrently on fresh `rename-memory-to-knowledge` branches: `git mv memory knowledge`
+  → `sync_scaffold.py` from the scaffold → per-repo citation repath → 3 gates. Both subagents used a bulk
+  `memory/`→`knowledge/` replace on their knowledge trees; I independently re-ran every gate AND an
+  over-rewrite scan (corrupted `~/.claude/.../knowledge/` harness paths, corrupted `*-memory/` URLs,
+  `ai-docs/→knowledge/` historical-essence corruption). Both clean — neither downstream repo carries a (b)
+  URL or (c) historical-essence exception, so the only sanctioned remnant in each is the AGENTS.md:58 harness
+  path (a). Gates per repo: `--check` 0, `--check-refs` 0, `status_lint` 0; `git mv` preserved history;
+  psc-monitor's `# Project reference` tail + span anchors intact. Committed: extrends `254266e`,
+  psc-monitor `b37d425` (both `--no-verify` — intentional scaffold-managed-file commits, per handoff §3).
+  NOT pushed/merged — awaiting operator go-ahead.
