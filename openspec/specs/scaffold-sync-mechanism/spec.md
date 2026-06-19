@@ -23,9 +23,19 @@ re-running `sync_scaffold.py` for each downstream repo.
 
 #### Scenario: manifest-excludes-volatile-state
 - **WHEN** the manifest lists all scaffold-managed files
-- **THEN** it SHALL NOT include `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`,
-  `ai-docs/improvement-roadmap.md`, any file under `ai-docs/archive/`, `.claude/settings.json`,
-  `scripts/test-cmd`, or `scripts/sync_scaffold.py` (the sync script lives in scaffold only)
+- **THEN** it SHALL NOT include any per-repo project knowledge under `memory/` — specifically
+  `memory/STATUS.md`, the `memory/decisions/` tree, the `memory/questions/` tree, `memory/lessons.md`,
+  `memory/roadmap.md`, the `memory/reference/` tree, and the `memory/research/` tree — nor
+  `.claude/settings.json`, `scripts/test-cmd`, or `scripts/sync_scaffold.py` (the sync script lives in
+  scaffold only)
+- **AND** the sole exception under `memory/` is `memory/README.md` — the universal taxonomy map — which IS
+  scaffold-managed (see `manifest-includes-taxonomy-map`)
+
+#### Scenario: manifest-includes-taxonomy-map
+- **WHEN** `scripts/scaffold_manifest.txt` lists scaffold-managed files
+- **THEN** `memory/README.md` SHALL be an entry in the manifest and SHALL be synced byte-identical to
+  downstream repos, so the knowledge taxonomy (types, classification rule, home table) stays consistent
+  across all repos rather than drifting per-repo
 
 #### Scenario: manifest-includes-scaffold-check
 - **WHEN** `scripts/scaffold_manifest.txt` lists scaffold-managed files
@@ -39,8 +49,8 @@ re-running `sync_scaffold.py` for each downstream repo.
 #### Scenario: manifest-lists-only-existing-scaffold-files
 - **WHEN** a path is listed in the manifest
 - **THEN** that path SHALL exist in the scaffold repo
-- **AND** a file that is scaffold-managed in principle but absent from scaffold (e.g.
-  `ai-docs/opencode-delegation-notes.md`) SHALL NOT be listed until it is brought into scaffold
+- **AND** a file that is scaffold-managed in principle but absent from scaffold SHALL NOT be listed until
+  it exists in scaffold
 
 ---
 
@@ -49,17 +59,20 @@ re-running `sync_scaffold.py` for each downstream repo.
 `scripts/sync_scaffold.py <target-repo-path>` SHALL copy every manifest-listed file from the scaffold root
 to the corresponding path in the target repo — for regular files, byte-identical to the scaffold source;
 for `AGENTS.md`, via span-replace that preserves per-repo content (see the
-`agents-md-span-replace-preserves-per-repo-sections` requirement). The script SHALL NOT inject, prepend, or
-append any "DO NOT EDIT" header or other content. The script SHALL error and abort, making no changes, if
-the target repo path does not exist or is not a git repository, or if a manifest-listed file is missing
-from the scaffold source.
+`agents-md-span-replace-preserves-per-repo-sections` requirement); and for `openspec/config.yaml`, via
+rules-block replace that preserves the per-repo `context:` block (see the `config-rules-block-propagates`
+requirement). `AGENTS.md` and `openspec/config.yaml` are the only two files that receive partial
+(non-byte-identical) handling. The script SHALL NOT inject, prepend, or append any "DO NOT EDIT" header or
+other content. The script SHALL error and abort, making no changes, if the target repo path does not exist
+or is not a git repository, or if a manifest-listed file is missing from the scaffold source.
 
 #### Scenario: sync-copies-regular-file-byte-identical
-- **WHEN** `sync_scaffold.py <target>` is run for a manifest-listed non-`AGENTS.md` file
+- **WHEN** `sync_scaffold.py <target>` is run for a manifest-listed file that is neither `AGENTS.md` nor
+  `openspec/config.yaml`
 - **THEN** the file at `<target>/<path>` SHALL be byte-identical to scaffold's `<path>`
 
 #### Scenario: sync-injects-no-header
-- **WHEN** `sync_scaffold.py <target>` writes any file (regular or `AGENTS.md`)
+- **WHEN** `sync_scaffold.py <target>` writes any file (regular, `AGENTS.md`, or `openspec/config.yaml`)
 - **THEN** the output SHALL contain no "DO NOT EDIT — synced from openspec-scaffold" header text that the
   script added
 
@@ -70,6 +83,12 @@ from the scaffold source.
   scaffold's equivalent spans
 - **AND** the target's title line, its `## Project context` section, and any tail after `## After reading
   this file` SHALL be preserved verbatim
+
+#### Scenario: sync-handles-config-yaml-via-rules-block-replace
+- **WHEN** `sync_scaffold.py <target>` processes `openspec/config.yaml`
+- **THEN** the target's `rules:` block SHALL be replaced with scaffold's
+- **AND** the target's `context:` block (per-repo project identity) and any other per-repo content SHALL be
+  preserved verbatim
 
 #### Scenario: sync-creates-parent-dirs
 - **WHEN** a manifest-listed file's parent directory does not exist in the target repo
@@ -93,7 +112,8 @@ manifest-listed file and SHALL exit `1` if any file is not IDENTICAL, otherwise 
 diagnostic CLI, not a blocking hook, so its drift exit code is `1` (distinct from the guard's `2`). Regular
 files SHALL be compared byte-for-byte against the scaffold source. `AGENTS.md` SHALL be compared by
 reconstructing what it would be after a sync and comparing that to the current target, so that a per-repo
-`## Project context` or tail does not register as drift.
+`## Project context` or tail does not register as drift. `openspec/config.yaml` SHALL likewise be compared
+by its `rules:` block only, so that a per-repo `context:` block does not register as drift.
 
 #### Scenario: check-exits-zero-on-no-drift
 - **WHEN** `sync_scaffold.py --check <target>` is run and all manifest files match scaffold
@@ -109,6 +129,13 @@ reconstructing what it would be after a sync and comparing that to the current t
 - **AND** the target's `## Project context` and tail differ from scaffold's (expected — they are per-repo)
 - **BUT** the shared spans are byte-identical between scaffold and target
 - **THEN** the check SHALL report `AGENTS.md` as IDENTICAL and SHALL NOT exit non-zero for this file
+
+#### Scenario: check-config-yaml-rules-match-despite-different-context
+- **WHEN** `sync_scaffold.py --check <target>` processes `openspec/config.yaml`
+- **AND** the target's `context:` block differs from scaffold's (expected — it is per-repo)
+- **BUT** the `rules:` block is identical between scaffold and target
+- **THEN** the check SHALL report `openspec/config.yaml` as IDENTICAL and SHALL NOT exit non-zero for this
+  file
 
 ---
 
@@ -196,3 +223,35 @@ rather than silently corrupt the file.
   reading this file`
 - **THEN** `sync_scaffold.py` SHALL abort with a descriptive error rather than risk truncating the per-repo
   tail
+
+---
+
+### Requirement: config-rules-block-propagates
+
+`scripts/sync_scaffold.py` SHALL propagate the `rules:` block of `openspec/config.yaml` from the scaffold
+to each downstream repo — replacing the downstream repo's `rules:` block with the scaffold's — while
+preserving the downstream repo's `context:` block (the per-repo project identity) and any other per-repo
+content in that file verbatim. This is the mechanism by which shared rule families (e.g. `rules.research`)
+reach downstream repos instead of being hand-maintained per repo. `openspec/config.yaml` is listed in the
+manifest and is one of the two partial-sync files (with `AGENTS.md`); the partial behavior described here
+takes precedence over the byte-identical-copy behavior of `sync-script-copies-files` for this file. The
+propagation SHALL be idempotent and SHALL be reported by the sync check mode when the downstream `rules:`
+block drifts from scaffold's.
+
+#### Scenario: rules-block-replaced
+- **WHEN** `sync_scaffold.py <target>` runs and the target's `openspec/config.yaml` `rules:` block differs
+  from scaffold's
+- **THEN** the target's `rules:` block SHALL be replaced with scaffold's
+
+#### Scenario: context-block-preserved
+- **WHEN** `sync_scaffold.py <target>` propagates the `rules:` block to a downstream repo
+- **THEN** the target's `openspec/config.yaml` `context:` block SHALL be byte-identical before and after the
+  sync
+
+#### Scenario: config-rules-propagation-idempotent
+- **WHEN** `sync_scaffold.py <target>` is run twice in succession against the same target
+- **THEN** the second run SHALL leave the target's `openspec/config.yaml` unchanged
+
+#### Scenario: config-rules-drift-detectable
+- **WHEN** the target's `openspec/config.yaml` `rules:` block differs from scaffold's
+- **THEN** `sync_scaffold.py --check <target>` SHALL report drift and exit non-zero for it

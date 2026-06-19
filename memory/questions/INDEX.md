@@ -2,9 +2,11 @@
 
 ## Active
 
-<!-- No current scaffold blockers. The restructure-project-knowledge change is tracked in openspec/changes/restructure-project-knowledge/. -->
+<!-- No current scaffold blockers. -->
 
 ## Parked
+
+- Growth-trigger (restructure-project-knowledge follow-on) → `memory/questions/restructure-growth-trigger.md`
 
 - Harden-delegation follow-ons → `memory/questions/harden-delegation-follow-ons.md`
 - Harden-instruction-surface follow-ons → `memory/questions/harden-instruction-surface-follow-ons.md`

@@ -35,3 +35,4 @@ One line per decision. Format:
 - **2026-06-17** · single-source-rules · five rule-families each assigned one canonical home; all other sites cite-don't-restate → `openspec/changes/archive/2026-06-17-single-source-rules/`
 - **2026-06-18** · lean-boot-context · state-file bounding conventions enforced at archive; psc-monitor AGENTS.md appendix relocated to on-demand reference files → `openspec/changes/archive/2026-06-18-lean-boot-context/`
 - **2026-06-18** · add-status-lint · `status_lint.py` gate mechanizes STATUS.md (≤3 entries, ≤150 words) and decisions.md (Date/Status + ≤300 words) bounds → `openspec/changes/archive/2026-06-18-add-status-lint/`
+- **2026-06-19** · restructure-project-knowledge · knowledge base restructured: ai-docs/→memory/, bounded registries replace append-only files, single archive, taxonomy synced via memory/README.md, extrends + psc-monitor migrated → `openspec/changes/archive/2026-06-19-restructure-project-knowledge/`
