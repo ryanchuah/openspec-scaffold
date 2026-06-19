@@ -1,6 +1,6 @@
 ---
 name: archive-executor
-description: [FALLBACK — used when deepseek opencode archive-executor crashes or fails] Executes OpenSpec archive operations under Claude Code. Given a change directory path and the project docs, moves the change dir to the dated archive location, syncs any delta specs to the main specs, and reconciles STATUS.md, ai-docs/decisions.md, and ai-docs/open-questions.md into a durable handoff. Spawned by the primary agent during the archive phase — do not invoke directly.
+description: [FALLBACK — used when deepseek opencode archive-executor crashes or fails] Executes OpenSpec archive operations under Claude Code. Given a change directory path and the project docs, moves the change dir to the dated archive location, syncs any delta specs to the main specs, and reconciles memory/STATUS.md, memory/decisions/INDEX.md, and memory/questions/INDEX.md into a durable handoff. Spawned by the primary agent during the archive phase — do not invoke directly.
 tools: Read, Edit, Write, Bash, Glob, Grep
 model: sonnet
 ---
@@ -13,7 +13,7 @@ When invoked you will be given:
 - `archivePath` — the target path for the move (e.g. `openspec/changes/archive/YYYY-MM-DD-<name>`)
 - `planningHome.changesDir` — the parent of `archive/`
 - Whether delta spec sync was requested
-- Paths to the project docs: `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`
+- Paths to the project docs: `memory/STATUS.md`, `memory/decisions/INDEX.md`, `memory/questions/INDEX.md`
 
 ## Your job
 
@@ -47,40 +47,46 @@ If sync was not requested, skip this step.
 
 If `notes.md` lacks a verify section, extract what you can from `proposal.md` and `design.md`. If none of these files exist, note that and produce minimal entries.
 
-#### 3a. Reconcile `STATUS.md`
+#### 3a. Reconcile `memory/STATUS.md`
 
-- **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble paragraph (before any existing `## Latest change` or `## Prior change` heading). Content: name the change, link the archive path, summarize what shipped (from proposal.md), include the **verify outcome from notes.md** — the eyeballed behavior and verdict ("tests pass" / "the system ran clean", or any failing or newly-skipped test with its cause), **never** test, doc, or row counts, not even as history (see AGENTS.md). Point to decisions.md and open-questions.md sections for rationale and follow-ons. Follow the dense-paragraph style of existing `## Latest change` entries.
+- **Add a `## Latest change — <title> SHIPPED (<date>)` section** right after the preamble paragraph (before any existing `## Latest change` or `## Prior change` heading). Content: name the change, link the archive path, summarize what shipped (from proposal.md), include the **verify outcome from notes.md** — the eyeballed behavior and verdict ("tests pass" / "the system ran clean", or any failing or newly-skipped test with its cause), **never** test, doc, or row counts, not even as history (see AGENTS.md). Point to `memory/decisions/INDEX.md` and `memory/questions/INDEX.md` for rationale and follow-ons. Follow the dense-paragraph style of existing `## Latest change` entries.
 - **Demote the previous `## Latest change`** heading to `## Prior change` (preserve its content exactly — do not edit or summarize it).
-- **Prune** — after adding the new `## Latest change` and demoting the prior one, if more than **3** `## Latest change`/`## Prior change` sections now exist, move the oldest ones (verbatim, headers included) into `ai-docs/archive/status-log.md` (create it if absent; prepend so newest-first), leaving the **3** most recent in `STATUS.md`. Do not edit the moved content; do not touch the preamble or `## Immediate next action`.
+- **Prune** — after adding the new `## Latest change` and demoting the prior one, if more than **3** `## Latest change`/`## Prior change` sections now exist, remove the oldest ones (the full record lives in `openspec/changes/archive/`), leaving the **3** most recent in `memory/STATUS.md`. Do not touch the preamble or `## Immediate next action`.
 - **Read `## Immediate next action`** near the file end. If this change removes a block or completes a pending build, update accordingly: state there is **no proactive build in flight** (if true) and name the next concrete step. If the change adds new gated work, mention it.
-- **Bound each retained entry** (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule"): each `` ## Latest change``/`` ## Prior change`` section is a ≤150-word headline summary (what shipped, key verify outcome, where details live). If the source narrative is longer, keep the ≤150-word headline and ensure the full narrative lives in the change archive. **before trimming**, confirm the archived `notes.md` holds the salient 'why'; if it is thin, copy that context there first, then trim — never drop 'why' context that exists only in `STATUS.md`.
+- **Bound each retained entry** (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule"): each `## Latest change`/`## Prior change` section is a ≤150-word headline summary (what shipped, key verify outcome, where details live). If the source narrative is longer, keep the ≤150-word headline and ensure the full narrative lives in the change archive. **Before trimming**, confirm the archived `notes.md` holds the salient 'why'; if it is thin, copy that context there first, then trim — never drop 'why' context that exists only in `memory/STATUS.md`.
 
-#### 3b. Reconcile `ai-docs/decisions.md`
+#### 3b. Reconcile `memory/decisions/INDEX.md`
 
-- **Append** (at end of file before trailing `---` if any) a `## <title> (<date>)` section. Structure it as:
-  - `**Decision:**` — what was built (from proposal + design).
-  - `**Why now / why this shape:**` — bullet list of key design choices with rationale (from design.md's Decisions section). Each bullet explains *why* that choice was made and what alternative was rejected — including approaches investigated and rejected, with the reason, so they are not re-attempted. This is the durable "why" that prevents re-litigation.
-  - `**Motivation:**` — the problem this solves and why it matters now (from proposal.md). Include the archive path and new/modified capability spec paths.
-- **Never fabricate rationale.** If a design choice's motivation is unclear and matters enough to record, extract it verbatim from design.md. If it doesn't matter enough, omit it.
+- **Append** exactly one registry line at the end of the file (before a trailing `---` if any):
+  ```
+  - **YYYY-MM-DD** · <change-slug> · <one-line essence> → `openspec/changes/archive/<dated-change>/`
+  ```
+  For a decision with no change archive (pre-OpenSpec), use the inline form:
+  ```
+  - **YYYY-MM-DD** · <slug> · [inline] <short rationale>
+  ```
+- No `**Status:**` field — a registered decision is final; status mattered only while the change was active.
+- **Never fabricate rationale.** Derive the one-line essence from proposal.md and design.md; do not expand it into a prose block.
 - Mark superseded decisions with `~~strikethrough~~` — never delete them.
-- Every new entry carries `**Date:** YYYY-MM-DD` and `**Status:** ACTIVE` (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule"); change-record entries (`fix-*`/`add-*`/`tune-*`) are capped at ≤300 words with full rationale in the change archive.
 
-#### 3c. Reconcile `ai-docs/open-questions.md` and `ai-docs/parked-follow-ons.md`
+#### 3c. Reconcile `memory/questions/INDEX.md`
 
-`ai-docs/open-questions.md` is the always-loaded scan list — it holds ONLY *active* items (open blockers, operator-decision items, in-flight backlogs that gate other work). The deferred / monitored / low-priority long tail lives in `ai-docs/parked-follow-ons.md` (grouped by `##` area headers; create it if absent), loaded on demand — not part of the mandatory onboarding read.
+`memory/questions/INDEX.md` holds two sections:
+- **Active** — blockers only: open blockers, operator-decision items, in-flight backlogs that gate other work.
+- **Parked** — one-line pointers to per-item files at `memory/questions/<item>.md` for deferred, monitored, or low-priority follow-ons. There is no separate `parked-follow-ons.md` file.
 
 - **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive" section (if present), or from design.md's Risks / deferred Non-Goals, then **route each by horizon:**
-  - *Active* — an open blocker, an item needing an operator decision, or an in-flight backlog that gates other work → append it to `ai-docs/open-questions.md`. Flag blockers with **BLOCKING**.
-  - *Parked* — deferred, monitored ("watch and revisit if X recurs"), or low-priority cleanup that only matters when the relevant area is next worked → append it to `ai-docs/parked-follow-ons.md`, under the matching `##` area header (add one if none fits).
-- When this change produced active items, add a `## <topic> (shipped <date>)` section to `ai-docs/open-questions.md` opening with a one-line pointer to the full decision in `decisions.md` — do NOT restate the decision summary (that duplicates decisions.md/STATUS.md). Group parked items in `ai-docs/parked-follow-ons.md` under their area headers; a per-change pointer there is optional.
-- **A live blocker is never parked.** When unsure whether an item gates other work, keep it in `ai-docs/open-questions.md`.
-- **Resolved items** in either file move to `ai-docs/archive/retired-notes.md`. An active item that has clearly been deprioritized (no longer gating anything) may be moved to parked. Do NOT proactively re-classify the whole legacy file — route this change's new items and prune anything now resolved; bulk de-rotting of a pre-split file is a separate one-time migration.
-- Keep bullets lean in both files.
-- **Reduce shipped-change sections** — reduce each shipped-change section in `open-questions.md` to its **BLOCKING** items plus a one-line pointer stub (`<area>: tune-after-evidence items → parked-follow-ons.md § <area>`); park every non-BLOCKING bullet to `parked-follow-ons.md`. Never leave a non-blocking shipped-change bullet in `open-questions.md` (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule").
+  - *Active* — an open blocker, an item needing an operator decision, or an in-flight backlog that gates other work → append it to the Active section of `memory/questions/INDEX.md`. Flag blockers with **BLOCKING**.
+  - *Parked* — deferred, monitored ("watch and revisit if X recurs"), or low-priority cleanup that only matters when the relevant area is next worked → create `memory/questions/<item>.md` with the full item detail, then add a one-line pointer in the Parked section of `memory/questions/INDEX.md`.
+- When this change produced active items, add a `## <topic> (shipped <date>)` section to the Active section of `memory/questions/INDEX.md` opening with a one-line pointer to the full decision in `memory/decisions/INDEX.md` — do NOT restate the decision summary (that duplicates `memory/decisions/INDEX.md`/`memory/STATUS.md`).
+- **A live blocker is never parked.** When unsure whether an item gates other work, keep it in Active.
+- **Resolved items** — an active item that resolves should be removed from `memory/questions/INDEX.md` Active; a parked item that resolves can simply be deleted. Do NOT proactively re-classify the whole legacy file — route this change's new items and prune anything now resolved; bulk de-rotting is a separate one-time migration.
+- Keep bullets lean.
+- **Reduce shipped-change sections** — reduce each shipped-change section in the Active section to its **BLOCKING** items plus a one-line pointer stub (`<area>: tune-after-evidence items → memory/questions/<item>.md`); park every non-BLOCKING bullet. Never leave a non-blocking shipped-change bullet in the Active section (per AGENTS.md §"State, write discipline, and the archive-as-handoff rule").
 
 #### 3d. Lint the reconciled state files
 
-After 3a–3c, run `python scripts/status_lint.py <repo>` from the repo root. It mechanically enforces the bounds in `AGENTS.md §"State, write discipline, and the archive-as-handoff rule"` (STATUS.md 3-entry cap + ≤150-word change-entry budget; `decisions.md` `**Date:**`/`**Status:**` fields + ≤300-word change-record budget). Resolve every reported violation — for an over-budget STATUS entry, trim it to a ≤150-word headline and move the surplus prose **verbatim** to `ai-docs/archive/status-log.md`; for a `decisions.md` entry missing `**Status:**` add `**Status:** ACTIVE`, and trim an over-300-word change-record entry (its full rationale already lives in the change archive) — then re-run until it exits clean before writing your completion report; note the clean result in the report.
+After 3a–3c, run `python scripts/status_lint.py <repo>` from the repo root. It mechanically enforces the bounds in `AGENTS.md §"State, write discipline, and the archive-as-handoff rule"` (`memory/STATUS.md` 3-entry cap + ≤150-word change-entry budget; `memory/decisions/INDEX.md` registry format). Resolve every reported violation — for an over-budget STATUS entry, trim it to a ≤150-word headline (the full record lives in the change archive); for a `memory/decisions/INDEX.md` entry that is malformed, fix the format — then re-run until it exits clean before writing your completion report; note the clean result in the report.
 
 ## Rules
 

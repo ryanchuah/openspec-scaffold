@@ -106,7 +106,7 @@ I'll create artifacts with review:
 
           1. Run the reviewer (substituting actual paths for `<changeRoot>` and
              `<artifact>`), **capturing stdout and stderr to separate files**.
-             Per `ai-docs/delegation-harness.md` §a (hardened invocation): `< /dev/null`
+             Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation): `< /dev/null`
              + `--dir <repoRoot>`. Budget 780s with `-k 15` per the table in §e.
 
              timeout -k 15 780 opencode run \
@@ -123,12 +123,12 @@ I'll create artifacts with review:
              for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
              reviewer's role prompt and tools; `--model` selects which LLM runs.
 
-             **Bounded wait + surgical kill.** Per `ai-docs/delegation-harness.md` §c
+             **Bounded wait + surgical kill.** Per `.claude/skills/_shared/delegation-harness.md` §c
              (surgical kill — never `pkill`). A timeout surfaces as exit code 124
              (or 137 if SIGKILL was needed) — treat it per step 4's salvage path
              (do NOT simply escalate).
 
-         2. **Assert the real reviewer actually ran:** Per `ai-docs/delegation-harness.md`
+         2. **Assert the real reviewer actually ran:** Per `.claude/skills/_shared/delegation-harness.md`
             §b (grep stderr for `Falling back to default agent`, extract `part.text` via
             `jq`, confirm parseable). Then add the reviewer-specific format check:
             confirm the extracted text contains a `## Review Round` heading AND at least

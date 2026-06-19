@@ -39,7 +39,7 @@ def main() -> int:
     # are repo-relative.
     manifest = Path(__file__).resolve().parent / "scaffold_manifest.txt"
     with open(manifest) as f:
-        managed = {l.strip() for l in f if l.strip() and not l.startswith("#")}
+        managed = {ln.strip() for ln in f if ln.strip() and not ln.startswith("#")}
 
     staged = (
         subprocess.check_output(["git", "diff", "--cached", "--name-only"])

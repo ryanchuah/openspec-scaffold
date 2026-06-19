@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Linter for STATUS.md and ai-docs/decisions.md mechanical invariants.
+"""Linter for memory/STATUS.md and memory/decisions/INDEX.md mechanical invariants.
 
-Enforces the bounds specified in
-AGENTS.md §"State, write discipline, and the archive-as-handoff rule":
+Enforces the bounds specified in design.md §D-E:
 
-  - STATUS.md: at most 3 change-entry sections, each <=150 words.
-  - ai-docs/decisions.md: dated entries must have **Status:**;
-    change-record entries (fix-*/add-*/tune-* heading prefix) capped
-    at 300 body words.
-  - Enforcement applies only to entries whose **Date:** parses as a
-    real date on/after --since (default: 2026-06-18, the adoption date
-    of the decisions-entry rule).  Entries with no Date, an unparseable
-    Date, or a Date before --since are skipped — no retroactive backfill.
+  - memory/STATUS.md: at most 3 change-entry sections, each <=150 words.
+  - memory/decisions/INDEX.md: every line matching the date-bullet anchor
+    ``^- **YYYY-MM-DD**`` must be a valid registry entry of the form:
+      - **YYYY-MM-DD** · <slug> · <one-line essence> → `openspec/changes/archive/<dir>/`
+    or:
+      - **YYYY-MM-DD** · <slug> · [inline] <short rationale>
+    Violations: a malformed date-anchored line, or a pointer that does not
+    resolve to an existing directory.  Lines that do NOT match the date-bullet
+    anchor (section headers, prose, blank lines, format-doc bullets) are
+    excluded from the check.
 
 Exit codes
 -----------
@@ -21,16 +22,11 @@ Exit codes
 Usage
 -----
     python scripts/status_lint.py [repo_root]
-    python scripts/status_lint.py --since YYYY-MM-DD [repo_root]
-
---since enforces decisions.md checks only on entries dated on/after
-the given date (default: 2026-06-18).
 """
 
 from __future__ import annotations
 
 import argparse
-import datetime
 import re
 import sys
 from pathlib import Path
@@ -47,9 +43,15 @@ EXEMPT_HEADINGS = frozenset({
     "pointers",
 })
 
-# Matches change-record heading prefixes exactly as named in AGENTS.md:
-# fix-*, add-*, tune-*.  Applied against the normalized (lowercased) heading.
-_CHANGE_RECORD_RE = re.compile(r"^(fix|add|tune)-")
+# Anchor: a dash-list item opening with a bolded ISO date.
+# Matches lines like: - **2026-06-16** · slug · text
+_DATE_ANCHOR_RE = re.compile(r'^- \*\*(\d{4}-\d{2}-\d{2})\*\*')
+
+# Separator used in registry lines (space + U+00B7 MIDDLE DOT + space)
+_REGISTRY_SEP = " · "
+
+# Pointer suffix pattern: → `openspec/changes/archive/<dir>/`
+_POINTER_RE = re.compile(r'→ `(openspec/changes/archive/[^`]+/)`$')
 
 
 # ---------------------------------------------------------------------------
@@ -82,26 +84,6 @@ def _remove_fenced_code_blocks(text: str) -> str:
 def _word_count(text: str) -> int:
     """Return the number of ``\\S+`` tokens in *text*."""
     return len(re.findall(r"\S+", text))
-
-
-def _parse_entry_date(body: str) -> datetime.date | None:
-    """Extract and parse ``**Date:** YYYY-MM-DD`` from entry *body*.
-
-    Returns ``None`` if the Date line is missing, if the value does not
-    parse as a real date (e.g. the template placeholder ``YYYY-MM-DD``),
-    or if the value is not a valid ISO date.
-    """
-    m = re.search(r"\*\*Date:\*\*\s*(\S+)", body)
-    if not m:
-        return None
-    date_str = m.group(1)
-    # Reject the template placeholder itself
-    if date_str == "YYYY-MM-DD":
-        return None
-    try:
-        return datetime.date.fromisoformat(date_str)
-    except ValueError:
-        return None
 
 
 def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
@@ -144,8 +126,8 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
 # ---------------------------------------------------------------------------
 
 def _check_status_md(repo_root: Path) -> list[str]:
-    """Check STATUS.md invariants.  Returns list of violation strings."""
-    status_path = repo_root / "STATUS.md"
+    """Check memory/STATUS.md invariants.  Returns list of violation strings."""
+    status_path = repo_root / "memory" / "STATUS.md"
     if not status_path.exists():
         return []
 
@@ -167,7 +149,7 @@ def _check_status_md(repo_root: Path) -> list[str]:
         excess = change_entries[3:]  # beyond the 3 most recent
         excess_headings = [h for h, _b, _n in excess]
         violations.append(
-            f"  STATUS.md: {len(change_entries)} change-entries (max 3); "
+            f"  memory/STATUS.md: {len(change_entries)} change-entries (max 3); "
             f"excess: {', '.join(excess_headings)}"
         )
 
@@ -177,55 +159,72 @@ def _check_status_md(repo_root: Path) -> list[str]:
         wc = _word_count(body_clean)
         if wc > 150:
             violations.append(
-                f"  STATUS.md: {heading} body has {wc} words (max 150)"
+                f"  memory/STATUS.md: {heading} body has {wc} words (max 150)"
             )
 
     return violations
 
 
-def _check_decisions_md(
-    repo_root: Path, since_date: datetime.date
-) -> list[str]:
-    """Check ai-docs/decisions.md invariants.
+def _check_decisions_index(repo_root: Path) -> list[str]:
+    """Check memory/decisions/INDEX.md registry invariants.
 
-    Only enforces on entries whose ``**Date:**`` value parses as a real
-    date on or after *since_date* — entries with no Date line, an
-    unparseable Date, or a Date before *since_date* are skipped (no
-    retroactive backfill).
+    Every line matching the date-bullet anchor ``^- **YYYY-MM-DD**`` must be
+    a valid registry entry with a resolving pointer or an ``[inline]``
+    rationale.  All other lines are ignored.
     Returns list of violation strings.
     """
-    decisions_path = repo_root / "ai-docs" / "decisions.md"
+    decisions_path = repo_root / "memory" / "decisions" / "INDEX.md"
     if not decisions_path.exists():
         return []
 
     text = decisions_path.read_text(encoding="utf-8")
-    _preamble, entries = _split_sections(text)
-
     violations: list[str] = []
 
-    for heading, body in entries:
-        body_clean = _remove_fenced_code_blocks(body)
+    for lineno, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.rstrip()
 
-        # Determine whether this entry is in-scope by parsing its date.
-        entry_date = _parse_entry_date(body_clean)
-        if entry_date is None or entry_date < since_date:
-            continue  # legacy / template / pre-since — skip
+        # Only examine lines that match the date-bullet anchor.
+        if not _DATE_ANCHOR_RE.match(line):
+            continue
 
-        has_status = "**Status:**" in body_clean
-        if not has_status:
+        # Split into date, slug, text — maxsplit=2 so text may contain the sep.
+        parts = line.split(_REGISTRY_SEP, 2)
+        if len(parts) != 3:
             violations.append(
-                f"  ai-docs/decisions.md: entry \"{heading}\" is missing "
-                "**Status:**"
+                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"(expected 3 parts separated by ' · '): {line!r}"
             )
+            continue
 
-        norm = _normalize_heading(heading)
-        if _CHANGE_RECORD_RE.match(norm):
-            wc = _word_count(body_clean)
-            if wc > 300:
-                violations.append(
-                    f"  ai-docs/decisions.md: entry \"{heading}\" body has "
-                    f"{wc} words (max 300)"
-                )
+        _date_part, slug_part, text_part = parts
+
+        if not slug_part.strip():
+            violations.append(
+                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"(empty slug): {line!r}"
+            )
+            continue
+
+        # Valid text: starts with [inline] OR ends with a pointer.
+        if text_part.startswith("[inline]"):
+            continue  # inline entry — valid
+
+        m = _POINTER_RE.search(text_part)
+        if not m:
+            violations.append(
+                f"  memory/decisions/INDEX.md:{lineno}: malformed registry line "
+                f"(text is neither [inline] nor a valid → `pointer`): {line!r}"
+            )
+            continue
+
+        # Pointer must resolve to an existing directory.
+        archive_rel = m.group(1).rstrip("/")
+        archive_path = repo_root / archive_rel
+        if not archive_path.is_dir():
+            violations.append(
+                f"  memory/decisions/INDEX.md:{lineno}: dangling pointer "
+                f"`{m.group(1)}` does not resolve to an existing directory"
+            )
 
     return violations
 
@@ -236,7 +235,7 @@ def _check_decisions_md(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Lint STATUS.md and ai-docs/decisions.md invariants."
+        description="Lint memory/STATUS.md and memory/decisions/INDEX.md invariants."
     )
     parser.add_argument(
         "repo_root",
@@ -244,15 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Repository root (default: parent of script directory)",
     )
-    parser.add_argument(
-        "--since",
-        default="2026-06-18",
-        help="Enforce decisions.md checks only on entries dated on/after "
-        "this date (default: 2026-06-18)",
-    )
     args = parser.parse_args(argv)
-
-    since_date = datetime.date.fromisoformat(args.since)
 
     if args.repo_root is not None:
         repo_root = Path(args.repo_root).resolve(strict=True)
@@ -263,29 +254,29 @@ def main(argv: list[str] | None = None) -> int:
 
     total_violations: list[str] = []
 
-    # STATUS.md
+    # memory/STATUS.md
     status_violations = _check_status_md(repo_root)
-    status_path = repo_root / "STATUS.md"
+    status_path = repo_root / "memory" / "STATUS.md"
     if status_path.exists():
         if status_violations:
-            print("STATUS.md: FAIL")
+            print("memory/STATUS.md: FAIL")
             for v in status_violations:
                 print(v)
             total_violations.extend(status_violations)
         else:
-            print("STATUS.md: OK")
+            print("memory/STATUS.md: OK")
 
-    # ai-docs/decisions.md
-    decisions_violations = _check_decisions_md(repo_root, since_date)
-    decisions_path = repo_root / "ai-docs" / "decisions.md"
+    # memory/decisions/INDEX.md
+    decisions_violations = _check_decisions_index(repo_root)
+    decisions_path = repo_root / "memory" / "decisions" / "INDEX.md"
     if decisions_path.exists():
         if decisions_violations:
-            print("ai-docs/decisions.md: FAIL")
+            print("memory/decisions/INDEX.md: FAIL")
             for v in decisions_violations:
                 print(v)
             total_violations.extend(decisions_violations)
         else:
-            print("ai-docs/decisions.md: OK")
+            print("memory/decisions/INDEX.md: OK")
 
     if total_violations:
         print(f"status_lint: FAILED — {len(total_violations)} violation(s)")

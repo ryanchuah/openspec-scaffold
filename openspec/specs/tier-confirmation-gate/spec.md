@@ -11,7 +11,7 @@ with a plan, and SHALL obtain explicit operator confirmation before beginning ex
 the apply phase, editing implementation code, or otherwise mutating project code/state. Producing the
 plan itself (a proposal or a written tier recommendation) is how the agent surfaces the choice and is
 NOT gated — the gate sits between planning and execution, not before planning. An agent WITH an
-explicit fast-track/autonomy grant SHALL self-classify and proceed per `ai-docs/fast-track-workflow.md`.
+explicit fast-track/autonomy grant SHALL self-classify and proceed under that grant (autonomy is operator-told and ephemeral — there is no fast-track doc, by design).
 Change tiering itself remains standing (it applies regardless of fast-track); only the requirement to
 *confirm before executing* is gated on the absence of a grant.
 

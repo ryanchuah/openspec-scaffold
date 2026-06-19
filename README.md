@@ -11,9 +11,9 @@ Copy this repo to start a new project. Fill in the placeholder files and you're 
 | File | Purpose |
 |---|---|
 | `AGENTS.md` | Project instructions loaded by OpenCode at session start |
-| `STATUS.md` | Live project status — what's done, what's next |
-| `ai-docs/decisions.md` | Durable architectural decisions and rationale |
-| `ai-docs/open-questions.md` | Unresolved questions and user-action items |
+| `memory/STATUS.md` | Live project status — what's done, what's next |
+| `memory/decisions/INDEX.md` | Durable architectural decisions and rationale |
+| `memory/questions/INDEX.md` | Unresolved questions and user-action items |
 | `openspec/config.yaml` | OpenSpec project config — injected into every artifact prompt; carries the `tasks` (delegate apply), `verify` (behavioral review), and `archive` (reconcile-as-handoff) rules |
 | `openspec/changes/`, `openspec/specs/` | Planning home for in-flight changes and promoted capability specs (ship empty, with `.gitkeep`) |
 | `.claude/skills/openspec-*/` | The 7 workflow skills (explore/propose/apply/verify/archive/sync/onboard) — pre-built and ready; loaded by both Claude Code and OpenCode |
@@ -115,7 +115,7 @@ rm -rf .git && git init
 - `Tech stack:` language, DB, key libraries
 - `Testing:` framework and philosophy
 
-**`STATUS.md`** — update the "Immediate next action" line.
+**`memory/STATUS.md`** — update the "Immediate next action" line.
 
 ### Step 3 — Set up the Python venv
 
@@ -186,8 +186,8 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 - Each `@openspec-reviewer` call is an isolated child session — it starts fresh, reads the artifact files, returns its review, and exits.
 - Each apply delegation is an isolated child session — it reads the frozen artifacts, implements, and returns a report.
 - Because the artifacts are on disk, you can safely split across sessions: end a session after propose and start a fresh one for apply without losing anything.
-- **Write discipline:** during a change, write its `openspec/changes/<name>/` files freely (check off `tasks.md`, jot `notes.md`). Do **not** edit `STATUS.md` / `ai-docs/` mid-change — that keeps the working context small.
-- **Archive = handoff:** archive is where `STATUS.md` + `ai-docs/` get reconciled from the change dir. Delegated to a `deepseek/deepseek-v4-pro` archive-executor (fresh context; Claude via `opencode run`, OpenCode via a subagent), then reviewed and committed by the primary — that keeps the multi-file reconciliation cheap.
+- **Write discipline:** during a change, write its `openspec/changes/<name>/` files freely (check off `tasks.md`, jot `notes.md`). Do **not** edit `memory/STATUS.md` / `memory/` mid-change — that keeps the working context small.
+- **Archive = handoff:** archive is where the project docs in `memory/` get reconciled from the change dir. Delegated to a `deepseek/deepseek-v4-pro` archive-executor (fresh context; Claude via `opencode run`, OpenCode via a subagent), then reviewed and committed by the primary — that keeps the multi-file reconciliation cheap.
 
 ### Key files per change
 

@@ -98,8 +98,8 @@ Archive a completed change in the experimental workflow.
 
    1. **Verify the tree holds only this change.** Run `git status --porcelain` and confirm every
       *tracked* modification/deletion/rename belongs to the change being archived — `<changeRoot>/`
-      or the shared docs/specs the executor will reconcile (STATUS.md, ai-docs/decisions.md,
-      ai-docs/open-questions.md, `openspec/specs/`). In the serialized apply→verify→archive
+      or the shared docs/specs the executor will reconcile (memory/STATUS.md, memory/decisions/INDEX.md,
+      memory/questions/INDEX.md, `openspec/specs/`). In the serialized apply→verify→archive
       lifecycle every tracked mod must be this change's. If a tracked modification appears OUTSIDE
       that scope, **STOP** and surface it — "another change may be mid-execution; archive expects
       serialized apply→verify→archive." Untracked entries (`??`) under other change dirs are
@@ -129,7 +129,7 @@ Archive a completed change in the experimental workflow.
 
      1. **Invoke the executor** (substitute real paths and the sync decision), capturing
         stdout and stderr to separate files.
-        Per `ai-docs/delegation-harness.md` §a (hardened invocation): `< /dev/null`
+        Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation): `< /dev/null`
         + `--dir <repoRoot>`. Budget 600s with `-k 30` per the table in §e.
         Note: the archive invocation **omits the EXIT-sentinel** — this is a
         pre-existing drift documented in §d and left as-is.
@@ -143,7 +143,7 @@ Archive a completed change in the experimental workflow.
           "Archive the OpenSpec change. changeRoot: <changeRoot>. \
            archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
            Delta spec sync requested: <yes/no>. \
-           Project docs: STATUS.md, ai-docs/decisions.md, ai-docs/open-questions.md. \
+           Project docs: memory/STATUS.md, memory/decisions/INDEX.md, memory/questions/INDEX.md. \
            Move the change dir to the archive path, sync delta specs if requested, \
            and reconcile the three project docs from the archived notes.md / \
            proposal.md / design.md. Do not commit. End with a brief completion \
@@ -154,19 +154,19 @@ Archive a completed change in the experimental workflow.
 
         - The OpenCode agent edits files in the **same working tree** as Claude, so
           its moves and doc edits land directly on disk — verify by reading back.
-       - **Bounded wait + surgical kill.** Per `ai-docs/delegation-harness.md` §c
+       - **Bounded wait + surgical kill.** Per `.claude/skills/_shared/delegation-harness.md` §c
          (surgical kill — never `pkill`). Because reconciliation can run several
          minutes, run this Bash call with `run_in_background: true`. Exit 124 (or 137
          if SIGKILL was needed) = operational crash (step 4 of the ladder).
 
-    2. **Assert the real executor ran:** Per `ai-docs/delegation-harness.md` §b
+    2. **Assert the real executor ran:** Per `.claude/skills/_shared/delegation-harness.md` §b
        (grep stderr for `Falling back to default agent`, extract `part.text` via
        `jq`, confirm parseable). Empty/unparseable → operational crash.
 
    3. **Judge success from disk** (not just the report):
 
       - **Success** = the real agent ran AND `<archivePath>/` exists on disk AND
-        STATUS.md / decisions.md / open-questions.md contain new reconciled content
+        memory/STATUS.md / memory/decisions/INDEX.md / memory/questions/INDEX.md contain new reconciled content
         AND the report does not declare an unresolved blocker.
       - **Operational crash** = non-zero exit (including a timeout kill — exit 124,
         or 137 if SIGKILL was needed), empty/unparseable stdout, or the
@@ -196,7 +196,7 @@ Archive a completed change in the experimental workflow.
    Delegate the full archive operation to `@archive-executor` (DeepSeek V4 Pro) via
    the Task tool with `subagent_type: "archive-executor"`. Pass:
    - `changeRoot`, target `archivePath`, whether delta spec sync was requested
-   - Paths to `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`
+   - Paths to `memory/STATUS.md`, `memory/decisions/INDEX.md`, `memory/questions/INDEX.md`
    - On executor failure or a botched result, **restore the baseline** (see Recovery below)
      before re-delegating.
 
@@ -225,25 +225,24 @@ Archive a completed change in the experimental workflow.
    produces the reconciliation; the primary reviews it before committing.
 
    - **Read back from disk:** confirm `<archivePath>/` exists, then read the diffs in
-     `STATUS.md`, `ai-docs/decisions.md`, and `ai-docs/open-questions.md`.
+     `memory/STATUS.md`, `memory/decisions/INDEX.md`, and `memory/questions/INDEX.md`.
    - **Quality check — verify each doc contains real, artifact-backed content:**
-     - `STATUS.md` `## Latest change` section must record the verify *outcome*
+     - `memory/STATUS.md` `## Latest change` section must record the verify *outcome*
        ("tests pass" / "the system ran clean", or any failing or newly-skipped test
        with its cause) — **never** test, doc, or row counts, not even as history
        (see AGENTS.md) — then link the archive path and name the next concrete step.
-     - `ai-docs/decisions.md` entry must carry the "why" for each key design choice
+     - `memory/decisions/INDEX.md` entry must carry the "why" for each key design choice
        with alternatives rejected — not a paraphrase of the problem.
-     - `ai-docs/open-questions.md` entry must contain ONLY active items (open follow-ons / blockers with **BLOCKING** flags where appropriate); deferred, monitored, or low-priority follow-ons must have been routed to `ai-docs/parked-follow-ons.md` under `##` area headers; and **no live blocker was parked**.
-     - `STATUS.md` retains at most **3** change paragraphs (`## Latest change` / `## Prior change`) and any overflow was moved to `ai-docs/archive/status-log.md`.
+     - `memory/questions/INDEX.md` entry must contain ONLY active items (open follow-ons / blockers with **BLOCKING** flags where appropriate); deferred, monitored, or low-priority follow-ons must have been routed to the Parked section of `memory/questions/` (per-item files under `##` area headers); and **no live blocker was parked**.
+     - `memory/STATUS.md` retains at most **3** change paragraphs (`## Latest change` / `## Prior change`) and any overflow is dropped (the oldest section is simply pruned — no separate log file).
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
      re-delegate to the archive-executor with a specific fix-spec and re-review.
    - **Lint before committing:** run `python scripts/status_lint.py <repo>` from the
-     repo root and resolve any STATUS.md cap/word-budget or `decisions.md` Date/Status
+     repo root and resolve any `memory/STATUS.md` cap/word-budget or `memory/decisions/INDEX.md` Date/Status
      violations it reports (the executor's `#### 3d` step should already have cleaned
      these; this is the primary's gate). If a retained legacy entry trips the budget,
-     trim it to a ≤150-word headline — moving the surplus prose **verbatim** into
-     `ai-docs/archive/status-log.md` — before committing.
+     trim it to a ≤150-word headline (dropping the surplus prose) — before committing.
    - **Commit once satisfied** (the executor never commits; the primary always owns
      the commit):
      ```
@@ -278,7 +277,7 @@ Archive a completed change in the experimental workflow.
 **Schema:** <schema-name>
 **Archived to:** the archive path derived from `planningHome.changesDir`/YYYY-MM-DD-<name>/
 **Specs:** ✓ Synced to main specs (or "No delta specs" or "Sync skipped")
-**Project docs:** ✓ Reconciled (STATUS.md, decisions.md, open-questions.md)
+**Project docs:** ✓ Reconciled (memory/STATUS.md, memory/decisions/INDEX.md, memory/questions/INDEX.md)
 
 **Executor:** deepseek-v4-pro via `opencode run`
 **Fallback used:** No

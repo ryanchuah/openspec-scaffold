@@ -31,9 +31,9 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 >
 > **Fix-redelegation mechanics (Claude Code):**
 > - **Claude Code:** the fresh fix executor is the deepseek `apply-executor` driven via `opencode run` (same invocation shape as in the apply skill's Step 6, but the prompt is the **self-contained fix-spec** for the specific defect, not the whole `tasks.md`). **One attempt.**
-> - **Wrap the call in `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix has a 10-minute budget matching the apply/archive floor). Per `ai-docs/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 600s with `-k 30` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
-> - **Completion detection.** Per `ai-docs/delegation-harness.md` §d (EXIT-sentinel): append `; echo "EXIT=$?" > /tmp/fix-out.exit`, detect completion by `[ -f /tmp/fix-out.exit ]`. Never poll with pgrep or judge from a mid-execution snapshot. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
-> - **Assert the real agent ran (§b):** Follow the checks in `ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable).
+> - **Wrap the call in `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix has a 10-minute budget matching the apply/archive floor). Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 600s with `-k 30` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
+> - **Completion detection.** Per `.claude/skills/_shared/delegation-harness.md` §d (EXIT-sentinel): append `; echo "EXIT=$?" > /tmp/fix-out.exit`, detect completion by `[ -f /tmp/fix-out.exit ]`. Never poll with pgrep or judge from a mid-execution snapshot. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
+> - **Assert the real agent ran (§b):** Follow the checks in `.claude/skills/_shared/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable).
 >
 > **Escalation rungs:**
 > - **Escalate to a Sonnet subagent** if that one attempt yields **either**: (a) an operational failure (crash / no usable output), **or** (b) a quality failure — i.e. the orchestrator's re-verification (re-run from MANDATORY step 1) still finds the defect, or finds a newly-introduced one.
@@ -62,7 +62,7 @@ VERDICT: READY            # or exactly: VERDICT: NEEDS REVISION
 
 #### Claude Code invocation (two passes)
 
-For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `ai-docs/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above):
+For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `.claude/skills/_shared/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above):
 
 **Pro pass:**
 ```bash
@@ -78,13 +78,13 @@ timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
   > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
 ```
 
-Both invocations follow the hardened invocation and EXIT-sentinel patterns per `ai-docs/delegation-harness.md` §a and §d.
+Both invocations follow the hardened invocation and EXIT-sentinel patterns per `.claude/skills/_shared/delegation-harness.md` §a and §d.
 
 #### OpenCode invocation (pro + flash, same chain as Claude Code)
 
 Under OpenCode, invoke the verifier via `opencode run` with the same hardened pattern as Claude
 Code — both platforms now run the identical pro → flash chain. Apply the full delegation harness
-(`ai-docs/delegation-harness.md` §a–d) to both calls:
+(`.claude/skills/_shared/delegation-harness.md` §a–d) to both calls:
 
 **Pro pass:**
 ```bash
@@ -103,7 +103,7 @@ timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
 #### Assert the real verifier ran
 
 Before trusting any pass output (both platforms), confirm the real verifier ran per
-`ai-docs/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract
+`.claude/skills/_shared/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract
 `part.text` via `jq`, confirm parseable). Then confirm the extracted output contains a
 `## Verify Pass` heading AND a `VERDICT:` line.
 
@@ -302,8 +302,8 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
    5. **forward-looking items for the project docs — the load-bearing, easily-missed one.** Enumerate
       every **open question, tuning item, deferred-scope decision, follow-on, or monitored risk** that
       surfaced during design OR verify and is **recorded nowhere else** (not in `proposal.md` /
-      `design.md` / `specs/` and not already in `ai-docs/open-questions.md`). These exist to be folded
-      into `ai-docs/open-questions.md` (and where relevant `ai-docs/decisions.md`) at archive. Be
+      `design.md` / `specs/` and not already in `memory/questions/INDEX.md`). These exist to be folded
+      into `memory/questions/INDEX.md` (and where relevant `memory/decisions/INDEX.md`) at archive. Be
       exhaustive — typical sources you MUST scan for:
         - **"tune after real runs" items** — any new threshold/default/knob this change introduced that
           has not been validated against real production output (e.g. a new config default);
@@ -315,7 +315,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
         - anything you said "out of scope / revisit later / could add" about during this session.
 
    Also write a short **"Still owned by archive"** pointer list (what the fresh archive session
-   must still reconcile: `STATUS.md`, `ai-docs/decisions.md`, `ai-docs/open-questions.md`, spec
+   must still reconcile: `memory/STATUS.md`, `memory/decisions/INDEX.md`, `memory/questions/INDEX.md`, spec
    promotion into `openspec/specs/`, and any cleanup). Do NOT edit those project-tracked docs yourself
    here — they are reconciled at archive per the write-discipline rule; your job at verify is to make
    the change dir self-sufficient so that reconciliation loses nothing.
@@ -325,7 +325,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
    the change dir, not this conversation. Verify is the step that manufactures these durable facts,
    and anything left only in this context **dies at the session boundary** — the archive-executor
    is blind to it. **Field 5 is the one that bites:** a new open-question or tuning item that
-   exists only in this conversation is simply *lost* — it never reaches `open-questions.md`, and
+   exists only in this conversation is simply *lost* — it never reaches `memory/questions/INDEX.md`, and
    the project silently forgets a decision it meant to revisit. This write is cheap because the
    context is already loaded. Do not skip it even when the verdict is a clean pass.
 
@@ -344,7 +344,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
       3. Defects + fixes — <summary, or "none">
       4. As-built deltas — <summary, or "none">
       5. Forward-looking open-questions / tuning items / follow-ons — <explicit list, or "none + why">
-      Still owned by archive — <STATUS.md, decisions.md, open-questions.md, spec promotion, cleanup>
+      Still owned by archive — <memory/STATUS.md, memory/decisions/INDEX.md, memory/questions/INDEX.md, spec promotion, cleanup>
     ```
 
     For field 5 you MUST either **name each item** carried forward (so the user can sanity-check that

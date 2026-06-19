@@ -166,7 +166,7 @@ def _extract_lxml_fallback(html: bytes) -> Optional[str]:
 
     # lxml.html fallback
     try:
-        from lxml import etree, html as lxml_html
+        from lxml import html as lxml_html
         tree = lxml_html.fromstring(html)
         # Remove noisy tags
         for bad_tag in ("script", "style", "nav", "footer", "header", "aside"):

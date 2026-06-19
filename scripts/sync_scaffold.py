@@ -4,6 +4,8 @@
 Copies manifest-listed files byte-identical from the scaffold golden source
 to a target repo.  AGENTS.md uses a span-replace algorithm (sync_agents_md)
 that preserves each repo's title, ## Project context, and tail.
+openspec/config.yaml uses a rules-block replace (sync_config_yaml) that
+preserves each repo's context: block.
 
 Usage:
     scripts/sync_scaffold.py <target-repo-path>
@@ -98,6 +100,57 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     return t_title + span1 + proj_ctx + span2 + tail
 
 
+# ── D-C: openspec/config.yaml rules-block replace ─────────────────────────
+
+def _extract_rules_block(text: str) -> str | None:
+    """Return the ``rules:`` block from a config.yaml, or ``None`` if absent.
+
+    The returned string starts at ``rules:`` and runs to EOF, with trailing
+    whitespace stripped and a single trailing newline appended.
+    """
+    m = re.search(r'^rules:', text, re.M)
+    if not m:
+        return None
+    return text[m.start():].rstrip() + "\n"
+
+
+def sync_config_yaml(scaffold_text: str, target_text: str) -> str:
+    """Merge the ``rules:`` block from *scaffold_text* into *target_text*.
+
+    Preserves the target's ``context:`` block and everything above ``rules:``.
+
+    Raises ``ValueError`` if a non-comment top-level key follows ``rules:`` in
+    the target (``rules:`` must be the last top-level block — invariant D-C).
+
+    If the target has no ``rules:`` block at all, scaffold's block is appended
+    at EOF rather than aborting (supports fresh or pre-``rules:`` repos).
+    """
+    scaffold_rules = _extract_rules_block(scaffold_text)
+    if scaffold_rules is None:
+        raise ValueError("scaffold openspec/config.yaml has no rules: block")
+
+    t_rules = re.search(r'^rules:', target_text, re.M)
+
+    if t_rules:
+        # Validate: no non-comment top-level key follows rules: in target
+        after_rules = target_text[t_rules.end():]
+        for line in after_rules.splitlines():
+            stripped = line.lstrip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            if re.match(r'^[A-Za-z][\w-]*\s*:', line):
+                key = line.split(':')[0].strip()
+                raise ValueError(
+                    f"openspec/config.yaml: non-comment top-level key "
+                    f"'{key}:' follows rules: — move it before rules: or "
+                    f"remove it; rules: must be the last top-level block"
+                )
+        return target_text[:t_rules.start()] + scaffold_rules
+    else:
+        # Append scaffold's rules: block at EOF
+        return target_text.rstrip('\n') + "\n\n" + scaffold_rules
+
+
 # ── Validate-first helpers ─────────────────────────────────────────────────
 
 def _check_target_has_git(target_path: Path) -> None:
@@ -139,6 +192,11 @@ def _sync_file(manifest_line: str, target_root: Path, scaffold_root: Path) -> No
         scaffold_text = src.read_text(encoding="utf-8")
         target_text = dst.read_text(encoding="utf-8") if dst.exists() else ""
         merged = sync_agents_md(scaffold_text, target_text)
+        dst.write_text(merged, encoding="utf-8")
+    elif manifest_line == "openspec/config.yaml":
+        scaffold_text = src.read_text(encoding="utf-8")
+        target_text = dst.read_text(encoding="utf-8") if dst.exists() else ""
+        merged = sync_config_yaml(scaffold_text, target_text)
         dst.write_text(merged, encoding="utf-8")
     else:
         shutil.copy2(str(src), str(dst))
@@ -184,6 +242,16 @@ def check(target_path_str: str) -> int:
             else:
                 print(f"DIFFERS   {line}")
                 exit_code = 1
+        elif line == "openspec/config.yaml":
+            scaffold_text = src.read_text(encoding="utf-8")
+            target_text = dst.read_text(encoding="utf-8")
+            scaffold_rules = _extract_rules_block(scaffold_text)
+            target_rules = _extract_rules_block(target_text)
+            if scaffold_rules == target_rules:
+                print(f"IDENTICAL  {line}")
+            else:
+                print(f"DIFFERS   {line}")
+                exit_code = 1
         else:
             if filecmp.cmp(str(src), str(dst), shallow=False):
                 print(f"IDENTICAL  {line}")
@@ -204,9 +272,11 @@ def check(target_path_str: str) -> int:
 # contract is untouched.
 
 # Frozen / historical record dirs whose markdown is out of scope for the scan.
-_REF_SCAN_EXCLUDE = ("openspec/changes/", "ai-docs/archive/", "docs/reviews/")
-# `ai-docs/....md` path citations (e.g. in synced rules).
-_AIDOC_PATH_RE = re.compile(r"ai-docs/[\w./-]+\.md")
+# memory/research/ holds period-correct historical analyses; its citations must
+# NOT be ref-checked (they may cite pre-restructure paths that no longer exist).
+_REF_SCAN_EXCLUDE = ("openspec/changes/", "memory/research/")
+# `memory/....md` path citations (e.g. in synced rules).
+_AIDOC_PATH_RE = re.compile(r"memory/[\w./-]+\.md")
 # `<file>.md § "Section"` citations (any file; we only resolve canonical docs).
 # The `§ "..."` form is the project's standard citation format; the loose
 # `AGENTS.md (...)` parenthetical form is deliberately NOT matched (it fires on
@@ -259,22 +329,22 @@ def _section_anchors(path: Path) -> list[str]:
 
 
 def _synced_files() -> list[str]:
-    """Manifest entries that carry inline citations: AGENTS.md + synced ai-docs/*.md."""
+    """Manifest entries that carry inline citations: AGENTS.md + synced memory/*.md."""
     return [
         line for line in _read_manifest()
-        if line == "AGENTS.md" or (line.startswith("ai-docs/") and line.endswith(".md"))
+        if line == "AGENTS.md" or (line.startswith("memory/") and line.endswith(".md"))
     ]
 
 
 def check_references(target_path_str: str, md_files: list[str] | None = None) -> int:
     """Verify cited files/sections resolve in the target repo. 0 = clean, 1 = dangling.
 
-    - `ai-docs/*.md` path citations in the SYNCED files (AGENTS.md + synced ai-docs)
+    - ``memory/*.md`` path citations in the SYNCED files (AGENTS.md + synced memory/)
       must point at files that exist in the target.
-    - `AGENTS.md`/`ai-docs/*` section citations (``§ "..."``) anywhere in tracked
+    - ``AGENTS.md``/``memory/*`` section citations (``§ "..."``) anywhere in tracked
       markdown must point at a file that exists; AGENTS.md citations must also
       resolve to a heading or bold label (substring match). Section *titles* in
-      `ai-docs/*` are NOT resolved — their headings carry drifting qualifiers
+      ``memory/*`` are NOT resolved — their headings carry drifting qualifiers
       (dates, ``…`` ellipses), so only file existence is policed there.
     """
     target = Path(target_path_str).resolve()
@@ -282,7 +352,7 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
     agents_anchors = _section_anchors(target / "AGENTS.md")
     dangling = 0
 
-    # (a) ai-docs/*.md path citations in the synced files must exist.
+    # (a) memory/*.md path citations in the synced files must exist.
     for rel in _synced_files():
         p = target / rel
         if not p.exists():
@@ -303,7 +373,7 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
         text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
         for m in _SECTION_RE.finditer(text):
             cited_file, section = m.group(1), m.group(2)
-            if cited_file != "AGENTS.md" and not cited_file.startswith("ai-docs/"):
+            if cited_file != "AGENTS.md" and not cited_file.startswith("memory/"):
                 continue
             if not (target / cited_file).exists():
                 print(f"DANGLING  {rel}: missing file '{cited_file}' (§ '{section}')")

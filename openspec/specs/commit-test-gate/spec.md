@@ -53,7 +53,7 @@ the source and present any concrete command (e.g. `pytest`) only as an illustrat
 ### Requirement: Instruction docs acknowledge the shipped gate hook
 The scaffold's cross-agent-compatibility guidance SHALL NOT describe `.claude/settings.json` as
 "hook-free". It SHALL acknowledge the shipped commit-test-gate `PreToolUse` hook as a sanctioned,
-Claude-only carve-out (recorded in `ai-docs/decisions.md`) that runs a tracked, agent-neutral script —
+Claude-only carve-out (recorded in `memory/decisions/INDEX.md`) that runs a tracked, agent-neutral script —
 so that an agent reconciling the instructions to the filesystem does not read the present, tracked
 hook as an invariant violation.
 

@@ -84,13 +84,13 @@ Implement tasks from an OpenSpec change.
    ### If you are Claude Code
 
    Drive the deepseek `apply-executor` via `opencode run` (harness contract:
-   `ai-docs/delegation-harness.md`); on a clean run every `tasks.md` item is `[x]`
+   `.claude/skills/_shared/delegation-harness.md`); on a clean run every `tasks.md` item is `[x]`
    and you proceed to Step 7. Everything below handles the ways that can fail.
    Do **not** implement tasks yourself, and do **not** spawn a Sonnet subagent as
    the default — use the deepseek executor first.
 
     1. **Invoke the executor** (substitute real `<changeRoot>` paths), capturing
-       stdout and stderr to separate files. See `ai-docs/delegation-harness.md` §a–d
+       stdout and stderr to separate files. See `.claude/skills/_shared/delegation-harness.md` §a–d
        for the shared harness contract (hardened invocation, assert-ran, bounded wait,
        EXIT-sentinel); budgets are in that doc's table (§e).
 

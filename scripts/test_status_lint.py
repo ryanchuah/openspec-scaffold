@@ -26,18 +26,28 @@ import status_lint  # noqa: E402
 def _make_repo(
     tmpdir: Path,
     status_md: str | None = None,
-    decisions_md: str | None = None,
+    decisions_index: str | None = None,
 ) -> Path:
-    """Create a temporary repo and write optional STATUS.md / decisions.md."""
+    """Create a temporary repo and write optional memory/STATUS.md /
+    memory/decisions/INDEX.md."""
     repo = tmpdir / "repo"
     repo.mkdir()
     if status_md is not None:
-        (repo / "STATUS.md").write_text(status_md, encoding="utf-8")
-    if decisions_md is not None:
-        ai_docs = repo / "ai-docs"
-        ai_docs.mkdir(parents=True, exist_ok=True)
-        (ai_docs / "decisions.md").write_text(decisions_md, encoding="utf-8")
+        mem = repo / "memory"
+        mem.mkdir(parents=True, exist_ok=True)
+        (mem / "STATUS.md").write_text(status_md, encoding="utf-8")
+    if decisions_index is not None:
+        dec = repo / "memory" / "decisions"
+        dec.mkdir(parents=True, exist_ok=True)
+        (dec / "INDEX.md").write_text(decisions_index, encoding="utf-8")
     return repo
+
+
+def _make_archive_dir(repo: Path, archive_name: str) -> Path:
+    """Create openspec/changes/archive/<archive_name>/ and return its path."""
+    arc = repo / "openspec" / "changes" / "archive" / archive_name
+    arc.mkdir(parents=True, exist_ok=True)
+    return arc
 
 
 def _n_words(n: int) -> str:
@@ -51,7 +61,7 @@ def _n_words(n: int) -> str:
 
 
 class StatusLintTest(unittest.TestCase):
-    """Coverage items from task 2.2 — cap count, word budget, decisions, etc."""
+    """Coverage of STATUS cap/word-budget and decisions registry checks."""
 
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -200,110 +210,6 @@ class StatusLintTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     # ------------------------------------------------------------------
-    # decisions.md — Date / Status / word budget
-    # ------------------------------------------------------------------
-
-    def test_decisions_date_no_status_fails(self):
-        """Entry with **Date:** but no **Status:** => violation."""
-        decisions = (
-            "## add-foo: new feature\n"
-            "**Date:** 2026-06-18\n"
-            "Some description.\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 2)
-
-    def test_decisions_date_and_status_passes(self):
-        """Entry with both **Date:** and **Status:** => pass."""
-        decisions = (
-            "## add-foo: new feature\n"
-            "**Date:** 2026-06-18\n"
-            "**Status:** ACTIVE\n"
-            "Some description.\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 0)
-
-    def test_decisions_change_record_over_300_fails(self):
-        """A fix-/add-/tune- entry with Date+Status and >300 words => fail."""
-        decisions = (
-            "## add-foo: large entry\n"
-            "**Date:** 2026-06-18\n"
-            "**Status:** ACTIVE\n"
-            + _n_words(301)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 2)
-
-    def test_decisions_non_change_record_no_300_cap(self):
-        """Non-change-record heading with >300 words => pass (no 300-cap)."""
-        decisions = (
-            "## Some prose heading\n"
-            "**Date:** 2026-06-18\n"
-            "**Status:** ACTIVE\n"
-            + _n_words(500)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 0)
-
-    def test_decisions_no_date_legacy_skip(self):
-        """Entry without **Date:** is skipped even with 500 words."""
-        decisions = (
-            "## old-legacy-entry\n"
-            + _n_words(500)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 0)
-
-    # ------------------------------------------------------------------
-    # Backfill-safety (legacy/template skipped)
-    # ------------------------------------------------------------------
-
-    def test_backfill_date_before_since_skipped(self):
-        """Entry dated before --since with no Status and 500w => pass (legacy skip)."""
-        decisions = (
-            "## add-foo: pre-rule\n"
-            "**Date:** 2026-06-13\n"
-            + _n_words(500)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 0)
-
-    def test_backfill_template_date_skipped(self):
-        """Entry with **Date:** YYYY-MM-DD (unparseable template) => pass (skipped)."""
-        decisions = (
-            "## template-entry\n"
-            "**Date:** YYYY-MM-DD\n"
-            + _n_words(500)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 0)
-
-    def test_backfill_since_override_brings_in_scope(self):
-        """--since 2026-06-13 brings 2026-06-13 entry in-scope => fail."""
-        decisions = (
-            "## add-foo: in-scope\n"
-            "**Date:** 2026-06-13\n"
-            + _n_words(500)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main(["--since", "2026-06-13", str(repo)])
-        self.assertEqual(rc, 2)
-
-    # ------------------------------------------------------------------
     # Exempt sections skip C2
     # ------------------------------------------------------------------
 
@@ -339,27 +245,11 @@ class StatusLintTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     # ------------------------------------------------------------------
-    # Combined decisions violations
-    # ------------------------------------------------------------------
-
-    def test_combined_decisions_violations(self):
-        """add-foo with Date, no Status, >300 words => 2 violations."""
-        decisions = (
-            "## add-foo: combined violation\n"
-            "**Date:** 2026-06-18\n"
-            + _n_words(301)
-            + "\n"
-        )
-        repo = _make_repo(self.tmpdir, decisions_md=decisions)
-        rc = status_lint.main([str(repo)])
-        self.assertEqual(rc, 2)
-
-    # ------------------------------------------------------------------
     # Graceful absence
     # ------------------------------------------------------------------
 
     def test_graceful_absence_both_missing(self):
-        """No STATUS.md and no decisions.md => exit 0."""
+        """No STATUS.md and no INDEX.md => exit 0."""
         repo = _make_repo(self.tmpdir)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
@@ -370,6 +260,116 @@ class StatusLintTest(unittest.TestCase):
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
+
+    # ------------------------------------------------------------------
+    # decisions/INDEX.md — registry format (D-E)
+    # ------------------------------------------------------------------
+
+    def test_registry_inline_passes(self):
+        """An [inline] registry entry passes."""
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-13** · some-slug · [inline] short rationale here\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_registry_pointer_resolves_passes(self):
+        """A pointer to an existing archive directory passes."""
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-16** · my-change · the rationale "
+            "→ `openspec/changes/archive/2026-06-16-my-change/`\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        _make_archive_dir(repo, "2026-06-16-my-change")
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_registry_dangling_pointer_fails(self):
+        """A pointer to a non-existing directory fails."""
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-16** · missing-change · the rationale "
+            "→ `openspec/changes/archive/2026-06-16-missing-change/`\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        # Do NOT create the archive directory — it's dangling.
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_registry_malformed_line_fails(self):
+        """A date-anchored line that is not a valid registry entry fails."""
+        # Matches the anchor but has only 2 parts, not 3.
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-16** · only-two-parts\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_registry_malformed_text_not_pointer_or_inline_fails(self):
+        """A date-anchored line whose text is neither [inline] nor → pointer fails."""
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-16** · my-slug · some free-form text with no pointer\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_registry_non_date_bullets_excluded(self):
+        """Lines without the date-bullet anchor are excluded from the check."""
+        # These format-doc bullets look like list items but lack a bolded ISO date.
+        index = (
+            "# Decisions Registry\n\n"
+            "One line per decision. Format:\n"
+            "- Pointer: `- **YYYY-MM-DD** · <slug> · <essence> → `path/`\n"
+            "- Inline (no archive): `- **YYYY-MM-DD** · <slug> · [inline] ...\n"
+            "\n"
+            "---\n"
+            "\n"
+            "- **2026-06-13** · good-slug · [inline] all state in tracked files\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_registry_multiple_entries_one_dangling_fails(self):
+        """Multiple entries where one has a dangling pointer => fail."""
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-13** · inline-ok · [inline] fine\n"
+            "- **2026-06-16** · real-change · good pointer "
+            "→ `openspec/changes/archive/2026-06-16-real-change/`\n"
+            "- **2026-06-17** · bad-change · dangling pointer "
+            "→ `openspec/changes/archive/2026-06-17-bad-change/`\n"
+        )
+        repo = _make_repo(self.tmpdir, decisions_index=index)
+        _make_archive_dir(repo, "2026-06-16-real-change")
+        # 2026-06-17-bad-change directory intentionally not created
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_registry_combined_status_and_decisions_both_fail(self):
+        """STATUS over cap + dangling pointer => violations, exit 2."""
+        status = (
+            "# Status\n\n"
+            "## Latest change — one\nbody1\n"
+            "## Prior change — two\nbody2\n"
+            "## Prior change — three\nbody3\n"
+            "## Even older change\nbody4\n"
+        )
+        index = (
+            "# Decisions Registry\n\n"
+            "- **2026-06-16** · missing-arc · rationale "
+            "→ `openspec/changes/archive/2026-06-16-missing-arc/`\n"
+        )
+        repo = _make_repo(self.tmpdir, status_md=status, decisions_index=index)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
 
 
 # ===================================================================

@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Import modules under test (siblings in scripts/)
@@ -519,12 +519,12 @@ class TestCheckReferences(unittest.TestCase):
         return p
 
     def test_clean_when_all_refs_resolve(self):
-        self._write("AGENTS.md", "## Roles\nSee `ai-docs/parked-follow-ons.md`.\n")
-        self._write("ai-docs/parked-follow-ons.md", "# Parked\n")
-        self._write("ai-docs/decisions.md", "## Decision: Bulk FK thing\n")
+        self._write("AGENTS.md", "## Roles\nSee `memory/parked-follow-ons.md`.\n")
+        self._write("memory/parked-follow-ons.md", "# Parked\n")
+        self._write("memory/decisions/INDEX.md", "## Decision: Bulk FK thing\n")
         self._write(
             "doc.md",
-            'See AGENTS.md § "Roles" and `ai-docs/decisions.md` § "Bulk FK thing".\n',
+            'See AGENTS.md § "Roles" and `memory/decisions/INDEX.md` § "Bulk FK thing".\n',
         )
         rc = sync_scaffold.check_references(
             str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
@@ -532,7 +532,7 @@ class TestCheckReferences(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_dangling_when_cited_aidoc_file_missing(self):
-        self._write("AGENTS.md", "## Roles\nSee `ai-docs/parked-follow-ons.md`.\n")
+        self._write("AGENTS.md", "## Roles\nSee `memory/parked-follow-ons.md`.\n")
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
         self.assertEqual(rc, 1)
 
@@ -563,18 +563,19 @@ class TestCheckReferences(unittest.TestCase):
         )
         self.assertEqual(rc, 0)
 
-    def test_aidoc_section_citation_checks_file_existence_only(self):
-        # ai-docs section titles drift (dates/ellipses) → only file existence is
+    def test_memory_section_citation_checks_file_existence_only(self):
+        # memory/ section titles drift (dates/ellipses) → only file existence is
         # policed: present file passes regardless of the cited section text...
         self._write("AGENTS.md", "## Roles\n")
-        self._write("ai-docs/decisions.md", "## Some heading that differs\n")
+        self._write("memory/decisions/INDEX.md", "## Some heading that differs\n")
         self._write(
-            "doc.md", 'See `ai-docs/decisions.md` § "drifted title (2026-06-16)".\n'
+            "doc.md",
+            'See `memory/decisions/INDEX.md` § "drifted title (2026-06-16)".\n',
         )
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc.md"])
         self.assertEqual(rc, 0)
-        # ...but a citation to a missing ai-docs file is still flagged.
-        self._write("doc2.md", 'See `ai-docs/gone.md` § "anything".\n')
+        # ...but a citation to a missing memory/ file is still flagged.
+        self._write("doc2.md", 'See `memory/gone.md` § "anything".\n')
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["doc2.md"])
         self.assertEqual(rc, 1)
 
@@ -591,11 +592,214 @@ class TestCheckReferences(unittest.TestCase):
         self._write("docs/reviews/2026-06/r.md", "x\n")
         self._write("ai-docs/archive/old.md", "x\n")
         self._write("openspec/changes/c/proposal.md", "x\n")
+        self._write("memory/research/old-analysis.md", "x\n")
         rels = sync_scaffold._tracked_markdown(self.tmpdir)
         self.assertIn("doc.md", rels)
-        self.assertNotIn("docs/reviews/2026-06/r.md", rels)
-        self.assertNotIn("ai-docs/archive/old.md", rels)
+        # docs/reviews/ and ai-docs/archive/ are no longer in _REF_SCAN_EXCLUDE.
+        self.assertIn("docs/reviews/2026-06/r.md", rels)
+        self.assertIn("ai-docs/archive/old.md", rels)
+        # openspec/changes/ and memory/research/ are frozen/excluded.
         self.assertNotIn("openspec/changes/c/proposal.md", rels)
+        self.assertNotIn("memory/research/old-analysis.md", rels)
+
+
+class SyncConfigYamlTest(unittest.TestCase):
+    """Tests for sync_config_yaml and the openspec/config.yaml rules-block sync (task 6.1)."""
+
+    # ── shared fixtures ──────────────────────────────────────────────────────
+
+    SCAFFOLD_CONFIG = """\
+schema: "1.0"
+
+context:
+  description: "Scaffold project"
+
+rules:
+  tasks: "tasks.md is for apply phase only"
+  research: "use fetch_clean.py for research"
+"""
+
+    TARGET_CONFIG_DIFFERENT_RULES = """\
+schema: "1.0"
+
+context:
+  description: "Downstream project — unique per-repo identity"
+
+rules:
+  tasks: "OLD tasks rule"
+"""
+
+    TARGET_CONFIG_NO_RULES = """\
+schema: "1.0"
+
+context:
+  description: "Downstream project — no rules block yet"
+"""
+
+    TARGET_CONFIG_KEY_AFTER_RULES = """\
+schema: "1.0"
+
+rules:
+  tasks: "some rule"
+
+extra_key: "this follows rules: — invalid"
+"""
+
+    # ── unit tests: sync_config_yaml() ───────────────────────────────────────
+
+    def test_rules_block_replaced(self):
+        """scaffold rules: block replaces the target's rules: block."""
+        result = sync_scaffold.sync_config_yaml(
+            self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_DIFFERENT_RULES
+        )
+        self.assertIn('tasks: "tasks.md is for apply phase only"', result)
+        self.assertIn("research:", result)
+        self.assertNotIn("OLD tasks rule", result)
+
+    def test_context_block_preserved(self):
+        """per-repo context: block is preserved byte-identical after sync."""
+        result = sync_scaffold.sync_config_yaml(
+            self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_DIFFERENT_RULES
+        )
+        self.assertIn("Downstream project — unique per-repo identity", result)
+        # scaffold's own context must NOT bleed into the result
+        self.assertNotIn('description: "Scaffold project"', result)
+
+    def test_idempotent(self):
+        """Applying sync_config_yaml twice returns identical result (fixed point)."""
+        first = sync_scaffold.sync_config_yaml(
+            self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_DIFFERENT_RULES
+        )
+        second = sync_scaffold.sync_config_yaml(self.SCAFFOLD_CONFIG, first)
+        self.assertEqual(first, second)
+
+    def test_drift_detected_by_extract_rules_block(self):
+        """rules: blocks from scaffold and a diverged target compare unequal."""
+        scaffold_rules = sync_scaffold._extract_rules_block(self.SCAFFOLD_CONFIG)
+        target_rules = sync_scaffold._extract_rules_block(
+            self.TARGET_CONFIG_DIFFERENT_RULES
+        )
+        self.assertIsNotNone(scaffold_rules)
+        self.assertIsNotNone(target_rules)
+        self.assertNotEqual(scaffold_rules, target_rules)
+
+    def test_append_if_absent(self):
+        """scaffold rules: is appended at EOF when target has no rules: block."""
+        result = sync_scaffold.sync_config_yaml(
+            self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_NO_RULES
+        )
+        self.assertIn("rules:", result)
+        self.assertIn("tasks.md is for apply phase only", result)
+        # per-repo context unchanged
+        self.assertIn("Downstream project — no rules block yet", result)
+        # result ends with a newline
+        self.assertTrue(result.endswith("\n"))
+
+    def test_abort_when_key_follows_rules(self):
+        """ValueError raised when a non-comment top-level key follows rules: in target."""
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync_config_yaml(
+                self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_KEY_AFTER_RULES
+            )
+
+    # ── integration tests: full sync() + check() flow ───────────────────────
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.scaffold = self.tmpdir / "scaffold"
+        (self.scaffold / "scripts").mkdir(parents=True)
+        (self.scaffold / "scripts" / "scaffold_manifest.txt").write_text(
+            "openspec/config.yaml\n"
+        )
+        (self.scaffold / "openspec").mkdir(parents=True)
+        (self.scaffold / "openspec" / "config.yaml").write_text(self.SCAFFOLD_CONFIG)
+
+        self.target = self.tmpdir / "target"
+        self.target.mkdir()
+        (self.target / ".git").mkdir()
+        (self.target / "openspec").mkdir(parents=True)
+        (self.target / "openspec" / "config.yaml").write_text(
+            self.TARGET_CONFIG_DIFFERENT_RULES
+        )
+
+        self._scaffold_root_patcher = patch.object(
+            sync_scaffold, "_scaffold_root", return_value=self.scaffold
+        )
+        self._scaffold_root_patcher.start()
+
+    def tearDown(self):
+        self._scaffold_root_patcher.stop()
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    def test_sync_replaces_rules_preserves_context_integration(self):
+        """Full sync(): rules: replaced, per-repo context: preserved."""
+        sync_scaffold.sync(str(self.target))
+        result = (self.target / "openspec" / "config.yaml").read_text()
+        self.assertIn("tasks.md is for apply phase only", result)
+        self.assertIn("research:", result)
+        self.assertNotIn("OLD tasks rule", result)
+        self.assertIn("Downstream project — unique per-repo identity", result)
+
+    def test_sync_idempotent_integration(self):
+        """sync() twice = no-op; --check exits 0 after second run."""
+        sync_scaffold.sync(str(self.target))
+        content_after_first = (self.target / "openspec" / "config.yaml").read_text()
+        sync_scaffold.sync(str(self.target))
+        content_after_second = (self.target / "openspec" / "config.yaml").read_text()
+        self.assertEqual(content_after_first, content_after_second)
+        rc = sync_scaffold.check(str(self.target))
+        self.assertEqual(rc, 0)
+
+    def test_check_detects_rules_drift_integration(self):
+        """--check exits 1 when target rules: block differs from scaffold."""
+        # target currently has different rules: — check should report drift
+        rc = sync_scaffold.check(str(self.target))
+        self.assertEqual(rc, 1)
+
+    def test_check_identical_when_only_context_differs(self):
+        """--check reports IDENTICAL when only context: differs (per-repo, expected)."""
+        sync_scaffold.sync(str(self.target))
+        current = (self.target / "openspec" / "config.yaml").read_text()
+        # alter only the per-repo context
+        modified = current.replace(
+            "Downstream project — unique per-repo identity",
+            "A completely different per-repo description",
+        )
+        (self.target / "openspec" / "config.yaml").write_text(modified)
+        rc = sync_scaffold.check(str(self.target))
+        self.assertEqual(rc, 0)
+
+    def test_append_if_absent_integration(self):
+        """sync() appends scaffold rules: when target has no rules: block."""
+        target_no_rules = self.tmpdir / "target_no_rules"
+        target_no_rules.mkdir()
+        (target_no_rules / ".git").mkdir()
+        (target_no_rules / "openspec").mkdir(parents=True)
+        (target_no_rules / "openspec" / "config.yaml").write_text(
+            self.TARGET_CONFIG_NO_RULES
+        )
+        sync_scaffold.sync(str(target_no_rules))
+        result = (target_no_rules / "openspec" / "config.yaml").read_text()
+        self.assertIn("rules:", result)
+        self.assertIn("tasks.md is for apply phase only", result)
+        self.assertIn("Downstream project — no rules block yet", result)
+        # idempotent after append
+        sync_scaffold.sync(str(target_no_rules))
+        second = (target_no_rules / "openspec" / "config.yaml").read_text()
+        self.assertEqual(result, second)
+
+    def test_abort_when_key_follows_rules_integration(self):
+        """sync() raises ValueError when a non-comment top-level key follows rules: in target."""
+        (self.target / "openspec" / "config.yaml").write_text(
+            self.TARGET_CONFIG_KEY_AFTER_RULES
+        )
+        with self.assertRaises(ValueError):
+            sync_scaffold.sync(str(self.target))
 
 
 if __name__ == "__main__":

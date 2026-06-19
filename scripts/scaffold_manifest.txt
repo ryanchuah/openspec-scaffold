@@ -20,10 +20,14 @@
 .opencode/agents/openspec-reviewer.md
 .opencode/agents/openspec-verifier.md
 
-# AI docs
-ai-docs/delegation-harness.md
-ai-docs/fast-track-workflow.md
-ai-docs/research-fetch-convention.md
+# Shared skills (.claude)
+.claude/skills/_shared/delegation-harness.md
+
+# Knowledge taxonomy map (scaffold-managed; per D-I)
+memory/README.md
+
+# OpenSpec config (rules: block synced; context: preserved per D-C)
+openspec/config.yaml
 
 # Scripts
 scripts/_convergence.py

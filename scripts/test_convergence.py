@@ -3,11 +3,10 @@
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch, ANY
+from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Import the module under test (sibling in scripts/)
@@ -318,7 +317,7 @@ class NormalizeSignatureTest(unittest.TestCase):
         change_slug = "test-ceil"
         # --_MAX_ATTEMPTS is 20; we iterate 19 different sigs, then 20th stops
         # Each raw output must be observably different so rule (a) + oscillations don't fire
-        attempts_needed = _convergence._MAX_ATTEMPTS + 1  # 21 to trigger at attempt 20
+        _convergence._MAX_ATTEMPTS + 1  # 21 to trigger at attempt 20
         for i in range(1, _convergence._MAX_ATTEMPTS):
             raw = f"FAILED test_foo.py::test_bar - AssertionError: attempt {i}"
             sig = _convergence._normalize_signature(raw)
@@ -330,7 +329,7 @@ class NormalizeSignatureTest(unittest.TestCase):
                             f"Attempt {i} should CONTINUE, got: {v}")
 
         # Final attempt (20th) → ceiling reached
-        raw_last = f"FAILED test_foo.py::test_bar - AssertionError: final"
+        raw_last = "FAILED test_foo.py::test_bar - AssertionError: final"
         sig_last = _convergence._normalize_signature(raw_last)
         v_last = _convergence._verdict(
             test_id="test_foo.py::test_bar", signature=sig_last,
@@ -344,7 +343,6 @@ class NormalizeSignatureTest(unittest.TestCase):
     def test_a3_delta_same_file_re_edited_stops_at_third(self):
         """Same file in git delta 3 times → STOP:b."""
         change_slug = "test-delta-b"
-        state = {"failures": {}, _convergence._FINGERPRINTS_KEY: {}}
 
         with patch.object(_convergence, "_try_git_delta") as mock_delta:
             # Each call returns foo.py as the sole delta file
@@ -379,7 +377,6 @@ class NormalizeSignatureTest(unittest.TestCase):
     def test_a3_delta_different_files_continue(self):
         """Different files in git delta → CONTINUE (no rule b)."""
         change_slug = "test-delta-cont"
-        state = {"failures": {}, _convergence._FINGERPRINTS_KEY: {}}
 
         with patch.object(_convergence, "_try_git_delta") as mock_delta:
             # First call: foo.py edited

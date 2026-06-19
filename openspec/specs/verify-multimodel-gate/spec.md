@@ -62,7 +62,7 @@ Before trusting any pass output, the orchestrator SHALL assert the real verifier
 - **THEN** the orchestrator reproduces or confirms it from disk before initiating a fix, and records a rationale if it overrules the finding as false
 
 ### Requirement: A single verifier agent serves both models, invoked via opencode run on both platforms
-The verifier SHALL be defined by a single agent file `.opencode/agents/openspec-verifier.md` with default `model: deepseek/deepseek-v4-flash`. Both platforms SHALL invoke it via `opencode run --agent openspec-verifier` with a `--model` flag per pass (`deepseek/deepseek-v4-pro`, then `deepseek/deepseek-v4-flash`), overriding the frontmatter default. Both invocations apply the full delegation harness (`< /dev/null`, `--dir`, EXIT-sentinel, bounded wait) per `ai-docs/delegation-harness.md`.
+The verifier SHALL be defined by a single agent file `.opencode/agents/openspec-verifier.md` with default `model: deepseek/deepseek-v4-flash`. Both platforms SHALL invoke it via `opencode run --agent openspec-verifier` with a `--model` flag per pass (`deepseek/deepseek-v4-pro`, then `deepseek/deepseek-v4-flash`), overriding the frontmatter default. Both invocations apply the full delegation harness (`< /dev/null`, `--dir`, EXIT-sentinel, bounded wait) per `.claude/skills/_shared/delegation-harness.md`.
 
 #### Scenario: Both platforms select the model per pass
 - **WHEN** either a Claude Code or an OpenCode orchestrator runs the pro pass then the flash pass

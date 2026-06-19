@@ -1,0 +1,37 @@
+# Decisions Registry
+
+One line per decision. Format:
+- Pointer: `- **YYYY-MM-DD** · <slug> · <one-line essence> → \`openspec/changes/archive/<dir>/\``
+- Inline (no archive): `- **YYYY-MM-DD** · <slug> · [inline] <short rationale>`
+
+---
+
+- **2026-06-13** · all-state-in-tracked-files · [inline] project state lives only in tracked files visible to all harnesses; no harness-native memory (Claude-only stores break cross-agent continuity)
+- **2026-06-13** · skills-in-dot-claude-only · [inline] opencode ≥1.16 auto-discovers `.claude/skills/**`; a second `.opencode/skills/` copy would create a divergence hazard
+- **2026-06-13** · no-lifecycle-hooks · [inline] hooks are Claude-only; equivalent guardrails live in skills both harnesses honor (deliberate carve-out: commit-test-gate hook added 2026-06-16)
+- **2026-06-14** · agents-not-cross-loaded · [inline] opencode cannot see `.claude/agents/`; formats differ; both `.claude/` + `.opencode/` agent dirs required for dual-harness
+- **2026-06-14** · change-tiers-standing · [inline] tiering (process-weight) and autonomy (interaction cadence) are independent concerns; tiers always apply, autonomy stays opt-in
+- **2026-06-16** · test-cmd-per-repo-file · per-repo test command convention for the commit-test-gate → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · commit-test-gate-hook · scaffold ships commit-test-gate PreToolUse hook as a deliberate exception to the no-hooks rule → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · convergence-detection-helper · apply-executor non-convergence detection delegated to deterministic `_convergence.py` helper (rules a/b); git-diff fingerprints for rule b → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · non-convergence-blocker-block · STOP emits exact 8-field `### NON-CONVERGENCE BLOCKER` block so primary can grep-detect and route to triage → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · reviewer-budget-780s · reviewer timeout raised to 780s with incremental output; partial stdout salvaged on timeout → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · commit-gate-hook-verified-w0 · hook wiring live-verified (W0 smoke): fires on `git commit`, exit 2 blocks, `$CLAUDE_PROJECT_DIR` expands → `openspec/changes/archive/2026-06-16-harden-delegation/`
+- **2026-06-16** · tier-confirmation-gate · non-fast-track agents must confirm tier+plan with operator before executing → `openspec/changes/archive/2026-06-16-harden-instruction-surface/`
+- **2026-06-16** · delegated-run-close-stdin · every delegated `opencode run` closes stdin (`< /dev/null`) to fail-fast on permission prompts → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`
+- **2026-06-16** · per-agent-external-dir · `external_directory` split by destructive capability: allow for read-only reviewer, deny/* + /tmp allow for write-capable executors → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`
+- **2026-06-16** · non-convergence-canary · canary rebuilt as impl-module + frozen-test to eliminate honest-executor gamability → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`
+- **2026-06-16** · verify-multimodel-gate · independent multi-model verification passes (self→pro→flash) as hard gates layered after self-review → `openspec/changes/archive/2026-06-16-verify-multimodel-gate/`
+- **2026-06-17** · fix-sync-mechanism · scaffold→downstream sync built with `sync_scaffold.py`, `scaffold_manifest.txt`, and `scaffold_check.py` PreToolUse guard → `openspec/changes/archive/2026-06-17-fix-sync-mechanism/`
+- **2026-06-17** · dedup-scaffold · `opencode run` delegation harness extracted from 4 copy-pasted copies into single `delegation-harness.md` → `openspec/changes/archive/2026-06-17-dedup-scaffold/`
+- **2026-06-17** · lifecycle-gates · verify gate tier-scaled (MEDIUM/COMPLEX only); simplicity + security gates added; archive-executor handles RENAMED; body-agreement guard added → `openspec/changes/archive/2026-06-17-lifecycle-gates/`
+- **2026-06-17** · skills-happy-path-first · reorder-only convention: skills lead with clean path before failure-mode triage (W5/B1) → `openspec/changes/archive/2026-06-17-cleanup-workflow-ergonomics/`
+- **2026-06-17** · rollback-branch-documented · `git revert` + new corrective change is the documented path for correctly-archived-but-wrong changes (W5/E4) → `openspec/changes/archive/2026-06-17-cleanup-workflow-ergonomics/`
+- **2026-06-17** · skill-enumeration-smoke-w5 · repeatable opencode skill-enumeration smoke added; all 7 `openspec-*` skills confirmed cross-loaded from `.claude/skills/` (W5/E5) → `openspec/changes/archive/2026-06-17-cleanup-workflow-ergonomics/`
+- **2026-06-17** · tier-review-tightening · [inline] SMALL changes require a flash verifier pass; OpenCode MEDIUM/COMPLEX runs self→pro→flash (same chain as Claude); OpenCode verifier uses `opencode run --model` not the Task tool; fix-executor timeout floor raised to 600s/-k30 (committed 2e152d4, no change archive)
+- **2026-06-17** · propagate-baseline-w6 · golden-source→downstream sync exercised end-to-end; all three repos converged on scaffold HEAD (W6) → `openspec/changes/archive/2026-06-17-propagate-baseline/`
+- **2026-06-17** · cap-status-log · STATUS.md capped at 3 paragraphs (overflow → status-log); decisions.md read-directive changed to headers-scan + relevant entries → `openspec/changes/archive/2026-06-17-cap-status-log/`
+- **2026-06-17** · split-open-questions · open-questions.md bounded to active blockers only; deferred long tail lives in parked-follow-ons.md → `openspec/changes/archive/2026-06-17-split-open-questions/`
+- **2026-06-17** · single-source-rules · five rule-families each assigned one canonical home; all other sites cite-don't-restate → `openspec/changes/archive/2026-06-17-single-source-rules/`
+- **2026-06-18** · lean-boot-context · state-file bounding conventions enforced at archive; psc-monitor AGENTS.md appendix relocated to on-demand reference files → `openspec/changes/archive/2026-06-18-lean-boot-context/`
+- **2026-06-18** · add-status-lint · `status_lint.py` gate mechanizes STATUS.md (≤3 entries, ≤150 words) and decisions.md (Date/Status + ≤300 words) bounds → `openspec/changes/archive/2026-06-18-add-status-lint/`

@@ -2,36 +2,36 @@
 
 > **MANDATORY — read before doing anything else**
 >
-> You are reading this file. Before taking any action, also read **`STATUS.md`** and
-> **`ai-docs/open-questions.md`** in full (both stay bounded); for
-> **`ai-docs/decisions.md`** read the `## ` section headers (it is append-only
-> and grows in a long-lived repo) and then read in full only the entries
-> relevant to the current task. If you are
+> You are reading this file. Before taking any action, also read **`memory/STATUS.md`** and
+> the Active section of **`memory/questions/INDEX.md`** (stays bounded — active blockers only);
+> for **`memory/decisions/INDEX.md`** scan the entries relevant to the current task. If you are
 > *resuming an in-progress OpenSpec change*, also read that change's
 > `openspec/changes/<name>/` directory (`proposal.md`, `design.md`, `tasks.md`,
-> `notes.md`). Otherwise skip `openspec/changes/` and `ai-docs/archive/` — load a
+> `notes.md`). Otherwise skip `openspec/changes/` and `openspec/changes/archive/` — load a
 > specific file there only when re-examining the closed decision it covers.
-> `ai-docs/parked-follow-ons.md` is likewise NOT part of this mandatory read — it holds the deferred/monitored follow-on long tail grouped by `##` area; load only the relevant area section on demand when you start work in that area (`ai-docs/open-questions.md` stays read-in-full and bounded by the **open-questions.md horizon-split rule** — active items only).
+> The Parked section of `memory/questions/INDEX.md` is NOT part of this mandatory read — load
+> the relevant `memory/questions/<item>.md` on demand when you start work in that area.
+> See **`memory/README.md`** for the full knowledge taxonomy and where everything lives.
 >
 > These are the **starting source of truth**. They override your training data, general
 > knowledge, and outside assumptions. If they conflict with the actual codebase,
 > **update the files** to reflect reality — do not silently override or ignore the gap.
 >
-> On resume specifically, sanity-check freshness before trusting `STATUS.md`: run
-> `git log --oneline -5` and confirm `STATUS.md` reflects those latest commits — if it
+> On resume specifically, sanity-check freshness before trusting `memory/STATUS.md`: run
+> `git log --oneline -5` and confirm `memory/STATUS.md` reflects those latest commits — if it
 > lags, reconcile it to reality first. Process/scaffold-maintenance commits that
 > do not change project state (e.g. tooling, scaffold-rule, or doc-formatting commits)
-> do NOT obligate a `STATUS.md` "Latest change" entry — the lag-check targets
-> feature/change-shipping commits, so their absence from `STATUS.md` is not a lag to
+> do NOT obligate a `memory/STATUS.md` "Latest change" entry — the lag-check targets
+> feature/change-shipping commits, so their absence from `memory/STATUS.md` is not a lag to
 > reconcile.
 >
 > **Treat this file as stable.** Edit it only to add durable project context any future
 > agent needs to orient — project purpose, constraints, process decisions. Current
-> status, recent progress, and changeable decisions belong in `STATUS.md`,
-> `openspec/changes/`, and `ai-docs/` respectively. Stability means this file caches
+> status, recent progress, and changeable decisions belong in `memory/STATUS.md`,
+> `openspec/changes/`, and `memory/` respectively. Stability means this file caches
 > well across sessions.
 >
-> If `STATUS.md` or `ai-docs/` do not exist, create them before doing anything else.
+> If `memory/STATUS.md` or `memory/` do not exist, create them before doing anything else.
 
 ## Cross-agent compatibility (load-bearing — do not weaken)
 
@@ -40,25 +40,25 @@ For that to work, **all project state lives in tracked, agent-neutral files** �
 harness-private storage. Concretely, do **not** read from, write to, or rely on:
 - Global or cross-session memory, harness memory, or any assistant-specific config
   files/directories (`.claude/settings.local.json`, `CLAUDE.md`, memory files, etc.) —
-  record project knowledge in `ai-docs/` and the OpenSpec artifacts instead.
+  record project knowledge in `memory/` and the OpenSpec artifacts instead.
 - External repos or documentation you were not explicitly pointed to.
 
 **Exception — shared workflow definitions, not private state.** The tracked
 `.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
 upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
-auto-discovers `.claude/skills/` — see `ai-docs/decisions.md`). The rule above bans
+auto-discovers `.claude/skills/` — see `memory/decisions/INDEX.md`). The rule above bans
 harness-*private* state/memory, not these shared, tracked definitions. (The sole
 carve-out is the shipped commit-test-gate `PreToolUse` hook in `.claude/settings.json`
 — verified present and git-tracked — which runs the tracked, agent-neutral
 `scripts/test-gate.sh`; see the commit-test-gate hook carve-out decision in
-`ai-docs/decisions.md`. This is a Claude-only, deliberate exception and does not weaken
+`memory/decisions/INDEX.md`. This is a Claude-only, deliberate exception and does not weaken
 the harness-private-state ban above.)
 
 **Claude Code harness memory — deliberately not used.** The Claude Code harness ships a
 persistent cross-session memory store (`~/.claude/.../memory/`, indexed by `MEMORY.md`). It is
 harness-*private* — invisible to OpenCode/DeepSeek — so it falls squarely under the ban above:
 we **deliberately do not use it for project state**. This is a stated non-use, **not** a
-carve-out. All durable project knowledge lives in `ai-docs/` + the OpenSpec artifacts, which
+carve-out. All durable project knowledge lives in `memory/` + the OpenSpec artifacts, which
 every agent can read; nothing project-bearing may live only in harness memory.
 
 Maintain this discipline for the **entire session**, not just at the start.
@@ -94,7 +94,7 @@ anything the agent must never violate — or remove this section if none.>
 - **The archive-executor is a role for the archive phase:** under Claude it is **deepseek-v4-pro
   driven via `opencode run`**, with a **Sonnet subagent as fallback**; under OpenCode it is
   **DeepSeek V4 Pro** (`@archive-executor`). It moves the change dir, syncs delta specs, and
-  reconciles `STATUS.md` / `ai-docs/decisions.md` / `ai-docs/open-questions.md` into a durable
+  reconciles `memory/STATUS.md` / `memory/decisions/INDEX.md` / `memory/questions/INDEX.md` into a durable
   handoff. Reconciliation is judgment-heavy, so it runs on the **pro** tier — unlike the
   mechanical apply-executor (flash).
 - **The `@openspec-reviewer` (deepseek-v4-pro)** is a read-only auditor invoked automatically
@@ -130,14 +130,9 @@ All non-trivial feature work follows the OpenSpec lifecycle:
 The agent invokes the appropriate skill (via its harness's skill mechanism) when a phase is
 entered. AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*/SKILL.md` (discovered by both harnesses — see
-`ai-docs/decisions.md`).
+`memory/decisions/INDEX.md`).
 
-> **Fast-track override:** A fast-track workflow exists in `ai-docs/fast-track-workflow.md`
-> for high-capability agents the operator explicitly trusts — it lets you proceed
-> **autonomously**, working the normal interactive checkpoints without pausing for
-> confirmation. **Do NOT use it unless the operator has explicitly granted you fast-track
-> authority** for this session or task — otherwise follow the normal, phase-gated workflow
-> here and in the skills. (Tiering, below, is standing and applies regardless.)
+> **Fast-track / autonomy:** autonomy is operator-told and ephemeral — no fast-track doc, by design.
 
 OpenSpec artifacts live in `openspec/changes/<name>/`.
 
@@ -146,7 +141,7 @@ OpenSpec artifacts live in `openspec/changes/<name>/`.
 An agent WITHOUT an explicit fast-track/autonomy grant MUST propose its tier together with a plan
 and obtain operator confirmation BEFORE beginning execution (delegating apply, editing
 implementation code, or mutating project state) — producing the plan is NOT gated. With an explicit
-fast-track grant, self-classify and proceed per `ai-docs/fast-track-workflow.md`. If the operator
+autonomy grant, self-classify and proceed. If the operator
 is unavailable, do NOT execute — report the proposed tier and plan and wait. Scale process weight
 to risk:
 
@@ -178,29 +173,28 @@ Two tiers of state, with deliberately different write rules:
   `review-log.md`. These writes are cheap because they happen while the relevant context
   is already loaded. The change dir is the scratch log.
 - **Project-tracked docs — write-deferred, reconciled at archive by a delegated executor.**
-  Do **not** incrementally edit `STATUS.md`, `ai-docs/decisions.md`, or
-  `ai-docs/open-questions.md` during busy work in a bloated context. They are reconciled
+  Do **not** incrementally edit `memory/STATUS.md`, `memory/decisions/INDEX.md`, or
+  `memory/questions/INDEX.md` during busy work in a bloated context. They are reconciled
   **once**, during **archive**, by a delegated `deepseek/deepseek-v4-pro`
   archive-executor (under Claude: via `opencode run`; under OpenCode: a subagent), then
   reviewed and committed by the primary. The executor runs with fresh context seeded from
-  the compact, structured change dir artifacts — not the conversation transcript. This
-  keeps the expensive multi-file reconciliation cheap: low context in, structured source
-  read. **This is the single load-bearing rule that preserves token economy — do not move
-  the reconciliation back into the working session.**
+  the change dir — keeping reconciliation cheap. **This is the single load-bearing rule
+  that preserves token economy — do not move the reconciliation back into the working session.**
 
-  **STATUS.md cap rule:** `STATUS.md` holds only the current-state preamble,
-  `## Immediate next action`, and at most the **3** most recent `## Latest change` / `## Prior change`
-  paragraphs; at archive the reconciliation moves any older `## Prior change` paragraphs verbatim into
-  `ai-docs/archive/status-log.md` (append-only, newest-first). This bounds the read-in-full onboarding
-  cost — the archive log keeps the full history. **Any `##` section that narrates a shipped change
-  counts toward this cap regardless of its heading title** (e.g. an `## Operations …` section
-  describing a shipped fix is bound by the cap and prunes like a `## Prior change`); only the
-  structural sections — the current-state preamble and `## Immediate next action` — are exempt. Note that `open-questions.md` is bounded by the **open-questions.md horizon-split rule** below (active items only; the deferred/monitored long tail parks to `ai-docs/parked-follow-ons.md`; resolved items still move to `ai-docs/archive/retired-notes.md`) and `decisions.md` is intentionally append-only. Each retained change-entry section is a ≤150-word headline summary (what shipped, key verify outcome, where details live); prose beyond that budget moves to `ai-docs/archive/status-log.md` at archive time.
+  **`memory/STATUS.md` cap rule:** holds ≤3 most recent change sections (each ≤150 words); when
+  the cap is exceeded the oldest section is simply dropped — the full record lives in
+  `openspec/changes/archive/`. **Any `##` section narrating a shipped change counts toward the cap**
+  regardless of heading title; only the current-state preamble and `## Immediate next action` are exempt.
 
-  **open-questions.md horizon-split rule:** `ai-docs/open-questions.md` is the always-loaded scan list and holds ONLY *active* items — open blockers (flagged **BLOCKING**), items needing an operator decision, and in-flight backlogs that gate other work. The deferred / monitored / low-priority long tail — follow-ons that only matter when the relevant area is next worked — lives in `ai-docs/parked-follow-ons.md` (grouped by `##` area headers; on-demand, NOT part of the mandatory onboarding read). Resolved items in either file move to `ai-docs/archive/retired-notes.md`. At archive the reconciliation routes each new follow-on to the correct file by horizon and keeps the active list lean. **A live blocker is never parked while it is live** — that is what preserves blocking-item visibility while bounding the always-loaded surface. The split is by horizon, never by age, so an old-but-live blocker is never demoted out of view. At archive, every non-BLOCKING bullet in a shipped-change section parks to `ai-docs/parked-follow-ons.md`, leaving a one-line pointer stub of the form `<area>: tune-after-evidence items → parked-follow-ons.md § <area>` so the prompt-to-load stays visible at boot; the archive-executor MUST NOT leave non-blocking shipped-change bullets in `open-questions.md`.
+  **`memory/questions/INDEX.md` split rule:** Active holds ONLY current blockers and operator-decision
+  items. The Parked section holds non-blocking follow-ons as one-line pointers to
+  `memory/questions/<item>.md` (on-demand). Resolved items close in-place. The split is by horizon,
+  never by age — a live blocker is never parked while live.
 
   <!-- CANONICAL: decisions-entry-format — cite, do not restate -->
-  **decisions.md entry rule:** Every new `ai-docs/decisions.md` entry (both repos) carries `**Date:** YYYY-MM-DD` and `**Status:** ACTIVE`; change-record entries (`fix-*`/`add-*`/`tune-*`) are capped at ≤300 words, with full rationale in `openspec/changes/archive/<name>/`. No retroactive backfill of existing entries is required.
+  **`memory/decisions/INDEX.md` entry rule:** Every new entry is a registry line:
+  `- **YYYY-MM-DD** · <slug> · <essence> → \`openspec/changes/archive/<dir>/\`` (or `[inline] <rationale>`
+  for archiveless decisions). See `memory/README.md` for the full format.
 
 > **Rollback branch — archived change was wrong:** If an archived change is later
 > found wrong: `git revert` its commit(s) and open a **new** corrective OpenSpec
@@ -235,7 +229,7 @@ Two tiers of state, with deliberately different write rules:
 - **Tests green before any commit.** The apply-executor does **not** commit; the
   orchestrator reviews and commits in small, reviewed checkpoints (one logical change
   each). Prefer invariant/property tests over output-pinning tests. **Never record test,
-  doc, or row counts in any tracked doc** (`STATUS.md`, `ai-docs/`, change `notes.md`) —
+  doc, or row counts in any tracked doc** (`memory/STATUS.md`, `memory/`, change `notes.md`) —
   not as a live-status figure and **not as a historical record**. "Tests pass" and
   "the system ran clean" are the only signals that matter; the sole exception is a
   *failing or newly-skipped* test, recorded as a note with its cause — never a passing
@@ -247,11 +241,11 @@ Two tiers of state, with deliberately different write rules:
   scoped to a named queue and to PRs whose own CI run passed — report each merge.
 - **Design lives in two places by horizon:** *per-change* design → the change's
   `design.md`. *Multi-change / long-horizon roadmap* that doesn't map to a single change
-  → `plans/`. Prune `plans/` as roadmap items become real changes.
-- **Authored deliverables go only to the standard agent-neutral dirs** — `plans/` (roadmap/
-  design direction), `ai-docs/decisions.md` (ratified decisions), `ai-docs/open-questions.md`
-  (active open follow-ons / blockers), `ai-docs/parked-follow-ons.md` (deferred/monitored follow-ons), `ai-docs/archive/` (historical/process records), `openspec/changes/<name>/`
-  (change artifacts). **Never** write deliverables into a harness-specific directory.
+  → `memory/roadmap.md`.
+- **Authored deliverables go only to the standard agent-neutral dirs** — `memory/` (project
+  knowledge: decisions, questions, lessons, roadmap, reference, research — see `memory/README.md`),
+  `openspec/changes/<name>/` (change artifacts). **Never** write deliverables into a
+  harness-specific directory.
 - **Guard destructive and external operations.** Never add a destructive operation
   (SQL `TRUNCATE`/`DROP`/`DELETE`-without-filter, and the like) without an
   input-confirmation guard. When running tests, blank or override external-service
@@ -270,9 +264,9 @@ Two tiers of state, with deliberately different write rules:
 
 ## Web research convention
 
-<!-- The full four-rule convention is single-sourced in ai-docs/research-fetch-convention.md. -->
+<!-- The full four-rule convention is single-sourced in openspec/config.yaml rules.research. -->
 The full four-rule convention (raw-fetch GitHub, `fetch_clean.py` for pages, fetch-only-what-you-cite)
-is single-sourced in **`ai-docs/research-fetch-convention.md`**. The load-bearing guardrail, restated
+is single-sourced in **`openspec/config.yaml`** (`rules.research`). The load-bearing guardrail, restated
 here so it is visible at first load: **never call the built-in `WebSearch` tool from the main thread**
 — route ALL web research through subagents that use `scripts/fetch_clean.py` (discover via a fetched
 search URL, then fetch the chosen pages), keeping the orchestrator context clean and letting research
@@ -287,5 +281,5 @@ simplicity/quality gate as hard gates before the artifact/spec mapping checks; (
 verify finds a bug you diagnose and scope it, then re-delegate the fix to a fresh
 executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
 trivial typo-level changes inline); (4) that you write the change dir
-continuously but reconcile `STATUS.md`/`ai-docs/` only at archive, by delegating
+continuously but reconcile `memory/STATUS.md`/`memory/` only at archive, by delegating
 to the archive-executor (deepseek-v4-pro), then reviewing and committing.
