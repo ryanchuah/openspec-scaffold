@@ -2,14 +2,7 @@
 
 ## Active
 
-### rename-memory-to-knowledge (shipped 2026-06-19)
-
-Decision: see `knowledge/decisions/INDEX.md` · rename-memory-to-knowledge entry.
-
-- **[operator decision]** All three repos have COMMITTED but UNPUSHED `rename-memory-to-knowledge`
-  branches (scaffold `b79b12d`, extrends `254266e`, psc-monitor `b37d425`). Pushing + merging each to
-  its main, and then repathing the Claude harness auto-memory `MEMORY.md` pointers (`memory/` →
-  `knowledge/`) to eliminate stale-pointer risk, await explicit operator go-ahead.
+<!-- No current scaffold blockers. (rename-memory-to-knowledge push/merge to all 3 mains: DONE 2026-06-19.) -->
 
 ## Parked
 

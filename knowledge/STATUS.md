@@ -46,8 +46,9 @@ tracked in `knowledge/questions/INDEX.md`). Decisions in `knowledge/decisions/IN
 
 
 ## Immediate next action
-No proactive build in flight. `rename-memory-to-knowledge` shipped; all three repos have COMMITTED but
-UNPUSHED `rename-memory-to-knowledge` branches (scaffold `b79b12d`, extrends `254266e`, psc-monitor
-`b37d425`) — pushing + merging each to its main awaits explicit operator go-ahead. Once merged, repath
-the Claude harness auto-memory `MEMORY.md` pointers (`memory/` → `knowledge/`) so future sessions
-don't chase dead paths. See `knowledge/questions/INDEX.md` Active for the operator-decision item.
+No proactive build in flight. `rename-memory-to-knowledge` shipped AND merged: all three repos'
+`rename-memory-to-knowledge` branches fast-forwarded into `main` and pushed (scaffold `origin/main`
+`05d2089`→`c286b2b`, also catching origin up on restructure/add-status-lint/lean-boot-context;
+extrends `254266e`; psc-monitor `b37d425`) — all three `origin/main` in sync. Claude harness
+auto-memory pointers repathed `memory/`→`knowledge/`. No outstanding follow-ons except the parked
+growth-trigger auto-splitter.
