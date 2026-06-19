@@ -144,6 +144,32 @@ skills (`.claude/skills/`) and in `openspec/config.yaml`, and load automatically
 
 ---
 
+## Propagating scaffold changes to existing projects
+
+The per-project setup above is the **one-time bootstrap** for a *new* project. Separately,
+this repo is the **golden source** for a set of shared workflow files, and existing downstream
+repos are kept in sync with it — this is an ongoing flow, not a one-time copy.
+
+To push a scaffold change into existing downstream repos:
+
+```bash
+# edit the scaffold-managed file HERE, then for each downstream repo:
+python3 scripts/sync_scaffold.py <downstream-repo>          # apply
+python3 scripts/sync_scaffold.py --check <downstream-repo>  # verify (exit 0 = converged)
+```
+
+- **Auto-propagated:** every path in `scripts/scaffold_manifest.txt` (byte-identical), the
+  shared spans of `AGENTS.md`, and the `rules:` block of `openspec/config.yaml`.
+- **Manual per-repo sweep:** per-repo project knowledge (`knowledge/STATUS.md`, `decisions/`,
+  `questions/`, `lessons.md`, `roadmap.md`, `reference/`, `research/`) and `openspec/specs/` are
+  deliberately **not** synced — repeat such changes by hand in each downstream repo.
+
+Full contract: the `scaffold-sync-mechanism` spec (`openspec/specs/scaffold-sync-mechanism/spec.md`).
+Downstream repos carry a pre-commit guard that blocks direct edits to scaffold-managed files and
+points back here.
+
+---
+
 ## Workflow reference
 
 | Invocation | When to use |

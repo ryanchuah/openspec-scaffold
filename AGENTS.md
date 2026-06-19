@@ -272,6 +272,27 @@ here so it is visible at first load: **never call the built-in `WebSearch` tool 
 search URL, then fetch the chosen pages), keeping the orchestrator context clean and letting research
 run in parallel and checkpoint to disk.
 
+## Scaffold-managed files & propagation
+
+Some files in this repo are **scaffold-managed**: they are kept in sync from the
+`openspec-scaffold` golden-source repo, listed in `scripts/scaffold_manifest.txt` and
+copied by `scripts/sync_scaffold.py`. **Edit scaffold-managed files only in openspec-scaffold,
+never in a downstream repo** — the pre-commit guard (`scripts/scaffold_check.py`) blocks
+staged edits to them and points you upstream. To propagate a scaffold change: edit it in
+openspec-scaffold, run `python3 scripts/sync_scaffold.py <downstream-repo>` for each downstream
+repo (`--check <repo>` reports drift; exit 0 = converged), then review and commit downstream.
+
+- **Auto-propagated** by the sync: every path in `scaffold_manifest.txt` (byte-identical), the
+  shared spans of this `AGENTS.md`, and the `rules:` block of `openspec/config.yaml`.
+- **NOT auto-propagated — needs a manual per-repo sweep:** all per-repo project knowledge
+  (`knowledge/STATUS.md`, `knowledge/decisions/`, `knowledge/questions/`, `knowledge/lessons.md`,
+  `knowledge/roadmap.md`, `knowledge/reference/`, `knowledge/research/`) and `openspec/specs/`.
+  A rule or terminology change that also touches these must be repeated by hand in each
+  downstream repo, or they silently drift.
+
+The full contract (manifest authority, span-replace, `rules:` propagation, the guard, drift
+checks) is the `scaffold-sync-mechanism` capability spec in the openspec-scaffold repo.
+
 ## After reading this file
 Acknowledge five things before acting: (1) your role as orchestrator/reviewer who runs
 the OpenSpec lifecycle and does not implement; (2) that apply is delegated to a
