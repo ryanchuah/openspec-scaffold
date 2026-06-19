@@ -4,7 +4,20 @@
 Project initialised from openspec-scaffold. Delegated-work governance hardened: the apply-executor now stops and reports on non-convergence instead of looping, the reviewer has a raised budget with incremental output and partial-salvage on timeout, and a Claude `PreToolUse` commit-test-gate deterministically blocks commits when tests are not green. Instruction surface hardened: a tier-confirmation gate prevents non-fast-track agents from self-classifying and executing without operator confirmation, and six stale/hazardous instruction sites were reconciled to shipped behavior. Delegation robustness hardened: all delegated `opencode run` invocations now close stdin to prevent permission-prompt hangs, per-agent permissions contain write-capable executors, the non-convergence canary is rebuilt as a non-gameable impl-module+frozen-test, and the commit-test-gate ships a smoke fixture with documented hook-wiring procedure. Verify hardened: independent multi-model verification passes (platform-specific chains; Claude self→pro→flash, OpenCode self→flash) now run as hard gates after the orchestrator's self-review, layered before the artifact checklist, so the final release-quality gate is never decided by a single model's blind spots. The shared `opencode run` delegation harness (invocation hardening, assert-real-agent-ran, surgical-kill, EXIT-sentinel completion detection, timeout budgets) is now single-sourced in `.claude/skills/_shared/delegation-harness.md`, with the four delegating skills reduced to citations plus per-phase specifics — extraction, not redesign, with all behavior and budgets preserved byte-for-byte. The verify gate is tier-scaled: multi-model passes apply to MEDIUM/COMPLEX only; a simplicity/quality gate and a conditional security gate (for sensitive-surface changes) were added, layered after the verifier passes; the archive-executor bodies were hardened to handle RENAMED spec requirements; and a new `scripts/test_executor_body_agreement.py` guard byte-compares each `.claude`/`.opencode` executor-pair body, failing when the two drift. The `knowledge/questions/INDEX.md` always-loaded surface is now bounded by a horizon split: it holds ONLY active items (blockers, operator-decision items, in-flight backlogs); the deferred/monitored long tail lives in the Parked section of `knowledge/questions/` (with per-item files for individual items). Instruction-surface rule-restatements single-sourced: five rule-families previously duplicated 3–5× across the instruction surface each assigned one canonical home with all other sites reduced to per-context specifics + a citation — extraction, not redesign, with every rule preserved verbatim. The canonical homes and the cite-don't-restate convention live in `knowledge/lessons.md` §2.
 
 
-## Latest change — restructure-project-knowledge SHIPPED (2026-06-19)
+## Latest change — rename-memory-to-knowledge SHIPPED (2026-06-19)
+
+Tracked project-knowledge folder renamed `memory/` → `knowledge/` across all three repos (scaffold,
+extrends, psc-monitor) — folder, both capability specs (`knowledge-organization` 4 requirements,
+`scaffold-sync-mechanism` 1 requirement), sync/lint mechanism (`sync_scaffold.py` incl.
+`_AIDOC_PATH_RE`→`_KNOWLEDGE_PATH_RE`, `status_lint.py`, manifest), both archive-executor bodies,
+skills, AGENTS.md, config — resolving the collision with Claude Code's harness-native
+`~/.claude/.../memory/`. Verify: self + deepseek-v4-pro + deepseek-v4-flash verifier passes all
+READY, zero defects; sync --check/--check-refs/status_lint green in all three repos; folder-vs-feature
+exceptions (harness path, historical decisions essence, agent-memory URL) confirmed intact. Two MODIFIED
+delta specs promoted at archive. Decisions in `knowledge/decisions/INDEX.md`; follow-ons in
+`knowledge/questions/`. Archive: `openspec/changes/archive/2026-06-19-rename-memory-to-knowledge`.
+
+## Prior change — restructure-project-knowledge SHIPPED (2026-06-19)
 
 Project knowledge restructured: `ai-docs/` → `knowledge/` with a universal taxonomy (knowledge types,
 classification rule, one home per type), bounded boot reads, and a single archive. `STATUS.md` moved to
@@ -31,26 +44,10 @@ zero defects; linter correctly detects the scaffold's over-budget STATUS entry (
 tracked in `knowledge/questions/INDEX.md`). Decisions in `knowledge/decisions/INDEX.md`; archive:
 `openspec/changes/archive/2026-06-18-add-status-lint`.
 
-## Prior change — lean-boot-context SHIPPED (2026-06-18)
-
-State-file bounding rules shipped + enforced at archive; psc-monitor appendix relocated to on-demand
-ai-docs/ files, slimming AGENTS.md from 707 to 321 lines. P3: three new state-bounding conventions
-(≤150-word STATUS entries, decisions Date/Status + ≤300-word cap, open-questions parking+pointer-stub
-rule) live in AGENTS.md §"State, write discipline, and the archive-as-handoff rule" and enforced at archive by both archive-executor
-bodies — forward-only, no risky retroactive summarization. P2: psc-monitor's 412-line appendix
-verbatim-relocated to 5 ai-docs/ files (schema, API, layout, ops-runbook, project-reference) with an
-On-demand references table; every citation repointed; no load-bearing constraint lost. Sync guard
-bumped 300→350 to fit lean repos after rule propagation. Verify: primary self-review found 2 defects
-(test regression, P2 content loss) → fixed; pro + flash verifier passes both READY, zero defects;
-all scaffold tests green; all four convergence/refs gates green. Decisions in `knowledge/decisions/INDEX.md`;
-follow-ons split by horizon (active → `knowledge/questions/INDEX.md`, parked → Parked section of `knowledge/questions/`). Archive:
-openspec/changes/archive/2026-06-18-lean-boot-context.
-
 
 ## Immediate next action
-No proactive build in flight. `restructure-project-knowledge` shipped; `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`,
-and `knowledge/questions/` are now the state-file targets; the dual archive is retired. The add-status-lint
-Phase B cleanup is subsumed — `status_lint.py` exits clean in all three repos. The one forward-looking
-follow-on (growth-trigger auto-splitter) is parked in `knowledge/questions/INDEX.md`. All three repos'
-`restructure-knowledge`/scaffold branches are local/unpushed — push + downstream merges await operator
-go-ahead. Process note for concurrent applies: give each session its own `git worktree`.
+No proactive build in flight. `rename-memory-to-knowledge` shipped; all three repos have COMMITTED but
+UNPUSHED `rename-memory-to-knowledge` branches (scaffold `b79b12d`, extrends `254266e`, psc-monitor
+`b37d425`) — pushing + merging each to its main awaits explicit operator go-ahead. Once merged, repath
+the Claude harness auto-memory `MEMORY.md` pointers (`memory/` → `knowledge/`) so future sessions
+don't chase dead paths. See `knowledge/questions/INDEX.md` Active for the operator-decision item.

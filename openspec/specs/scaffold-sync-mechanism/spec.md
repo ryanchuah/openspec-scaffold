@@ -6,9 +6,7 @@ shared workflow files in sync between openspec-scaffold (the golden source) and 
 span-identical on the shared sections for `AGENTS.md`. The mechanism injects no per-file header;
 the single human-facing "scaffold-managed — edit upstream" note lives in `AGENTS.md` and as ordinary
 content in the manifest.
-
 ## Requirements
-
 ### Requirement: manifest-declares-shared-files
 
 A file `scripts/scaffold_manifest.txt` in the scaffold repo SHALL be the authoritative list of all
@@ -23,17 +21,17 @@ re-running `sync_scaffold.py` for each downstream repo.
 
 #### Scenario: manifest-excludes-volatile-state
 - **WHEN** the manifest lists all scaffold-managed files
-- **THEN** it SHALL NOT include any per-repo project knowledge under `memory/` — specifically
-  `memory/STATUS.md`, the `memory/decisions/` tree, the `memory/questions/` tree, `memory/lessons.md`,
-  `memory/roadmap.md`, the `memory/reference/` tree, and the `memory/research/` tree — nor
+- **THEN** it SHALL NOT include any per-repo project knowledge under `knowledge/` — specifically
+  `knowledge/STATUS.md`, the `knowledge/decisions/` tree, the `knowledge/questions/` tree, `knowledge/lessons.md`,
+  `knowledge/roadmap.md`, the `knowledge/reference/` tree, and the `knowledge/research/` tree — nor
   `.claude/settings.json`, `scripts/test-cmd`, or `scripts/sync_scaffold.py` (the sync script lives in
   scaffold only)
-- **AND** the sole exception under `memory/` is `memory/README.md` — the universal taxonomy map — which IS
+- **AND** the sole exception under `knowledge/` is `knowledge/README.md` — the universal taxonomy map — which IS
   scaffold-managed (see `manifest-includes-taxonomy-map`)
 
 #### Scenario: manifest-includes-taxonomy-map
 - **WHEN** `scripts/scaffold_manifest.txt` lists scaffold-managed files
-- **THEN** `memory/README.md` SHALL be an entry in the manifest and SHALL be synced byte-identical to
+- **THEN** `knowledge/README.md` SHALL be an entry in the manifest and SHALL be synced byte-identical to
   downstream repos, so the knowledge taxonomy (types, classification rule, home table) stays consistent
   across all repos rather than drifting per-repo
 
@@ -51,8 +49,6 @@ re-running `sync_scaffold.py` for each downstream repo.
 - **THEN** that path SHALL exist in the scaffold repo
 - **AND** a file that is scaffold-managed in principle but absent from scaffold SHALL NOT be listed until
   it exists in scaffold
-
----
 
 ### Requirement: sync-script-copies-files
 
@@ -255,3 +251,4 @@ block drifts from scaffold's.
 #### Scenario: config-rules-drift-detectable
 - **WHEN** the target's `openspec/config.yaml` `rules:` block differs from scaffold's
 - **THEN** `sync_scaffold.py --check <target>` SHALL report drift and exit non-zero for it
+
