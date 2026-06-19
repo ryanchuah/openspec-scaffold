@@ -31,7 +31,7 @@ Every change to this scaffold must be **source-traceable** (operator constraint,
 
 1. **Established rules only.** Every rule added must point to an existing rule in a project's `AGENTS.md` or memory store. If you can't name the source, drop it or ask. Do NOT invent or extrapolate.
 
-2. **Autonomy stays opt-in.** Never bake "proceed autonomously / batch questions / don't interrupt" defaults into the *normal* workflow. That behavior is operator-told and ephemeral — there is no fast-track doc, by design. The operator explicitly chose "leave interaction guidance as-is."
+2. **Autonomy stays opt-in.** Never bake "proceed autonomously / batch questions / don't interrupt" defaults into the *normal* workflow. That behavior is operator-told and ephemeral — there is no autonomy doc or mode, by design. The operator explicitly chose "leave interaction guidance as-is."
 
 3. **Respect deliberate prior decisions.** Before reverting or re-adding anything, read the commit body — e.g. `bulk-archive` was removed intentionally. Don't additively sync over a conscious choice.
 
@@ -134,7 +134,7 @@ This prevents the crash. If it still errors: re-run with the preamble — do NOT
 The 2026-06 industry-standards research (4 parallel subagents, research artifacts in `knowledge/research/research-industry-standards-2026-06/`) found that **this scaffold was AHEAD of industry** on its quality gates:
 - Separate-model pre-implementation review
 - Behavioral verify beyond just running tests
-- Trust-gated fast-track (autonomy strictly opt-in)
+- Trust-gated autonomy (strictly opt-in)
 - Archive-as-fresh-context (fresh executor with structured change-dir as sole input)
 
 This was a **polish pass, not catch-up**. Applied polish: glob fix, harness-neutral skill wording, "don't fan out cohesive/dependency-laden work" guardrail, resume-staleness check, `.claude/skills/` exception documented. The research also confirmed: opencode ≥1.16 auto-loads `.claude/skills/` (no duplication needed); deepseek multi-turn fallback bug was fixed in opencode v1.14.24 (not a live issue).

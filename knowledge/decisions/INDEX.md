@@ -17,7 +17,7 @@ One line per decision. Format:
 - **2026-06-16** · non-convergence-blocker-block · STOP emits exact 8-field `### NON-CONVERGENCE BLOCKER` block so primary can grep-detect and route to triage → `openspec/changes/archive/2026-06-16-harden-delegation/`
 - **2026-06-16** · reviewer-budget-780s · reviewer timeout raised to 780s with incremental output; partial stdout salvaged on timeout → `openspec/changes/archive/2026-06-16-harden-delegation/`
 - **2026-06-16** · commit-gate-hook-verified-w0 · hook wiring live-verified (W0 smoke): fires on `git commit`, exit 2 blocks, `$CLAUDE_PROJECT_DIR` expands → `openspec/changes/archive/2026-06-16-harden-delegation/`
-- **2026-06-16** · tier-confirmation-gate · non-fast-track agents must confirm tier+plan with operator before executing → `openspec/changes/archive/2026-06-16-harden-instruction-surface/`
+- **2026-06-16** · tier-confirmation-gate · non-autonomous agents must confirm tier+plan with operator before executing → `openspec/changes/archive/2026-06-16-harden-instruction-surface/`
 - **2026-06-16** · delegated-run-close-stdin · every delegated `opencode run` closes stdin (`< /dev/null`) to fail-fast on permission prompts → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`
 - **2026-06-16** · per-agent-external-dir · `external_directory` split by destructive capability: allow for read-only reviewer, deny/* + /tmp allow for write-capable executors → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`
 - **2026-06-16** · non-convergence-canary · canary rebuilt as impl-module + frozen-test to eliminate honest-executor gamability → `openspec/changes/archive/2026-06-16-harden-delegation-robustness/`

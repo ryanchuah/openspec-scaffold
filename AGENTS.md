@@ -132,13 +132,13 @@ entered. AGENTS.md carries only cross-cutting rules that span multiple phases.
 Skill files: `.claude/skills/openspec-*/SKILL.md` (discovered by both harnesses — see
 `knowledge/decisions/INDEX.md`).
 
-> **Fast-track / autonomy:** autonomy is operator-told and ephemeral — no fast-track doc, by design.
+> **Autonomy:** autonomy is operator-told and ephemeral — there is no autonomy doc or mode, by design.
 
 OpenSpec artifacts live in `openspec/changes/<name>/`.
 
 ## Change tiers
 
-An agent WITHOUT an explicit fast-track/autonomy grant MUST propose its tier together with a plan
+An agent WITHOUT an explicit autonomy grant MUST propose its tier together with a plan
 and obtain operator confirmation BEFORE beginning execution (delegating apply, editing
 implementation code, or mutating project state) — producing the plan is NOT gated. With an explicit
 autonomy grant, self-classify and proceed. If the operator
@@ -273,7 +273,7 @@ search URL, then fetch the chosen pages), keeping the orchestrator context clean
 run in parallel and checkpoint to disk.
 
 ## After reading this file
-Acknowledge four things before acting: (1) your role as orchestrator/reviewer who runs
+Acknowledge five things before acting: (1) your role as orchestrator/reviewer who runs
 the OpenSpec lifecycle and does not implement; (2) that apply is delegated to a
 sequential apply-executor and verify is *your* deep behavioral review, followed
 by independent multi-model verification passes (the `openspec-verifier`) and the
@@ -282,4 +282,8 @@ verify finds a bug you diagnose and scope it, then re-delegate the fix to a fres
 executor (deepseek-first, Sonnet-fallback — see verify skill for the ladder; only
 trivial typo-level changes inline); (4) that you write the change dir
 continuously but reconcile `knowledge/STATUS.md`/`knowledge/` only at archive, by delegating
-to the archive-executor (deepseek-v4-pro), then reviewing and committing.
+to the archive-executor (deepseek-v4-pro), then reviewing and committing; (5) that wherever
+work can be offloaded you delegate it to subagents — on the model appropriate to the task
+(cheaper models like Sonnet for extraction/mechanical passes, stronger ones for judgment-heavy
+work) — to keep raw reading and transforming out of the orchestrator's context, so your window
+stays lean for the judgment and review only you can do.

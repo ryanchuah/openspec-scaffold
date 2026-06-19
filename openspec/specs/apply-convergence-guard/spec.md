@@ -125,7 +125,7 @@ On a declared non-convergence blocker the primary SHALL choose recovery by triag
 reflexively escalating to Sonnet, on BOTH delegation paths. Triage options SHALL include: tighten
 the brief / re-slice and dispatch a fresh executor (brief/plan gap); escalate to the user
 (artifact/decision gap); or spawn a Sonnet subagent (model-capability gap). This recovery routing
-SHALL hold in ALL autonomy modes: a fast-track/autonomy grant relaxes interactive checkpointing but
+SHALL hold in ALL autonomy modes: an autonomy grant relaxes interactive checkpointing but
 SHALL NOT replace declared-blocker triage with an unconditional "non-crash failure → Sonnet
 immediately" ladder.
 
@@ -137,10 +137,10 @@ immediately" ladder.
 - **WHEN** the OpenCode primary receives a declared blocker
 - **THEN** it reports the blocker with the triage options to the user rather than silently waiting
 
-#### Scenario: Recovery routing holds under fast-track / autonomy
-- **WHEN** the primary is operating under a fast-track/autonomy grant and receives a declared blocker
+#### Scenario: Recovery routing holds under autonomy
+- **WHEN** the primary is operating under an autonomy grant and receives a declared blocker
 - **THEN** it still selects a triage branch and does NOT reflexively escalate to Sonnet
-- **AND** the fast-track guidance does NOT state an unconditional "non-crash failure → Sonnet immediately" ladder
+- **AND** the autonomy guidance does NOT state an unconditional "non-crash failure → Sonnet immediately" ladder
 
 ### Requirement: The convergence guard ships with a hardened, instruction-gated canary
 The repository SHALL carry an end-to-end canary fixture that an honest apply-executor cannot satisfy by editing the file it is instructed to edit. The impossibility SHALL live in an implementation module that a frozen test imports — NOT in an assertion inside the file the executor is told to edit. The canary's `tasks.md` SHALL list only the implementation module as editable and SHALL mark the test file do-not-edit. Running the apply-executor against the canary SHALL produce a declared `### NON-CONVERGENCE BLOCKER` (trigger a, b, or c — whichever the guard reaches first), not a green result and not a wall-clock timeout. The freeze is instruction-gated (it hardens against the honest edit-the-assertion shortcut, not a malicious rewrite), which is sufficient for the canary's purpose.

@@ -9,4 +9,4 @@ Shipped 2026-06-16. Rationale in decisions registry; archive: `openspec/changes/
   - Model-assignment matrix duplicated — DONE via single-source-rules.
   - Apply "Completion detection" / verify MANDATORY block convolution — DONE via W5/B1.
   - Onboard kept as simplified teaching path (design D6b) — deliberate decision.
-- **Reference-rot watch (LOW).** `fast-track-workflow.md` referenced the apply skill path; file retired by restructure-project-knowledge.
+- **Reference-rot watch (LOW)** — DONE. The retired `fast-track-workflow.md` is gone, and the "fast-track" term has since been purged from all live surfaces (the autonomy grant is the surviving concept).
