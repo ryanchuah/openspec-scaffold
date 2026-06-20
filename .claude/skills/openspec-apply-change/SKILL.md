@@ -33,6 +33,15 @@ Implement tasks from an OpenSpec change.
 
    Always announce: "Using change: <name>" and how to override (e.g., "apply <other>").
 
+1a. **SMALL premise gate (fail-fast after change selection)**
+    For a SMALL change, assert that `premise-review.md` exists in the change/plan directory
+    and contains a resolved verdict — `PREMISE: AGREE` or a recorded `OVERRIDE: proceed` —
+    before proceeding to implementation. If neither is present, STOP with an error: the
+    premise pass must complete before apply can begin. MEDIUM/COMPLEX changes skip this gate
+    (they received premise review during propose). The apply skill does **not** invoke the
+    premise reviewer — the orchestrator already did (see the AGENTS.md SMALL bullet for the
+    invocation).
+
 2. **Check status to understand the schema**
    ```bash
    openspec status --change "<name>" --json

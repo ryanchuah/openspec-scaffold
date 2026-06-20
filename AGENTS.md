@@ -97,10 +97,19 @@ anything the agent must never violate — or remove this section if none.>
   reconciles `knowledge/STATUS.md` / `knowledge/decisions/INDEX.md` / `knowledge/questions/INDEX.md` into a durable
   handoff. Reconciliation is judgment-heavy, so it runs on the **pro** tier — unlike the
   mechanical apply-executor (flash).
-- **The `@openspec-reviewer` (deepseek-v4-pro)** is a read-only auditor invoked automatically
-  during **propose** to review artifacts *before* implementation. It surfaces defects;
-  it never edits. Under Claude Code it is invoked via
-  `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro`
+- **The `@openspec-reviewer` (deepseek-v4-pro)** is a read-only auditor invoked
+  at two altitudes for **pre-implementation premise review** — the direction-level
+  counterpart of the post-implementation `verify-multimodel-gate`:
+  - **Direction gate (explore, all tiers):** a pro review of a load-bearing
+    `explore-brief.md` before the operator advances to propose or apply — ensuring
+    the problem, root cause, and solution direction are sound before any artifact is
+    written.
+  - **Change-itself (propose/apply):** folded into the existing pro `proposal.md`
+    review (MEDIUM/COMPLEX) and a flash pre-apply pass over the SMALL plan — ensuring
+    the change's own premise holds.
+  The reviewer emits a machine-readable `PREMISE: AGREE|DISSENT` verdict orthogonal to
+  the 🔴/🟡/💡 severity system. It surfaces defects; it never edits. Under Claude Code
+  it is invoked via `opencode run --agent openspec-reviewer --model deepseek/deepseek-v4-pro`
   (`.opencode/agents/openspec-reviewer.md`); under OpenCode via the Task tool with
   `subagent_type: "openspec-reviewer"`.
 - **The `openspec-verifier` (deepseek, read-only, bash-capable)** is an independent
@@ -119,9 +128,10 @@ anything the agent must never violate — or remove this section if none.>
 
 All non-trivial feature work follows the OpenSpec lifecycle:
 
-1. **explore** — research and scope; writes `explore-brief.md`.
+1. **explore** — thinking-partner stance for research and scoping; no mandatory output (may optionally produce OpenSpec artifacts if the user asks). When exploration crystallizes and the operator signals intent to advance, the **direction gate** fires: a pro review of the captured `explore-brief.md` to validate problem, root cause, and solution direction before any artifact is written.
 2. **propose** — generate proposal, design, tasks; `@openspec-reviewer` audits each
-   before freeze.
+   before freeze — the proposal review includes the **premise verdict** (`AGREE`/`DISSENT`)
+   assessing the change's direction; freeze requires zero 🔴 **and** `PREMISE: AGREE`.
 3. **apply** — delegate implementation to the apply-executor.
 4. **verify** — deep behavioral review by the orchestrator, followed by independent multi-model verification passes (the `openspec-verifier`) and the simplicity/quality gate as hard gates before the artifact/spec mapping checks.
 5. **archive** — close the change; promote specs; reconcile project docs.
@@ -146,11 +156,49 @@ is unavailable, do NOT execute — report the proposed tier and plan and wait. S
 to risk:
 
 - **SMALL** — skip the full OpenSpec lifecycle, but still: (1) write a plan checkpointed to a standard
-  dir (the change dir or `plans/`), (2) delegate execution to **deepseek-v4-flash** via
-  `opencode run --agent apply-executor`, (3) do your own verification per this SMALL bullet.
-  SMALL does **not** invoke the verify skill, is **not** subject to its multi-model passes or
-  verify phase-gate STOP, and SHALL run a single `deepseek/deepseek-v4-flash` verifier pass
-  (same invocation shape as in the verify skill's flash pass).
+  dir (the change dir or `plans/`), (2) the orchestrator runs the **SMALL premise pass** below,
+  (3) delegate execution to **deepseek-v4-flash** via `opencode run --agent apply-executor`,
+  (4) do your own verification per this SMALL bullet.  SMALL does **not** invoke the verify skill,
+  is **not** subject to its multi-model passes or verify phase-gate STOP, and SHALL run a single
+  `deepseek/deepseek-v4-flash` verifier pass (same invocation shape as in the verify skill's flash pass).
+
+  **Plan minimum:** the SMALL plan SHALL contain at minimum a **problem statement**, a **proposed
+  approach/fix**, and an explicit **out-of-scope** note. This is a contract, not enforced tooling —
+  a structurally inadequate plan is flagged by the reviewer as a finding rather than guessed at.
+
+  **SMALL premise pass (invoker = orchestrator, not apply skill):** after the plan is written and
+  BEFORE apply delegation, the orchestrator invokes the flash premise review. This trigger is
+  independent of operator confirmation, so it fires identically with or without an autonomy grant.
+  The invocation uses the hardened harness pattern from
+  `.claude/skills/_shared/delegation-harness.md` (see the `SMALL | premise reviewer (flash)` row
+  in §e):
+  ```bash
+  timeout -k 15 780 opencode run \
+    --dir <repoRoot> \
+    --agent openspec-reviewer \
+    --model deepseek/deepseek-v4-flash \
+    --format json \
+    "Review the plan at <planPath>. This is a SMALL change plan — NOT a \
+     structured proposal.md. Emit a ### Premise Verdict block (PREMISE: \
+     AGREE|DISSENT) assessing problem/root-cause/solution." \
+    > /tmp/small-premise-out.jsonl 2> /tmp/small-premise-err.log < /dev/null
+  ```
+  If a verified `explore-brief.md` exists, also reference it in the prompt: *"Also read the
+  verified explore-brief at <path> — flag any drift per D10 (reframed problem, ruled-out
+  approach, scope expansion that was not vetted)."*
+  The orchestrator extracts the `### Premise Verdict` block from stdout and writes it to
+  `premise-review.md` (in the plan dir). On timeout/crash: if partial output exists (≥1 finding
+  or >120s elapsed), re-run once; otherwise escalate. Partial output is written to
+  `premise-review.md` marked `PARTIAL`.
+
+  **Verdict routing:**
+  - **Without an autonomy grant:** the orchestrator presents the verdict inside the operator
+    tier+plan confirmation prompt, so a `DISSENT` reaches the operator by construction (handled
+    like the propose-skill DISSENT branch: re-frame / re-scope / override-to-proceed).
+  - **Under an autonomy grant:** the grant covers tier self-classification only — NOT overriding a
+    premise dissent. A `DISSENT` with no recorded operator override (no `OVERRIDE: proceed` in
+    `premise-review.md`) leaves the SMALL apply gate stopped, and the orchestrator escalates to
+    the operator.
 - **MEDIUM** — run the OpenSpec lifecycle, except **propose** emits only `tasks.md`, reviewed by
   **deepseek-v4-pro** before freeze; change-specific acceptance criteria go in the change's `notes.md`.
   Runs the verify skill (including its multi-model passes and phase-gate STOP).
@@ -294,7 +342,7 @@ The full contract (manifest authority, span-replace, `rules:` propagation, the g
 checks) is the `scaffold-sync-mechanism` capability spec in the openspec-scaffold repo.
 
 ## After reading this file
-Acknowledge five things before acting: (1) your role as orchestrator/reviewer who runs
+Acknowledge six things before acting: (1) your role as orchestrator/reviewer who runs
 the OpenSpec lifecycle and does not implement; (2) that apply is delegated to a
 sequential apply-executor and verify is *your* deep behavioral review, followed
 by independent multi-model verification passes (the `openspec-verifier`) and the
@@ -307,4 +355,8 @@ to the archive-executor (deepseek-v4-pro), then reviewing and committing; (5) th
 work can be offloaded you delegate it to subagents — on the model appropriate to the task
 (cheaper models like Sonnet for extraction/mechanical passes, stronger ones for judgment-heavy
 work) — to keep raw reading and transforming out of the orchestrator's context, so your window
-stays lean for the judgment and review only you can do.
+stays lean for the judgment and review only you can do; (6) that direction is premise-reviewed
+at two altitudes — the **direction gate** at explore (pro review of `explore-brief.md` before any
+artifact is written, all tiers) and the **change-itself** at propose/apply (pro review of
+`proposal.md` for MEDIUM/COMPLEX, flash pre-apply pass for SMALL) — and that a `PREMISE: DISSENT`
+verdict is surfaced to the operator and never silently auto-resolved.

@@ -35,11 +35,25 @@ I'll create artifacts with review:
 
    **IMPORTANT**: Do NOT proceed without understanding what the user wants to build.
 
-2. **Create the change directory**
-   ```bash
-   openspec new change "<name>"
-   ```
-   This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
+ 2. **Create the change directory**
+    ```bash
+    openspec new change "<name>"
+    ```
+    This creates a scaffolded change in the planning home resolved by the CLI with `.openspec.yaml`.
+
+    **Relocate explore artifacts (D8):** If a `plans/<name>/` directory exists (matching the
+    change name as the slug), move the explore brief and its premise review into the change
+    dir so all artifacts live together in the canonical location (the change root resolves
+    to `openspec/changes/<name>/` under the standard `planningHome`):
+    ```bash
+    if [ -d "plans/<name>" ]; then
+      mv plans/<name>/explore-brief.md "openspec/changes/<name>/" 2>/dev/null || true
+      mv plans/<name>/premise-review.md "openspec/changes/<name>/" 2>/dev/null || true
+      rmdir plans/<name>/ 2>/dev/null || true
+    fi
+    ```
+    Best-effort skip when no matching `plans/<name>/` exists — the change may have been proposed
+    without a prior explore phase, and the silence is intentional.
 
 3. **Get the artifact build order**
    ```bash
@@ -109,15 +123,29 @@ I'll create artifacts with review:
              Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation): `< /dev/null`
              + `--dir <repoRoot>`. Budget 780s with `-k 15` per the table in §e.
 
+             The prompt varies by artifact:
+               - For **`proposal.md`**: also request the premise verdict: append
+                 `"This is a premise review — also emit a ### Premise Verdict block
+                  (PREMISE: AGREE|DISSENT) assessing the four direction checks."`
+                 If a verified `explore-brief.md` exists (at `plans/<slug>/explore-brief.md`
+                 or already relocated into the change dir), also reference it with the D10
+                 drift instruction: append `"Also read the verified explore-brief at <path>
+                  — flag any drift per D10 (reframed problem, ruled-out approach, scope
+                  expansion that was not vetted)."`
+               - For **`design.md`** / **`tasks.md`**: use the base prompt as-is (no premise
+                 verdict requested — the premise was settled upstream).
+
+             Base prompt:
+
              timeout -k 15 780 opencode run \
-               --dir <repoRoot> \
-               --agent openspec-reviewer \
-               --model deepseek/deepseek-v4-pro \
-               --format json \
-               "Review the artifact at <changeRoot>/<artifact>.md. \
-                Also read the explore-brief if it exists and openspec/specs/ \
-                for context." \
-               > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
+                --dir <repoRoot> \
+                --agent openspec-reviewer \
+                --model deepseek/deepseek-v4-pro \
+                --format json \
+                "Review the artifact at <changeRoot>/<artifact>.md. \
+                 Also read the explore-brief if it exists and openspec/specs/ \
+                 for context." \
+                > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
 
              If the user specified a different reviewer model, substitute it
              for `deepseek/deepseek-v4-pro`. The `--agent` flag loads the
@@ -129,27 +157,39 @@ I'll create artifacts with review:
              (do NOT simply escalate).
 
          2. **Assert the real reviewer actually ran:** Per `.claude/skills/_shared/delegation-harness.md`
-            §b (grep stderr for `Falling back to default agent`, extract `part.text` via
-            `jq`, confirm parseable). Then add the reviewer-specific format check:
-            confirm the extracted text contains a `## Review Round` heading AND at least
-            one severity marker (🔴/🟡/💡). If either is missing, the output did not come
-            from the reviewer prompt: do NOT proceed, escalate with the raw output.
+             §b (grep stderr for `Falling back to default agent`, extract `part.text` via
+             `jq`, confirm parseable). Then add the reviewer-specific format check:
+             confirm the extracted text contains a `## Review Round` heading AND at least
+             one severity marker (🔴/🟡/💡). If either is missing, the output did not come
+             from the reviewer prompt: do NOT proceed, escalate with the raw output.
 
-        3. Process the review:
-           - Append the review text to `review-log.md` with round number
-             and date
-           - When a fix is required in the artifact, make it a **concrete,
-             implementable decision**, not a paraphrase of the problem. E.g.,
-             instead of "return value semantics differ" (paraphrase), decide:
-             "returns 0 — zero Document rows inserted" (concrete). If a
-             reviewer flags a gap, close it with a specific choice.
-           - If 🔴 blocking issues exist → fix them in the artifact → **go back
-             to step 1 for a fresh review pass. Re-review is MANDATORY.** A fix
-             you made to clear a 🔴 is never self-certified — you may NOT freeze
-             the artifact on the strength of your own fix. Only a review round
-             that comes back with zero 🔴 can freeze it. (Max 3 reviewer passes
-             total; escalate to user if still unresolved after 3.)
-           - If no 🔴 issues → the artifact is frozen; move to the next one
+             **For `proposal.md` only**, also assert the extracted text contains a line
+             `PREMISE: AGREE` or `PREMISE: DISSENT`. If neither is present, the premise
+             verdict was omitted — do NOT freeze or proceed; re-run the review (D2a).
+
+         3. Process the review:
+            - Append the review text to `review-log.md` with round number
+              and date
+            - When a fix is required in the artifact, make it a **concrete,
+              implementable decision**, not a paraphrase of the problem. E.g.,
+              instead of "return value semantics differ" (paraphrase), decide:
+              "returns 0 — zero Document rows inserted" (concrete). If a
+              reviewer flags a gap, close it with a specific choice.
+            - If 🔴 blocking issues exist → fix them in the artifact → **go back
+              to step 1 for a fresh review pass. Re-review is MANDATORY.** A fix
+              you made to clear a 🔴 is never self-certified — you may NOT freeze
+              the artifact on the strength of your own fix. Only a review round
+              that comes back with zero 🔴 can freeze it. (Max 3 reviewer passes
+              total; escalate to user if still unresolved after 3.)
+            - If no 🔴 issues → the freeze condition depends on the artifact:
+              - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
+              - **`proposal.md`**: check the premise verdict:
+                - `PREMISE: AGREE` → the artifact is frozen; move to the next one.
+                - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) to the operator via **AskUserQuestion** with three options:
+                  1. **Re-frame the proposal** — address the dissent's concern and revise the proposal, then re-review.
+                  2. **Re-scope** — narrow/change scope and revise, then re-review.
+                  3. **Override-to-proceed** — operator accepts the dissent and wants to proceed anyway.
+                  Record the operator's choice and rationale in `review-log.md`. On override (option 3), freeze the proposal on zero 🔴 only — the DISSENT is the operator's call and is not re-litigated on re-review. On re-frame/re-scope (options 1/2), loop back to revise the proposal and re-review (step 1).
 
          4. If `opencode run` fails (non-zero exit, timeout, or no review text):
             do NOT self-review. Salvage whatever review text was emitted:
@@ -179,12 +219,16 @@ I'll create artifacts with review:
          "return value semantics differ" (paraphrase), decide: "returns 0 —
          zero Document rows inserted" (concrete). If a reviewer flags a gap,
          close it with a specific choice.
-       - If 🔴 blocking issues exist → fix them in the artifact → **re-review is
-         MANDATORY** — invoke the reviewer again. A fix you made to clear a 🔴 is
-         never self-certified: you may NOT freeze the artifact on the strength of
-         your own fix. Only a review round that comes back with zero 🔴 can freeze
-         it. (Max 3 reviewer passes; escalate to user if still unresolved after 3.)
-       - If no 🔴 issues → the artifact is frozen; move to the next one
+        - If 🔴 blocking issues exist → fix them in the artifact → **re-review is
+          MANDATORY** — invoke the reviewer again. A fix you made to clear a 🔴 is
+          never self-certified: you may NOT freeze the artifact on the strength of
+          your own fix. Only a review round that comes back with zero 🔴 can freeze
+          it. (Max 3 reviewer passes; escalate to user if still unresolved after 3.)
+        - If no 🔴 issues → the freeze condition depends on the artifact:
+          - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
+          - **`proposal.md`**: check the premise verdict:
+            - `PREMISE: AGREE` → freeze; move to the next one.
+            - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) via **AskUserQuestion** (re-frame / re-scope / override-to-proceed), record in `review-log.md`. On override, freeze on zero 🔴 only (dissent not re-litigated). On re-frame/re-scope, loop back to revise and re-review.
        - **If the reviewer subagent fails for any reason** (model not found,
          provider error, timeout, etc.): do NOT self-review as a replacement.
          Halt immediately and escalate to the user with the exact error.

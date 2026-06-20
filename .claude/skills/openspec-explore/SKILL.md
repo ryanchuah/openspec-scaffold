@@ -13,7 +13,40 @@ Enter explore mode. Think deeply. Visualize freely. Follow the conversation wher
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing.
 
-**PHASE GATE — do NOT auto-advance to proposing.** If exploration crystallizes into a concrete plan, tell the user they can say "propose a change for X" — but do NOT invoke the propose skill yourself. Wait for an explicit user request before moving to any other phase.
+**PHASE GATE — do NOT auto-advance to proposing.** When exploration crystallizes into a concrete direction, **offer** the operator an explicit advancement choice — e.g. "Ready to act on this? I'll capture the direction and run the premise gate." The operator may also invoke the gate directly ("gate the brief"). Do NOT keyword-sniff free text for advancement language.
+
+On that explicit choice:
+
+1. **Write `plans/<slug>/explore-brief.md`** — derive `<slug>` as kebab-case from the exploration topic (e.g. "add user auth" → `add-user-auth`), using the same convention the propose skill uses. Create `plans/<slug>/` with `mkdir -p` on first write. If the slug collides with an existing entry, append a short disambiguator (e.g. `-1`). The brief captures the crystallized problem, proposed solution, and scope framing.
+
+2. **Invoke the premise reviewer** — run the direction gate (All-Altitudes, see design). Use the same hardened harness pattern the propose skill uses (`.claude/skills/_shared/delegation-harness.md`):
+   ```bash
+   timeout -k 15 780 opencode run \
+     --dir <repoRoot> \
+     --agent openspec-reviewer \
+     --model deepseek/deepseek-v4-pro \
+     --format json \
+     "Review the explore brief at plans/<slug>/explore-brief.md. \
+      This is a premise review — assess the direction. Emit a \
+      ### Premise Verdict block (PREMISE: AGREE|DISSENT)." \
+     > /tmp/explore-review-out.jsonl 2> /tmp/explore-review-err.log < /dev/null
+   ```
+   This is a **synchronous** call (blocks until return). On timeout/crash, apply the same salvage rule as the propose reviewer: extract partial text; if at least one finding or >120s elapsed, re-run once; otherwise escalate.
+
+   **Assert the real reviewer ran** (per §b of the harness): grep stderr for `Falling back to default agent`; confirm output contains `### Premise Verdict` heading.
+
+3. **Extract the verdict** — the reviewer is `edit: deny`, so extract the `### Premise Verdict` block from stdout and write it to `plans/<slug>/premise-review.md`. On salvage, mark the file `PARTIAL`.
+
+4. **Handle a `DISSENT`** — present the cited concerns to the operator via **AskUserQuestion** with three options:
+   - **Re-think direction** — revise the brief to address the concern
+   - **Re-scope** — narrow/change the scope and revise the brief
+   - **Override-to-proceed** — operator accepts the dissent and wants to proceed anyway
+   - On re-think/re-scope, loop back to step 1 (revise the brief and re-review).
+   - On override, append a `### Resolution` section to `plans/<slug>/premise-review.md` with a single line: `OVERRIDE: proceed — <rationale>`.
+
+5. **Surface the advancement hint** — once the verdict is resolved (`PREMISE: AGREE` or `OVERRIDE: proceed`), tell the operator: *"Direction captured as `<slug>` — say 'propose <slug>' when ready to start the change."* Do NOT surface this hint until the verdict is resolved.
+
+**Preserve 'no mandatory output' for idle exploration.** If the operator does not choose to advance, no brief is written and no review is run. The gate fires only on an explicit advancement choice.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -284,7 +317,7 @@ But this summary is optional. Sometimes the thinking IS the value.
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
 - **Don't auto-capture** - Offer to save insights, don't just do it
-- **PHASE GATE**: Do not auto-advance to proposing or implementing. If the user is ready, tell them what to say next and let them decide.
+- **PHASE GATE — direction gate**: When exploration crystallizes, offer an explicit advancement choice (not keyword-sniffing). On that choice, capture the brief, run the premise review, handle any DISSENT, and only then surface the advancement hint naming the slug. Preserve "no mandatory output" for idle exploration.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
 - **Do question assumptions** - Including the user's and your own

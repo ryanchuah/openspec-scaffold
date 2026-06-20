@@ -90,6 +90,8 @@ jsonl mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows nonz
 | verify | verifier (pro pass) | `-k 15 780` | 780 | 15s | Independent verification pass; both platforms use this budget. |
 | verify | verifier (flash pass) | `-k 15 780` | 780 | 15s | Same as pro pass; both platforms. |
 | propose | reviewer | `-k 15 780` | 780 | 15s | Per the `reviewer-budget` capability spec — cross-referenced, not duplicated here. |
+| explore | direction gate (pro) | `-k 15 780` | 780 | 15s | Keyed by stage because it runs outside the named phases — the explore skill's premise gate on a load-bearing brief. |
+| SMALL | premise reviewer (flash) | `-k 15 780` | 780 | 15s | Keyed by tier because it runs outside the named phases — the pre-apply SMALL premise pass. |
 
 The budgets above are extraction-faithful — this table is the single authoritative source for all
 phase timeout values. Cross-reference: the propose reviewer's 780s / `-k 15` budget is codified in

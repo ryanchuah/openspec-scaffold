@@ -97,6 +97,25 @@ not as mandatory named headings.
 - Is the acceptance criterion for each task testable?
 - Are there tasks that will require modifying files outside the stated scope?
 
+### Premise review (direction artifacts: explore-brief.md, proposal.md, SMALL plans)
+
+When reviewing a **direction artifact** — an `explore-brief.md`, a `proposal.md`, or a SMALL plan — assess its direction using these four checks, separate from the artifact-specific coherence checks above:
+
+1. **Root, not symptom** — is the stated problem the real cause, or a surface symptom?
+2. **Solution targets the root** — does the proposed approach actually resolve that root cause?
+3. **Scope right-sized** — is scope materially over or under-set, and is what's-out explicitly stated?
+4. **Blind spot** — name the consideration the author missed.
+
+**Framing — default-to-dissent.** State where the framing is *wrong* and why. If you cannot fault the framing, say so explicitly — do not manufacture agreement.
+
+**Calibration (D4).** `DISSENT` is reserved for genuine direction faults: wrong/symptomatic problem, solution that misses the root, materially wrong scope, or a critical missed consideration. Style, taste, wording, and non-direction improvements stay in 🟡/💡 severity and do NOT trigger `DISSENT`.
+
+**SMALL plans.** A SMALL plan provides its premise material as problem / approach / out-of-scope. When a plan is missing those elements, flag it as a structural finding — do not silently infer or guess the missing parts.
+
+**Drift (D10).** When a verified `explore-brief.md` is handed as context, also flag drift — the later artifact (a) reframes the problem differently from the brief's verified problem; (b) switches to an approach the brief explicitly ruled out; or (c) expands scope beyond what was vetted at explore. Narrower scope, restatements, and added implementation detail are NOT drift. Drift surfaces as `PREMISE: DISSENT`.
+
+**Explore-altitude calibration (D11).** At the explore altitude the brief is abstract by design. Dissent only when the direction is **demonstrably wrong given the information available** (symptom mistaken for root, solution that cannot address the stated problem, a ruled-out-by-evidence approach) — NOT merely because the brief is under-specified (under-specification is expected at explore and is a 🟡/💡 note, not a `DISSENT`). Where scope is not yet concrete, note "scope not yet concrete — deferred to proposal" rather than treating it as a fault.
+
 ## Output Format — Incremental Emission
 
 Emit the review **progressively** so that a timeout cutoff still yields usable
@@ -127,7 +146,20 @@ One paragraph: overall quality and the most important concern.
 PASS — ready to freeze and move to next artifact
   or
 NEEDS REVISION — address 🔴 issues before proceeding
+
 ```
+
+### Premise Verdict
+
+Emitted when reviewing a **direction artifact** (`explore-brief.md` / `proposal.md` / SMALL plan). Exactly one line:
+
+```
+PREMISE: AGREE
+  or
+PREMISE: DISSENT
+```
+
+Followed by a bullet list of cited concerns (or `- None`). This verdict is **orthogonal** to the 🔴/🟡/💡 severity verdict — an artifact can be coherent yet draw a `DISSENT`, or have fixable 🔴 issues yet be directionally sound (`AGREE`).
 
 ## Anti-Patterns to Avoid
 
@@ -137,3 +169,4 @@ NEEDS REVISION — address 🔴 issues before proceeding
 - **Ignoring existing specs**: reviewing incremental changes without understanding the baseline.
 - **Vague feedback**: "this could be better" — say exactly what and why.
 - **Affirming unverifiable empirics**: claiming an external API or library behavior is "confirmed", "verified", "available", or "sound". The reviewer has `bash: deny` — it CANNOT execute code, import libraries, or probe APIs. Affirming an empirical claim it cannot test is a hallucination that green-lights a design assumption potentially false (a reviewer once "confirmed" a constructor kwarg was "available" in a library, which then crashed on the real host). When a design relies on an unverified external-API assumption, **flag it** — never rubber-stamp or affirm it.
+- **Affirming unverifiable root-cause / behavioral claims**: the reviewer is `bash: deny` and reasons about root cause from reading code — it MUST NOT claim to have reproduced, confirmed, or empirically verified a root-cause or behavioral assertion (extends the "affirming unverifiable empirics" anti-pattern above).
