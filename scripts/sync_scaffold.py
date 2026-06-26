@@ -52,8 +52,9 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     """Merge shared spans from *scaffold_text* into *target_text*.
 
     Raises ``ValueError`` if either file is missing a required anchor, if the
-    scaffold carries an unexpected tail, or if a long (≥350 line) target has
-    no tail separator.
+    scaffold carries an unexpected tail, or if the target's after-section
+    carries more content than the scaffold's but no tail separator was found
+    (signalling an undetected project tail).
     """
     # --- Scaffold anchors ---
     s_mandatory = re.search(r'^> \*\*MANDATORY', scaffold_text, re.M)
@@ -90,10 +91,17 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     if tail_match:
         tail = target_text[after_start + tail_match.start():]
     else:
-        if len(target_text.splitlines()) > 350:
+        # No separator → no project tail by convention. Backstop: if the
+        # target's after-section carries MORE content than the scaffold's,
+        # the anchors are likely wrong and we'd be dropping a project tail —
+        # abort. (An absolute line cap misfires once the shared span alone
+        # crosses it, which it now does for any tail-less downstream repo.)
+        s_after_lines = len(scaffold_text[s_after.start():].rstrip().splitlines())
+        t_after_lines = len(target_text[after_start:].rstrip().splitlines())
+        if t_after_lines > s_after_lines:
             raise ValueError(
-                "target AGENTS.md is long but no tail-separator found — "
-                "check anchors"
+                "target AGENTS.md after-section longer than scaffold's but "
+                "no tail-separator found — check anchors"
             )
         tail = ''
 

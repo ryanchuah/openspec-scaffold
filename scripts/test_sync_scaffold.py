@@ -270,10 +270,27 @@ class SyncAgentsMdTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS_WITH_TAIL, TARGET_AGENTS_WITH_CTX)
 
-    def test_350_line_no_tail_aborts(self):
-        """Raises ValueError when target >350 lines has no tail separator."""
+    def test_longer_after_section_no_tail_aborts(self):
+        """Raises when the target's after-section dwarfs the scaffold's but no
+        tail separator was found (undetected project tail)."""
         with self.assertRaises(ValueError):
             sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, TARGET_AGENTS_LONG_NO_TAIL)
+
+    def test_long_target_matching_after_section_ok(self):
+        """A tail-less target whose after-section matches the scaffold's does
+        NOT abort, even when the file is long (the post-sync extrends case)."""
+        # Pad the body so the file is long, but keep the after-section equal to
+        # the scaffold's — this must converge, not trip the backstop.
+        padded_body = "\n".join(f"> padding line {i}" for i in range(400))
+        target = TARGET_AGENTS_NO_CTX.replace(
+            "## Cross-agent compatibility (load-bearing — do not weaken)",
+            "## Cross-agent compatibility (load-bearing — do not weaken)\n\n"
+            + padded_body,
+        )
+        result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, target)
+        # Idempotent on its own output (the --check path).
+        self.assertEqual(result, sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, result))
+        self.assertTrue(result.rstrip().endswith("(1) your role as orchestrator/reviewer."))
 
     def test_idempotent_on_own_output(self):
         """sync_agents_md applied to its own output returns identical string."""
