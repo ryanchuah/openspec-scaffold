@@ -49,6 +49,9 @@ Decisions in `knowledge/decisions/INDEX.md`; follow-ons in `knowledge/questions/
 
 
 ## Immediate next action
-No proactive build in flight. `premise-review-gate` shipped; `AGENTS.md` + four skill/agent files are
-scaffold-managed — run `scripts/sync_scaffold.py` in each downstream repo to propagate, then review and
-commit there.
+No proactive build in flight. Two scaffold changes await downstream propagation to **extrends** and
+**psc-monitor** (run `scripts/sync_scaffold.py <repo>`, then review/commit there):
+(1) `premise-review-gate` — `AGENTS.md` + four skill/agent files;
+(2) `pro-agent-flash-delegation` (SMALL, 2026-06-26) — new `.opencode/agents/explore-flash.md` plus
+`task`-whitelist + nudge edits to `openspec-reviewer`, `openspec-verifier`, and both `archive-executor`
+copies, and a `scaffold_manifest.txt` line.

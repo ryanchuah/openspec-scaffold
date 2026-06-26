@@ -17,6 +17,7 @@
 # Agent definitions (.opencode)
 .opencode/agents/apply-executor.md
 .opencode/agents/archive-executor.md
+.opencode/agents/explore-flash.md
 .opencode/agents/openspec-reviewer.md
 .opencode/agents/openspec-verifier.md
 

@@ -15,6 +15,8 @@ When invoked you will be given:
 - Whether delta spec sync was requested
 - Paths to the project docs: `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`, `knowledge/questions/INDEX.md`
 
+**Offload bulk reading to keep your context focused on the reconciliation.** If your harness exposes a subagent/Task tool, you may spawn a strictly read-only flash explorer (under OpenCode, the `explore-flash` subagent on `deepseek/deepseek-v4-flash`) to fan out across the change dir and project docs — reading, searching, extracting — and report back concise findings, so your context stays reserved for the durable handoff only you can write. Such an explorer never mutates the repo and cannot spawn further subagents. Always apply your own judgment to its report — subagents have been wrong before.
+
 ## Your job
 
 Perform archive execution in this order:
