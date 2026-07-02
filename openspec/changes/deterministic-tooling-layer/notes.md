@@ -76,6 +76,96 @@ runner, and a static index-coverage reporter — check-only, JSON-to-disk, agent
    `test_sync_scaffold.py` still green after the span edit; manifest lines present for all eight
    new files.
 
+## As-built deviations (apply, 2026-07-02 — Sonnet executor per the override above; scrutinize at verify)
+Executor web-verified (2026-07-02, via fetch) the real output schemas/flags of every parsed tool
+(ruff JSON diagnostics, gitleaks Finding + required `--report-path`, osv-scanner results schema,
+deptry `-o` reporter, radon `cc_to_dict`, jscpd JSON reporter path, vulture text-line format) and the
+three binary pins (gitleaks 8.30.1, osv-scanner 2.4.0, jscpd 5.0.11) — invocation argv includes flags
+the tasks' illustrative commands omitted. Gap-filling decisions, all documented in module docstrings:
+1. Heavy-tier checks default DISABLED absent `audit.toml` (D8e on-demand; index-coverage has no sane
+   default `--schema`); `scope`/`inventory` unconditionally enabled (no external dependency).
+2. The non-empty-`--out` refusal applies to `--report` only (task wording scopes it there); `--floor`
+   writes to CWD like the individual scripts.
+3. radon findings threshold: blocks ranked D/E/F flagged (tasks gave no numeric threshold).
+4. Run-manifest = single JSON array whose first element is `{"meta": true, config, date}`, and builtin
+   check records carry a `"version"` field (reconciles 4.1's config-recording with 4.4's array contract
+   and 4.3's record-only Python-tool probes).
+5. `--resume` RETRIES a prior `INFRA-FAIL` record rather than skipping it (the skip reading would
+   defeat resume's purpose).
+Verify should scrutinize: the built argv for gitleaks/osv-scanner/deptry/radon/jscpd/vulture vs brief
+§4; `index_coverage.py`'s tolerant regex extraction (misses under-represented by fixtures); inline
+single-column PRIMARY KEY/UNIQUE parsing is handled but only exercised via the composite-index test.
+
+## Verify checkpoint (2026-07-02)
+
+**1. Verdict: READY FOR ARCHIVE.** Pass chain: self-review (Fable orchestrator; full read of all four
+scripts + live probes) → deepseek-v4-pro verifier READY → deepseek-v4-flash verifier READY →
+simplicity/quality gate (8-angle code-review harness) → flash re-run over the post-gate tree READY.
+Full suite green on every re-verification. Security (recommended pass for MEDIUM): focused review
+clean — every subprocess is list-argv (no shell=True, no eval), data_lint's read-only guarantee is
+server-enforced per invocation, custom-check execution is repo-trusted config by documented design.
+
+**2. Live output eyeballed (behavior, not counts):** real ruff findings flowed through `--report` into
+normalized repo-relative JSON and a correct baseline delta (a removed unused-import came back
+resolved; line-shifted findings counted unchanged; exit followed new-findings-only). Real
+radon/vulture runs on this repo's own code surfaced the bundle orchestrator function as a
+complexity hotspot (honest dogfood) and a pytest-magic false positive (whitelist-campaign
+material). `index_coverage` against real psc-monitor migrations+code produced plausible per-table
+leads with honest unparsed/unknown counters after the alias fix. Full-scope scan with real radon
+completes in well under a second after batching (was ~17s per-file).
+
+**3. Defects found and fixed (all fixes by fresh Sonnet fix-executors per the operator override;
+every fix re-verified by re-running the probe that exposed it):**
+- Self-review pass: findings paths stored absolute (breaking the repo-relative fingerprint contract
+  and baseline portability); index_coverage alias phantom-table noise. Both fixed + tests.
+- Simplicity/quality gate: git-rename numstat mishandling; per-file radon subprocess spawn
+  (floor-contract violation); UPDATE-statement extraction gap; dropped RHS join columns;
+  expression-index misparse; TOML scalar/list config footguns; missing delegate error capture in
+  run-manifest; repo-root/CWD divergence from a subdirectory. All fixed + tests. Doc fixes by the
+  orchestrator directly: AGENTS.md check-only wording precision; count-tally scrub in review-log.
+- Pro and both flash verifier passes: zero defects.
+
+**4. As-built deltas beyond the apply-phase section above:** `index_coverage` gained alias
+resolution + an `unknown_table_usages` JSON field (contract extension) and UPDATE/RHS-join/
+expression-index handling; `audit_scope` parses rename syntax and batch-invokes radon;
+`audit_bundle` resolves repo_root via git toplevel (CWD fallback), coerces scalar TOML values,
+errors on multi-entry data-lint `paths`, and records delegate stderr in INFRA-FAIL manifest
+records; JSON artifact writes are atomic in all three delegate scripts.
+
+**5. Forward-looking items (recorded nowhere else — fold into knowledge/questions at archive):**
+- **First-downstream-run risk:** gitleaks/osv-scanner/deptry/jscpd parsers are validated against
+  web-verified schemas + stubs only — no live binary has run them. The first downstream `--report`
+  is the real integration test; pins (recorded in `EXPECTED_TOOL_VERSIONS`) were current 2026-07-02
+  and will rot — recovery loop is bump-pin → re-baseline (brief D9).
+- **data_lint live-DB validation pending:** no Postgres exists here; first psc-monitor adoption run
+  validates it. Convention to set downstream: check SQL should `LIMIT` its violating-row SELECT
+  (the runner caps the recorded sample but must fetch the full result to count rows).
+- **data_lint credential hygiene:** the db-url rides in psql argv (visible in the process list);
+  downstream convention should prefer PG env vars / pgpass over URL-embedded credentials.
+- **index_coverage next increment:** CTE/subquery aliases remain unresolved (land in
+  `unknown_table_usages`, still sizeable on real code); resolve only if leads prove valuable in the
+  first audit. This session's real psc-monitor leads output could seed that first triage.
+- **Deferred structure refactor (follow-on SMALL):** single-writer artifact refactor (kills a
+  double/triple write), `_mode_multi` decomposition (radon rates it rank E — the layer's own
+  finding), status-string constants, test-helper dedup. Details in review-log.
+- **Vulture whitelist campaign seeds (D5):** `conftest.py collect_ignore` (pytest magic) and one
+  unused unpacked test variable — deliberately left.
+- **`--floor` writes artifacts to CWD** (recorded apply deviation) — fine for agents, but a default
+  scratch-dir convention may be nicer; revisit at downstream wiring.
+- **knowledge-lint tie-in (new):** beyond the audit-log registry check already in its brief, the
+  future `knowledge_lint.py` should detect count-recording patterns ("N tests pass"-style tallies)
+  in tracked docs — this session hit that exact rake via verbatim-appended verifier evidence.
+- **Cosmetic:** the uniform summary line labels scope's informational file count as "findings";
+  harmless but mildly confusing — reconsider wording in the follow-on refactor.
+
+**Still owned by archive:** reconcile `knowledge/STATUS.md` (new change section, cap rule),
+`knowledge/decisions/INDEX.md` (registry line → archive dir), `knowledge/questions/INDEX.md`
+(fold field-5 items above into Active/Parked as appropriate); no delta specs exist to promote
+(MEDIUM, tasks-only — decide at archive whether the audit-tooling conventions warrant a capability
+spec); cleanup: none in this repo (downstream sync + `../extrends/AUDIT-WORKFLOW-HANDOFF.md`
+deletion stay frozen pending operator go-ahead; the root `knowledge-doc-drift-analysis.md` copy is
+the knowledge-lint change's cleanup, not this one's).
+
 ## Follow-ons (NOT this change)
 - **Downstream (after operator sync go-ahead):** sync scaffold; per-repo SMALL changes wiring
   `audit.toml`, `checks/*.sql` (~5 deliberate invariants each, grown from incidents per D4),

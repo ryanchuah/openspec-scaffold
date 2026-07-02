@@ -12,7 +12,7 @@
 | Decisions | What did we choose, and why? | `knowledge/decisions/INDEX.md` (one line per decision → archive; rationale inline when no archive exists) | on-demand |
 | Questions | What is open / parked? | `knowledge/questions/` (Active = boot; Parked + per-item files = on-demand) | split |
 | Lessons | What did we learn about how to work? | `knowledge/lessons.md` (single file) | on-demand |
-| Reference | Durable facts not in the code (runbook, external-API semantics, empirical findings) | `knowledge/reference/` | on-demand |
+| Reference | Durable facts not in the code (runbook, external-API semantics, empirical findings) | `knowledge/reference/`; `knowledge/audit-log.md` (bounded one-line-per-audit registry ledger, same registry-line discipline as `knowledge/decisions/INDEX.md` — full audit outputs live untracked under `output/audit/<date>/` and are disposable per-audit build artifacts) | on-demand |
 | Research | Hard-won synthesized investigation (e.g. vendor comparisons, protocol analysis) | `knowledge/research/` (indexed) | on-demand |
 | Roadmap | Where are we headed long-term? | `knowledge/roadmap.md` | on-demand |
 | History | What did we do? | `openspec/changes/archive/` (the sole archive) | search-only |

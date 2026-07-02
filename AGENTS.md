@@ -320,6 +320,21 @@ here so it is visible at first load: **never call the built-in `WebSearch` tool 
 search URL, then fetch the chosen pages), keeping the orchestrator context clean and letting research
 run in parallel and checkpoint to disk.
 
+## Deterministic audit tooling
+
+Audit tooling **detects and reports — it never writes to or fixes code**; its outputs land in
+untracked report dirs, and the sole repo-state mutation is the explicit `audit_scope.py tag` anchor.
+
+Discover checks: `python scripts/audit_bundle.py --list`. Per-repo task-runner targets
+follow an `audit-*` namespace (e.g. `just audit-floor`) — per-repo, not scaffold-managed.
+
+Output contract: every check writes full JSON to disk plus a one-line stdout summary;
+`output/audit/<date>/` is untracked and disposable, regenerated per audit.
+
+Audit cycle: `audit_bundle.py --report` → triage → `audit_scope.py tag` + append the
+`log-line` output to `knowledge/audit-log.md` → the LLM audit uses the bundle as its index.
+Registry-line format: `- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>`
+
 ## Scaffold-managed files & propagation
 
 Some files in this repo are **scaffold-managed**: they are kept in sync from the

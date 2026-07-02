@@ -112,6 +112,12 @@ updated the trackers and scaffold files but left prose elsewhere referring to th
   `knowledge_lint.py`, or only surfaces it as an available check — worth pinning down in propose since
   it affects archive-time latency for every future change.
 
+**Cleanup owed by this change (operator-created backups of the source doc):** a copy of
+`knowledge-doc-drift-analysis.md` sits untracked at this repo's root (operator backup, 2026-07-02,
+while psc-monitor is busy) in addition to the psc-monitor original. Once this change ships, delete
+BOTH — this brief already carries the substance, and a root-level duplicate is itself the Class A
+orphan pattern this change detects.
+
 **From the direction-gate review (2026-07-02, `premise-review.md`) — resolve at propose:**
 - Integration: does `knowledge_lint.py` subsume, coexist with, or replace the path-citation
   scanning already in `sync_scaffold.py --check-refs`?
