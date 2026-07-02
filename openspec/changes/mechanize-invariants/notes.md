@@ -64,6 +64,75 @@ commits, and adds a sync-time warning for the known bootstrap gap (target repos 
    gate; security gate not triggered (no auth/credential/network surface).
 7. No downstream sync in this change — propagation stays frozen.
 
+## Verify checkpoint (2026-07-02)
+
+**1. Verdict:** READY for archive.
+
+**Process notes (operator overrides, recorded):** implementation was executed by the **Sonnet
+apply-executor subagent by explicit operator directive** (deepseek-flash path deliberately not
+attempted); the **deepseek pro+flash verifier passes were waived by explicit operator directive**
+("self review is enough… keep the simplicity/quality gate") — the orchestrator's own behavioral
+review ran in full and confidence was high, so the waiver was not escalated; the
+**simplicity/quality gate ran** (four parallel review agents: reuse/simplification/efficiency/
+altitude) and its confirmed findings were fixed by a **fresh Sonnet fix-executor** (same operator
+executor preference, disclosed). Security gate: not triggered (no auth/credential/data/network
+surface).
+
+**2. Live output eyeballed (behavior, not counts):** all four seeded-violation probes against the
+real repo produced exactly the expected finding lines and exit 1, and the repo returned to
+`scaffold-lint: clean` exit 0 after each revert — anchor rename produced BOTH sub-check findings
+(uniqueness count 0 + reused-extraction missing-anchor); unlisted bogus skill file named in a
+manifest-completeness finding; `-k 15 999` named with file:line in a budget-agreement finding;
+`openspec-nonexistent` named in a dangling-refs finding. The armed commit gate blocked a
+deliberately red suite (`commit BLOCKED`, exit 2) and passed the green one. The sync hook-wiring
+warning fired on an unwired fixture target and stayed silent for psc-monitor, whose `--check`
+drift output was unchanged (still exactly the known pending-sync set). Probes re-run identically
+after the simplicity-gate refactor.
+
+**3. Defects found and fixes:** behavioral review found **zero functional defects**. The
+simplicity gate surfaced seven findings across four angles; five were fixed by the fix-executor
+(anchors single-sourced as new `sync_scaffold.AGENTS_ANCHORS` with regexes derived via
+`re.escape` — byte-identical semantics; managed globs folded to one loop; `lint-knowledge` twin
+constant removed; shared scan set pre-read once in `collect_findings` and passed to both
+consumers; dead test flexibility removed). One was skipped by the executor's escape hatch:
+reusing `sync_scaffold._read_manifest` is impossible today because it is hardcoded to the real
+scaffold root (fixture tests would break) — recorded as a follow-on below. Overruled with
+rationale: JSON-parsing the hook-wiring check (substring is the frozen reviewed contract,
+advisory-only; recorded as a monitored limitation below); cross-importing `knowledge_lint`'s
+one-line helpers (couples independent linters); test-helper dedup with `test_knowledge_lint`
+(same accepted-debt class the deterministic-tooling-layer review-log already defers); tests'
+double API+CLI run (deliberate coverage of `main()`, not waste).
+
+**4. As-built deltas vs frozen tasks.md (internal, contract unchanged):** the three anchor
+strings now live in `sync_scaffold.AGENTS_ANCHORS` and are imported by scaffold_lint (tasks.md
+described a local tuple); `check_dangling_skill_refs` / `check_budget_agreement` take
+`(root, scanned)` with the scan set pre-read once (tasks.md described each scanning
+independently); `_MANAGED_GLOBS` is a single 5-entry tuple. Check-ids, finding formats, exit
+codes, and the exclusion list are exactly as specified.
+
+**5. Forward-looking items (for knowledge/questions at archive — recorded nowhere else):**
+- **Hook-wiring warning depth:** the check is substring-based and advisory; a settings.json
+  containing `scaffold_check.py` under the wrong hook event (or in a comment) would silently
+  count as wired. Deepen to JSON `hooks.PreToolUse` parsing only if a real false-negative
+  appears.
+- **`sync_scaffold._read_manifest` is root-hardcoded**, forcing scaffold_lint to keep its own
+  manifest parse. Small follow-on: parameterize it (`_read_manifest(path)`) and dedupe.
+- **Manifest deletion/tombstone gap** (from propose): deleting a manifest-listed file upstream
+  orphans it downstream silently; the prune change will handle any deletion manually per repo.
+- **Downstream applicability of scaffold_lint:** deliberately golden-source-only today; consider
+  whether a subset (dangling-refs, budget-agreement) is worth syncing downstream later.
+- **Cross-cutting observation from this session's exploration (route to the right home at
+  archive):** `knowledge_lint.py`'s `DEFAULT_RETIRED_PATHS` bakes a personal path (`/home/me/`)
+  from one downstream incident into golden-source defaults — a repo-agnosticism smell worth a
+  look during the succession-hardening prune change.
+
+**Still owned by archive:** `knowledge/STATUS.md` reconciliation (this change's section + cap
+rule), `knowledge/decisions/INDEX.md` registry line, `knowledge/questions/INDEX.md` routing of the five
+items above (Parked unless blocking), **no delta specs to promote** (tasks-only MEDIUM — but
+consider whether the new linter warrants a capability-spec addition; archive-executor to judge
+against existing `scaffold-sync-mechanism` spec), cleanup of `plans/succession-hardening/`
+residency (portfolio brief spans three more changes — leave in place until the portfolio closes).
+
 ## Out of scope
 
 Portfolio changes 2–4 (instruction repairs beyond task 2.2's one-line fix, knowledge pruning,

@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import io
 import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -817,6 +819,98 @@ extra_key: "this follows rules: — invalid"
         )
         with self.assertRaises(ValueError):
             sync_scaffold.sync(str(self.target))
+
+
+class HookWiringWarningTest(unittest.TestCase):
+    """Tests for the sync-time hook-wiring warning (task 3.1/3.2): a
+    stderr-only warning fires when a target's .claude/settings.json does not
+    wire scripts/scaffold_check.py as a PreToolUse hook. Never affects exit
+    codes or stdout."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.fixture_scaffold = _make_fixture_scaffold(self.tmpdir)
+        self.fixture_target = _make_fixture_target(self.tmpdir)
+
+        self._scaffold_root_patcher = patch.object(
+            sync_scaffold, "_scaffold_root", return_value=self.fixture_scaffold
+        )
+        self._scaffold_root_patcher.start()
+
+    def tearDown(self):
+        self._scaffold_root_patcher.stop()
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    def _write_settings(self, text: str) -> None:
+        settings_dir = self.fixture_target / ".claude"
+        settings_dir.mkdir(parents=True, exist_ok=True)
+        (settings_dir / "settings.json").write_text(text)
+
+    # -- check() --
+
+    def test_check_no_warning_when_settings_wires_hook(self):
+        self._write_settings('{"hooks": {"PreToolUse": "scripts/scaffold_check.py"}}')
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertNotIn("WARNING", buf.getvalue())
+        self.assertEqual(rc, 1)  # target not synced yet — unchanged from pre-3.1 behavior
+
+    def test_check_warning_when_settings_missing(self):
+        # No .claude/settings.json at all.
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertIn("WARNING", buf.getvalue())
+        self.assertIn("scripts/scaffold_check.py", buf.getvalue())
+        self.assertIn("PreToolUse", buf.getvalue())
+        self.assertEqual(rc, 1)  # exit code unchanged by the warning
+
+    def test_check_warning_when_settings_lacks_substring(self):
+        self._write_settings('{"hooks": {"PreToolUse": "scripts/some_other_hook.py"}}')
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertIn("WARNING", buf.getvalue())
+        self.assertEqual(rc, 1)  # exit code unchanged by the warning
+
+    def test_check_exit_code_unchanged_by_warning_when_synced(self):
+        """A fully-synced-but-unwired target still exits 0 from --check —
+        the warning never touches the exit code."""
+        sync_scaffold.sync(str(self.fixture_target))
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertIn("WARNING", buf.getvalue())
+        self.assertEqual(rc, 0)
+
+    # -- sync() --
+
+    def test_sync_no_warning_when_settings_wires_hook(self):
+        self._write_settings('{"hooks": {"PreToolUse": "scripts/scaffold_check.py"}}')
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertNotIn("WARNING", buf.getvalue())
+
+    def test_sync_warning_when_settings_missing(self):
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertIn("WARNING", buf.getvalue())
+        self.assertIn("scripts/scaffold_check.py", buf.getvalue())
+
+    def test_sync_warning_when_settings_lacks_substring(self):
+        self._write_settings('{"hooks": {}}')
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertIn("WARNING", buf.getvalue())
 
 
 if __name__ == "__main__":

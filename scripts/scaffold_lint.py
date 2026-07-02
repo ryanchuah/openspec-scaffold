@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+"""scaffold_lint.py — stdlib-only, detect-only linter over this repo's own
+mechanized invariants.
+
+This is an **authoring-side** tool, like ``scripts/sync_scaffold.py`` — it is
+deliberately NOT listed in ``scripts/scaffold_manifest.txt`` and never syncs
+downstream (see the exclusion list documented under ``manifest-completeness``
+below, which encodes exactly this).
+
+Usage
+-----
+    python3 scripts/scaffold_lint.py [--root PATH]
+
+Default ``--root`` is this script's grandparent directory (the repo root),
+mirroring the root-resolution convention used by ``scripts/knowledge_lint.py``
+and ``scripts/scaffold_check.py``.
+
+Exit codes
+----------
+0 — no findings.
+1 — one or more findings (matches ``sync_scaffold.py --check`` /
+    ``knowledge_lint.py``'s drift-diagnostic convention).
+
+Each finding is printed as exactly one stdout line:
+
+    scaffold-lint: <check-id>: <detail>
+
+All five checks run even after an earlier one has produced findings — this
+script reports everything in one pass, then exits 1. If all checks are
+clean, it prints ``scaffold-lint: clean`` and exits 0.
+
+Checks
+------
+
+  manifest-completeness
+    Every existing file matching the managed globs — ``.claude/skills/*/SKILL.md``,
+    ``.claude/skills/_shared/*.md``, ``.claude/agents/*.md``,
+    ``.opencode/agents/*.md``, and ``scripts/*`` — must be listed in
+    ``scripts/scaffold_manifest.txt`` OR match the exclusion list below. All
+    five globs are filtered to plain files only (``scripts/`` in particular
+    mixes files and directories like ``__pycache__/``, so this filter
+    matters there). Reverse direction is checked too: every manifest entry
+    must exist on disk. Missing either way is a finding.
+
+    Exclusion list (authoring-side tooling that is deliberately never
+    manifest-listed / never synced downstream):
+      ``scripts/sync_scaffold.py``, ``scripts/test_sync_scaffold.py``,
+      ``scripts/scaffold_lint.py``, ``scripts/test_scaffold_lint.py``,
+      ``scripts/test-cmd``, and the glob ``scripts/_*_oneoff.py``.
+
+  agents-md-structure
+    Two sub-checks over ``AGENTS.md`` (the reused ``sync_scaffold`` span
+    function only detects anchor *presence*, not *uniqueness* — these are
+    deliberately separate mechanisms, not conflated):
+    (a) **uniqueness** — for each of the three anchor strings
+        (``> **MANDATORY``, ``## Roles``, ``## After reading this file``),
+        count matching lines via ``line.startswith(anchor)`` (never
+        ``str.count()``, which would also match inside a fenced code
+        block). A count other than exactly 1 is a finding.
+    (b) **presence + no-tail** — reuses ``sync_scaffold.sync_agents_md``
+        (imported) by running it against this repo's own ``AGENTS.md`` as
+        BOTH source and target; any ``ValueError`` it raises becomes a
+        finding.
+
+  config-rules-last
+    Two sub-checks over ``openspec/config.yaml``:
+    (a) **missing block** — reuses ``sync_scaffold._extract_rules_block``
+        (imported); ``None`` (no ``rules:`` block found) is a finding.
+    (b) **trailing keys** — reuses ``sync_scaffold.sync_config_yaml``
+        (imported), calling it with this repo's own config as BOTH source
+        and target; any ``ValueError`` it raises becomes a finding. (When
+        the block is entirely missing, ``sync_config_yaml`` appends rather
+        than raising — which is why (a) is a separate, explicit sub-check.)
+
+  dangling-skill-refs
+    Scans ``AGENTS.md`` plus every ``.md`` file under ``.claude/skills/``
+    (recursive — ``_shared/*.md`` is intentionally included and expected
+    to stay clean), ``.claude/agents/``, and ``.opencode/agents/`` for
+    tokens matching ``\\bopenspec-[a-z][a-z-]*[a-z]\\b``, plus the literal
+    token ``lint-knowledge`` (special-cased because it is the only skill
+    name that does not start with ``openspec-``). Every matched token must
+    resolve to one of: a skill directory name under ``.claude/skills/``, an
+    agent file stem under ``.claude/agents/`` or ``.opencode/agents/``, or
+    the allowlist constant ``{"openspec-scaffold"}``. An unresolved token
+    is a finding naming the file and the token.
+
+  budget-agreement
+    Extracts every numeric ``timeout -k <G> <B>`` pair (regex
+    ``timeout\\s+-k\\s+(\\d+)\\s+(\\d+)`` — the literal ``timeout`` prefix is
+    deliberate: this check targets executable copy-paste command blocks,
+    not descriptive prose) from the same file set as ``dangling-skill-refs``.
+    The set of sanctioned pairs is parsed from
+    ``.claude/skills/_shared/delegation-harness.md``'s §e table: iterate
+    the file's lines, and on each line starting with ``|`` (a markdown
+    table row) apply `` `-k (\\d+) (\\d+)` `` (backtick-quoted flags cell)
+    and collect all matches — never split on ``|`` (inline code spans
+    elsewhere in the file legitimately contain pipes). Any embedded pair
+    not in the sanctioned set is a finding naming the file, line, and pair.
+    Two distinct infra findings: no line in the harness file starts with
+    ``## (e)`` -> ``budget-agreement: §e table not found``; table rows were
+    found but zero pairs were extracted from them ->
+    ``budget-agreement: could not parse §e table``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import os
+import re
+import sys
+from pathlib import Path
+
+# Import sync_scaffold as a sibling module (same import pattern used by
+# scripts/test_sync_scaffold.py) so agents-md-structure(b) and
+# config-rules-last(b) reuse its span/rules-block logic rather than
+# duplicating the extraction regexes.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import sync_scaffold  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# manifest-completeness
+_MANAGED_GLOBS: tuple[str, ...] = (
+    ".claude/skills/*/SKILL.md",
+    ".claude/skills/_shared/*.md",
+    ".claude/agents/*.md",
+    ".opencode/agents/*.md",
+    "scripts/*",
+)
+
+_MANIFEST_EXCLUDE_EXACT: frozenset[str] = frozenset(
+    {
+        "scripts/sync_scaffold.py",
+        "scripts/test_sync_scaffold.py",
+        "scripts/scaffold_lint.py",
+        "scripts/test_scaffold_lint.py",
+        "scripts/test-cmd",
+    }
+)
+_MANIFEST_EXCLUDE_GLOB = "scripts/_*_oneoff.py"
+
+# dangling-skill-refs / budget-agreement shared scan surface
+_SCAN_BASE_DIRS: tuple[str, ...] = (
+    ".claude/skills",
+    ".claude/agents",
+    ".opencode/agents",
+)
+
+# dangling-skill-refs
+_TOKEN_RE = re.compile(r"\bopenspec-[a-z][a-z-]*[a-z]\b")
+_LINT_KNOWLEDGE_RE = re.compile(r"\blint-knowledge\b")
+_DANGLING_ALLOWLIST: frozenset[str] = frozenset({"openspec-scaffold"})
+
+# budget-agreement
+_HARNESS_REL_PATH = ".claude/skills/_shared/delegation-harness.md"
+_EMBEDDED_PAIR_RE = re.compile(r"timeout\s+-k\s+(\d+)\s+(\d+)")
+_TABLE_CELL_PAIR_RE = re.compile(r"`-k (\d+) (\d+)`")
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _scan_file_set(root: Path) -> list[Path]:
+    """AGENTS.md + every .md (recursive) under the three scan base dirs.
+
+    Shared by dangling-skill-refs and budget-agreement (task 1.6 reuses the
+    task 1.5 file set verbatim).
+    """
+    files: list[Path] = []
+    agents_md = root / "AGENTS.md"
+    if agents_md.is_file():
+        files.append(agents_md)
+    for base in _SCAN_BASE_DIRS:
+        base_dir = root / base
+        if base_dir.is_dir():
+            files.extend(sorted(base_dir.rglob("*.md")))
+    return files
+
+
+# ---------------------------------------------------------------------------
+# Check: manifest-completeness
+# ---------------------------------------------------------------------------
+
+
+def _read_manifest_entries(root: Path) -> set[str]:
+    manifest = root / "scripts" / "scaffold_manifest.txt"
+    entries: set[str] = set()
+    with manifest.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                entries.add(line)
+    return entries
+
+
+def _managed_files(root: Path) -> set[str]:
+    found: set[str] = set()
+    for pattern in _MANAGED_GLOBS:
+        for p in root.glob(pattern):
+            if p.is_file():
+                found.add(p.relative_to(root).as_posix())
+    return found
+
+
+def _is_manifest_excluded(rel: str) -> bool:
+    if rel in _MANIFEST_EXCLUDE_EXACT:
+        return True
+    return fnmatch.fnmatch(rel, _MANIFEST_EXCLUDE_GLOB)
+
+
+def check_manifest_completeness(root: Path) -> list[str]:
+    findings: list[str] = []
+    manifest_path = root / "scripts" / "scaffold_manifest.txt"
+    if not manifest_path.is_file():
+        return ["manifest-completeness: scripts/scaffold_manifest.txt not found"]
+
+    manifest_entries = _read_manifest_entries(root)
+    managed = _managed_files(root)
+
+    for rel in sorted(managed):
+        if _is_manifest_excluded(rel):
+            continue
+        if rel not in manifest_entries:
+            findings.append(
+                f"manifest-completeness: {rel} exists but is not listed in "
+                f"scripts/scaffold_manifest.txt"
+            )
+
+    for rel in sorted(manifest_entries):
+        if not (root / rel).exists():
+            findings.append(
+                f"manifest-completeness: manifest entry {rel} does not exist on disk"
+            )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check: agents-md-structure
+# ---------------------------------------------------------------------------
+
+
+def check_agents_md_structure(root: Path) -> list[str]:
+    findings: list[str] = []
+    agents_path = root / "AGENTS.md"
+    if not agents_path.is_file():
+        return ["agents-md-structure: AGENTS.md not found"]
+
+    text = agents_path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+
+    # (a) uniqueness — per-line startswith, the SAME method for all three.
+    for anchor in sync_scaffold.AGENTS_ANCHORS:
+        count = sum(1 for line in lines if line.startswith(anchor))
+        if count != 1:
+            findings.append(
+                f"agents-md-structure: anchor {anchor!r} appears {count} time(s) "
+                f"in AGENTS.md (expected exactly 1)"
+            )
+
+    # (b) presence + no-tail — reuse sync_scaffold.sync_agents_md, source ==
+    # target == this repo's own AGENTS.md.
+    try:
+        sync_scaffold.sync_agents_md(text, text)
+    except ValueError as exc:
+        findings.append(f"agents-md-structure: {exc}")
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check: config-rules-last
+# ---------------------------------------------------------------------------
+
+
+def check_config_rules_last(root: Path) -> list[str]:
+    findings: list[str] = []
+    config_path = root / "openspec" / "config.yaml"
+    if not config_path.is_file():
+        return ["config-rules-last: openspec/config.yaml not found"]
+
+    text = config_path.read_text(encoding="utf-8")
+
+    # (a) missing block — reuse sync_scaffold._extract_rules_block.
+    if sync_scaffold._extract_rules_block(text) is None:
+        findings.append(
+            "config-rules-last: no rules: block found in openspec/config.yaml"
+        )
+
+    # (b) trailing keys — reuse sync_scaffold.sync_config_yaml, source ==
+    # target == this repo's own config.
+    try:
+        sync_scaffold.sync_config_yaml(text, text)
+    except ValueError as exc:
+        findings.append(f"config-rules-last: {exc}")
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check: dangling-skill-refs
+# ---------------------------------------------------------------------------
+
+
+def _skill_dir_names(root: Path) -> set[str]:
+    skills_dir = root / ".claude" / "skills"
+    if not skills_dir.is_dir():
+        return set()
+    return {p.name for p in skills_dir.iterdir() if p.is_dir()}
+
+
+def _agent_file_stems(root: Path) -> set[str]:
+    stems: set[str] = set()
+    for base in (".claude/agents", ".opencode/agents"):
+        base_dir = root / base
+        if base_dir.is_dir():
+            for p in base_dir.glob("*.md"):
+                stems.add(p.stem)
+    return stems
+
+
+def check_dangling_skill_refs(
+    root: Path, scanned: list[tuple[Path, str]]
+) -> list[str]:
+    findings: list[str] = []
+    valid_tokens = _skill_dir_names(root) | _agent_file_stems(root) | _DANGLING_ALLOWLIST
+
+    for path, text in scanned:
+        rel = path.relative_to(root).as_posix()
+
+        tokens: set[str] = set(_TOKEN_RE.findall(text))
+        m = _LINT_KNOWLEDGE_RE.search(text)
+        if m is not None:
+            tokens.add(m.group())
+
+        for token in sorted(tokens):
+            if token not in valid_tokens:
+                findings.append(
+                    f"dangling-skill-refs: {rel}: unknown token {token!r}"
+                )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check: budget-agreement
+# ---------------------------------------------------------------------------
+
+
+def _sanctioned_pairs(root: Path) -> tuple[set[tuple[str, str]], list[str]]:
+    """Return (sanctioned pairs, infra findings) parsed from the §e table in
+    .claude/skills/_shared/delegation-harness.md."""
+    findings: list[str] = []
+    harness_path = root / _HARNESS_REL_PATH
+
+    if not harness_path.is_file():
+        findings.append(f"budget-agreement: {_HARNESS_REL_PATH} not found")
+        return set(), findings
+
+    lines = harness_path.read_text(encoding="utf-8").splitlines()
+
+    if not any(line.startswith("## (e)") for line in lines):
+        findings.append("budget-agreement: §e table not found")
+        return set(), findings
+
+    table_row_found = False
+    pairs: set[tuple[str, str]] = set()
+    for line in lines:
+        if line.startswith("|"):
+            table_row_found = True
+            for m in _TABLE_CELL_PAIR_RE.finditer(line):
+                pairs.add((m.group(1), m.group(2)))
+
+    if table_row_found and not pairs:
+        findings.append("budget-agreement: could not parse §e table")
+
+    return pairs, findings
+
+
+def check_budget_agreement(
+    root: Path, scanned: list[tuple[Path, str]]
+) -> list[str]:
+    sanctioned, findings = _sanctioned_pairs(root)
+
+    for path, text in scanned:
+        rel = path.relative_to(root).as_posix()
+        lines = text.splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            for m in _EMBEDDED_PAIR_RE.finditer(line):
+                pair = (m.group(1), m.group(2))
+                if pair not in sanctioned:
+                    findings.append(
+                        f"budget-agreement: {rel}:{lineno}: pair "
+                        f"(-k {pair[0]} {pair[1]}) not in the sanctioned "
+                        f"§e budget set"
+                    )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
+def collect_findings(root: Path) -> list[str]:
+    """Run every check and return the combined finding list (unprefixed —
+    each string already begins with its own check-id)."""
+    scanned = [
+        (p, p.read_text(encoding="utf-8", errors="replace"))
+        for p in _scan_file_set(root)
+    ]
+
+    findings: list[str] = []
+    findings.extend(check_manifest_completeness(root))
+    findings.extend(check_agents_md_structure(root))
+    findings.extend(check_config_rules_last(root))
+    findings.extend(check_dangling_skill_refs(root, scanned))
+    findings.extend(check_budget_agreement(root, scanned))
+    return findings
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Detect-only linter over this repo's mechanized scaffold invariants."
+    )
+    parser.add_argument(
+        "--root",
+        default=None,
+        help="Repository root (default: this script's grandparent dir).",
+    )
+    args = parser.parse_args(argv)
+
+    if args.root is not None:
+        root = Path(args.root).resolve(strict=True)
+    else:
+        root = Path(__file__).resolve().parent.parent
+
+    findings = collect_findings(root)
+    for finding in findings:
+        print(f"scaffold-lint: {finding}")
+
+    if findings:
+        return 1
+
+    print("scaffold-lint: clean")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

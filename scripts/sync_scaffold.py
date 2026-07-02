@@ -24,6 +24,15 @@ import sys
 from pathlib import Path
 
 
+# The three required AGENTS.md section anchors, shared with scaffold_lint.py's
+# agents-md-structure(a) uniqueness check so the anchor set is single-sourced.
+AGENTS_ANCHORS: tuple[str, ...] = (
+    "> **MANDATORY",
+    "## Roles",
+    "## After reading this file",
+)
+
+
 # ── helpers ────────────────────────────────────────────────────────────────
 
 def _scaffold_root() -> Path:
@@ -57,9 +66,9 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     (signalling an undetected project tail).
     """
     # --- Scaffold anchors ---
-    s_mandatory = re.search(r'^> \*\*MANDATORY', scaffold_text, re.M)
-    s_roles = re.search(r'^## Roles\b', scaffold_text, re.M)
-    s_after = re.search(r'^## After reading this file', scaffold_text, re.M)
+    s_mandatory = re.search(r'^' + re.escape(AGENTS_ANCHORS[0]), scaffold_text, re.M)
+    s_roles = re.search(r'^' + re.escape(AGENTS_ANCHORS[1]) + r'\b', scaffold_text, re.M)
+    s_after = re.search(r'^' + re.escape(AGENTS_ANCHORS[2]), scaffold_text, re.M)
     if not all([s_mandatory, s_roles, s_after]):
         raise ValueError("scaffold AGENTS.md missing required section anchor")
 
@@ -75,10 +84,10 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     span2 = re.sub(r'\s+$', '\n', scaffold_text[s_roles.start():])
 
     # --- Target anchors ---
-    t_mandatory = re.search(r'^> \*\*MANDATORY', target_text, re.M)
+    t_mandatory = re.search(r'^' + re.escape(AGENTS_ANCHORS[0]), target_text, re.M)
     t_proj_ctx = re.search(r'^## Project context', target_text, re.M)
-    t_roles = re.search(r'^## Roles\b', target_text, re.M)
-    t_after = re.search(r'^## After reading this file', target_text, re.M)
+    t_roles = re.search(r'^' + re.escape(AGENTS_ANCHORS[1]) + r'\b', target_text, re.M)
+    t_after = re.search(r'^' + re.escape(AGENTS_ANCHORS[2]), target_text, re.M)
     if not all([t_mandatory, t_roles, t_after]):
         raise ValueError("target AGENTS.md missing required section anchor")
 
@@ -184,6 +193,31 @@ def _check_sources_exist(manifest_lines: list[str]) -> None:
         sys.exit(1)
 
 
+def _warn_if_hook_unwired(target_path: Path) -> None:
+    """Print a stderr-only warning if *target_path* does not wire the
+    downstream commit-test-gate edit-guard (``scripts/scaffold_check.py`` as
+    a Claude Code ``PreToolUse`` hook in ``.claude/settings.json``).
+
+    This is a warning only — it never affects exit codes or stdout output,
+    and never raises. Absent/unreadable ``settings.json`` and a present but
+    non-wiring ``settings.json`` are both treated as "not wired".
+    """
+    settings_path = target_path / ".claude" / "settings.json"
+    wired = False
+    if settings_path.is_file():
+        try:
+            text = settings_path.read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        wired = "scaffold_check.py" in text
+    if not wired:
+        print(
+            f"WARNING: {settings_path} does not wire scripts/scaffold_check.py "
+            f"(PreToolUse) — the downstream edit-guard is absent",
+            file=sys.stderr,
+        )
+
+
 # ── Copy pass ──────────────────────────────────────────────────────────────
 
 def _sync_file(manifest_line: str, target_root: Path, scaffold_root: Path) -> None:
@@ -221,6 +255,8 @@ def sync(target_path_str: str) -> None:
     scaffold_root = _scaffold_root()
     for line in manifest_lines:
         _sync_file(line, target_path, scaffold_root)
+
+    _warn_if_hook_unwired(target_path)
 
 
 # ── Check mode ─────────────────────────────────────────────────────────────
@@ -266,6 +302,8 @@ def check(target_path_str: str) -> int:
             else:
                 print(f"DIFFERS   {line}")
                 exit_code = 1
+
+    _warn_if_hook_unwired(target_path)
 
     return exit_code
 
