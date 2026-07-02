@@ -51,18 +51,20 @@ Archive: `openspec/changes/archive/2026-07-02-deterministic-tooling-layer`.
 
 
 ## Immediate next action
-In flight: the succession-hardening portfolio (direction premise-gated 2026-07-02; change 1
-`mechanize-invariants` shipped) has three approved changes remaining — `repair-instruction-surface`
-(SMALL, next), `prune-knowledge` (SMALL), `delegated-agent-safety` (MEDIUM) — full scopes, operator
-decisions, and process requirements in `plans/succession-hardening/HANDOFF-next-session.md`.
+In flight: the succession-hardening portfolio (direction premise-gated 2026-07-02; changes 1
+`mechanize-invariants` and 2 `repair-instruction-surface` shipped) has two approved changes
+remaining — `prune-knowledge` (SMALL, next), `delegated-agent-safety` (MEDIUM) — full scopes,
+operator decisions, and process requirements in `plans/succession-hardening/HANDOFF-next-session.md`.
 Separately, scaffold changes await downstream propagation to **extrends** and
 **psc-monitor** (run `scripts/sync_scaffold.py <repo>`, then review/commit there):
 (1) `premise-review-gate` — `AGENTS.md` + four skill/agent files;
 (2) `pro-agent-flash-delegation` (SMALL, 2026-06-26) — new `.opencode/agents/explore-flash.md` plus
 `task`-whitelist + nudge edits to `openspec-reviewer`, `openspec-verifier`, and both `archive-executor`
 copies, and a `scaffold_manifest.txt` line.
-Separately, `deterministic-tooling-layer` (MEDIUM, 2026-07-02), `knowledge-lint` (2026-07-02), and
-`mechanize-invariants` (MEDIUM, 2026-07-02) are all complete but their downstream propagation is
+Separately, `deterministic-tooling-layer` (MEDIUM, 2026-07-02), `knowledge-lint` (2026-07-02),
+`mechanize-invariants` (MEDIUM, 2026-07-02), and `repair-instruction-surface` (SMALL, 2026-07-03 —
+verify-skill `SKILL.md` restructure only; its AGENTS.md/config.yaml/knowledge fills are per-repo and
+do NOT propagate) are all complete but their downstream propagation is
 **explicitly frozen pending operator go-ahead**
 (another agent was active in extrends during this session) — do not sync until authorized; per-repo
 wiring (`audit.toml`, `checks/*.sql`, task-runner targets, dev-extras pins for the audit layer; a first

@@ -18,8 +18,9 @@ relevant into `knowledge/` — once the portfolio closes.
 
 - **Downstream sync is FROZEN** by standing operator hold. Queue awaiting the lift:
   `premise-review-gate`, `pro-agent-flash-delegation`, `deterministic-tooling-layer`,
-  `knowledge-lint`, `mechanize-invariants`. Do not run `sync_scaffold.py` against a downstream
-  repo until the operator lifts it.
+  `knowledge-lint`, `mechanize-invariants`, `repair-instruction-surface` (verify-skill
+  `SKILL.md` restructure only — its AGENTS.md/config.yaml/knowledge fills are per-repo and do
+  NOT propagate). Do not run `sync_scaffold.py` against a downstream repo until the operator lifts it.
 - **Pushes to remotes are NOT authorized.** All of 2026-07-02's commits are local-only.
   Commits to local `main` in small reviewed checkpoints are fine.
 - **No standing autonomy grant:** propose tier + plan and get operator confirmation BEFORE
@@ -35,9 +36,22 @@ config rules-block position, dangling skill refs, timeout-budget agreement) via 
 SEAL test in the suite; the commit-test gate is ARMED in this repo; `sync_scaffold.py` now
 warns when a target repo lacks the `scaffold_check.py` hook wiring.
 
+Change 2 of 4 (`repair-instruction-surface`, SMALL) is SHIPPED (commit `e4eaa2f`, local `main`,
+not pushed; artifacts in `plans/succession-hardening/repair-instruction-surface/`). (a) The verify
+skill is now a single `**Steps** 1-18` procedure with the behavioral review as Steps 4-8
+(content-preserving; SEAL-guarded). (b) AGENTS.md title/project-context + config.yaml `context:`
+first-four-fields state the repo IS the golden source (per-repo, proven non-propagating via a
+synthetic-target dry-run). (c) `knowledge/reference/exit-codes.md` added (source-verified). Flash
+premise `AGREE`; Sonnet apply-executor (operator directive); orchestrator review + single flash
+verifier both READY. The verify-skill restructure joins the frozen sync queue; (b)/(c) are
+scaffold-local.
+
 ## Remaining portfolio changes (operator-approved direction; execute in order)
 
-### 1. `repair-instruction-surface` (SMALL) — next up
+### 1. `repair-instruction-surface` (SMALL) — ✅ SHIPPED 2026-07-03 (commit `e4eaa2f`)
+
+Done; see State above. Details/rationale in `plans/succession-hardening/repair-instruction-surface/`
+(plan.md, premise-review.md, impl-spec.md). The sub-scope breakdown below is retained for the record.
 
 - (a) Restructure `.claude/skills/openspec-verify-change/SKILL.md` so the mandatory behavioral
   review IS the single numbered procedure. Today it is a blockquote preamble followed by a
@@ -57,7 +71,7 @@ warns when a target repo lacks the `scaffold_check.py` hook wiring.
 - Process: SMALL per AGENTS.md — plan + flash premise pass BEFORE apply delegation; single
   flash verifier pass after; no verify-skill invocation.
 
-### 2. `prune-knowledge` (SMALL) — operator pre-approved AGGRESSIVE pruning
+### 2. `prune-knowledge` (SMALL) — next up; operator pre-approved AGGRESSIVE pruning
 
 - (a) Fix the drift `python3 scripts/knowledge_lint.py` already flags in this repo's own
   `knowledge/` tree (pre-existing findings incl. stale `ai-docs/` refs in `roadmap.md` and
