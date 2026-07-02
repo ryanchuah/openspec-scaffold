@@ -27,4 +27,5 @@
 - psc-monitor items → `knowledge/questions/parked-psc-monitor.md`
 - Premise-review-gate follow-ons → `knowledge/questions/premise-review-gate-follow-ons.md`
 - Deterministic-tooling-layer follow-ons → `knowledge/questions/deterministic-tooling-layer-follow-ons.md`
+- Knowledge-lint follow-ons → `knowledge/questions/knowledge-lint-follow-ons.md`
 - `.claude` fallback-agent `description:` lines aren't strict YAML (latent, low-pri) → `knowledge/questions/claude-agent-frontmatter-yaml.md`

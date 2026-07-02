@@ -28,10 +28,10 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
   one unused unpacked test variable — deliberately left as seed material for the future campaign.
 - **`--floor` writes artifacts to CWD** (recorded apply deviation) — fine for agent use today, but
   a default scratch-dir convention may be nicer; revisit at downstream wiring time.
-- **knowledge-lint tie-in:** beyond the audit-log registry check already planned in its brief, the
-  future `knowledge_lint.py` should detect count-recording patterns ("N tests pass"-style tallies)
-  in tracked docs — this session hit that exact rake via a verbatim-appended verifier evidence
-  block.
+- **knowledge-lint tie-in:** `knowledge_lint.py` shipped (2026-07-02) and covers the audit-log
+  registry check. A further, still-unbuilt idea — detecting count-recording patterns ("N tests
+  pass"-style tallies) in tracked docs — is now tracked in
+  `knowledge/questions/knowledge-lint-follow-ons.md`.
 - **Cosmetic:** the uniform summary line labels scope's informational file count as "findings";
   harmless but mildly confusing — reconsider the wording in the follow-on refactor.
 
@@ -47,8 +47,9 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
   onward (brief D6).
 - **Dead-code/duplication/complexity triage campaign** (brief D5): one-time cheap-model pre-digest
   → shortlist → operator/Fable rules → vulture whitelist.
-- **knowledge-lint change** (`plans/knowledge-lint/`, direction-gated AGREE 2026-07-02): its
-  deterministic linter will also cover the `knowledge/audit-log.md` registry format this change
-  introduces.
+- **knowledge-lint** shipped (2026-07-02, `openspec/changes/archive/2026-07-02-knowledge-lint/`): its
+  deterministic linter now covers the `knowledge/audit-log.md` registry format this change introduces;
+  see `knowledge/questions/knowledge-lint-follow-ons.md` for the still-open latent-check item (untested
+  until a repo grows a real `audit-log.md`).
 - Delete `../extrends/AUDIT-WORKFLOW-HANDOFF.md` (superseded by the brief) — deferred along with
   the extrends sync freeze.
