@@ -146,9 +146,13 @@ Archive a completed change in the experimental workflow.
            Project docs: knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md. \
            Move the change dir to the archive path, sync delta specs if requested, \
            and reconcile the three project docs from the archived notes.md / \
-           proposal.md / design.md. Do not commit. End with a brief completion \
-           report (what was moved, which specs synced, which docs reconciled, \
-           anything the primary should double-check)." \
+           proposal.md / design.md. Also run scripts/knowledge_lint.py and re-check \
+           knowledge/reference/, knowledge/roadmap.md, and the individual \
+           knowledge/questions/<item>.md Parked bodies for now-stale claims about this \
+           just-shipped change; surface any findings flag-only — do not edit those wider \
+           bodies. Do not commit. End with a brief completion \
+           report (what was moved, which specs synced, which docs reconciled, any \
+           wider-sweep findings, anything the primary should double-check)." \
           > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null
         ```
 
@@ -197,6 +201,10 @@ Archive a completed change in the experimental workflow.
    the Task tool with `subagent_type: "archive-executor"`. Pass:
    - `changeRoot`, target `archivePath`, whether delta spec sync was requested
    - Paths to `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`, `knowledge/questions/INDEX.md`
+   - Instruction to also run `scripts/knowledge_lint.py` and re-check `knowledge/reference/`,
+     `knowledge/roadmap.md`, and the individual `knowledge/questions/<item>.md` Parked bodies for
+     now-stale claims about this just-shipped change, flag-only — surface findings, do not edit
+     those wider bodies
    - On executor failure or a botched result, **restore the baseline** (see Recovery below)
      before re-delegating.
 

@@ -6,6 +6,7 @@
 .claude/agents/archive-executor.md
 
 # Skills (.claude)
+.claude/skills/lint-knowledge/SKILL.md
 .claude/skills/openspec-apply-change/SKILL.md
 .claude/skills/openspec-archive-change/SKILL.md
 .claude/skills/openspec-explore/SKILL.md
@@ -37,6 +38,7 @@ scripts/audit_scope.py
 scripts/data_lint.py
 scripts/fetch_clean.py
 scripts/index_coverage.py
+scripts/knowledge_lint.py
 scripts/scaffold_check.py
 scripts/scaffold_manifest.txt
 scripts/status_lint.py
@@ -47,6 +49,7 @@ scripts/test_convergence.py
 scripts/test_data_lint.py
 scripts/test_executor_body_agreement.py
 scripts/test_index_coverage.py
+scripts/test_knowledge_lint.py
 scripts/test_status_lint.py
 
 # AGENTS.md — span-replace, not wholesale copy (see D3)

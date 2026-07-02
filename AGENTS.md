@@ -234,6 +234,12 @@ Two tiers of state, with deliberately different write rules:
   `openspec/changes/archive/`. **Any `##` section narrating a shipped change counts toward the cap**
   regardless of heading title; only the current-state preamble and `## Immediate next action` are exempt.
 
+  **Wider knowledge-drift sweep (flag-only):** at archive the archive-executor also runs
+  `scripts/knowledge_lint.py` and re-checks `knowledge/reference/`, `knowledge/roadmap.md`, and
+  the individual `knowledge/questions/<item>.md` Parked bodies for now-stale claims about the
+  just-shipped change; findings are surfaced but do NOT block archive, and the three-tracker
+  reconciliation below is unchanged — this sweep only flags, it never auto-corrects.
+
   **`knowledge/questions/INDEX.md` split rule:** Active holds ONLY current blockers and operator-decision
   items. The Parked section holds non-blocking follow-ons as one-line pointers to
   `knowledge/questions/<item>.md` (on-demand). Resolved items close in-place. The split is by horizon,
