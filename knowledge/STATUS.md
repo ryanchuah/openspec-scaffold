@@ -53,7 +53,8 @@ Archive: `openspec/changes/archive/2026-07-02-deterministic-tooling-layer`.
 ## Immediate next action
 In flight: the succession-hardening portfolio (direction premise-gated 2026-07-02; changes 1
 `mechanize-invariants` and 2 `repair-instruction-surface` shipped) has two approved changes
-remaining — `prune-knowledge` (SMALL, next), `delegated-agent-safety` (MEDIUM) — full scopes,
+remaining — `delegated-agent-safety` (MEDIUM, next; operator resequenced ahead of prune-knowledge
+2026-07-03), `prune-knowledge` (SMALL, portfolio closer) — full scopes,
 operator decisions, and process requirements in `plans/succession-hardening/HANDOFF-next-session.md`.
 Separately, scaffold changes await downstream propagation to **extrends** and
 **psc-monitor** (run `scripts/sync_scaffold.py <repo>`, then review/commit there):

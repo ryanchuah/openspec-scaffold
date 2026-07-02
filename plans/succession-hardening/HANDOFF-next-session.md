@@ -71,7 +71,7 @@ Done; see State above. Details/rationale in `plans/succession-hardening/repair-i
 - Process: SMALL per AGENTS.md — plan + flash premise pass BEFORE apply delegation; single
   flash verifier pass after; no verify-skill invocation.
 
-### 2. `prune-knowledge` (SMALL) — next up; operator pre-approved AGGRESSIVE pruning
+### 2. `prune-knowledge` (SMALL) — portfolio CLOSER (runs after change 4 per operator resequence); operator pre-approved AGGRESSIVE pruning
 
 - (a) Fix the drift `python3 scripts/knowledge_lint.py` already flags in this repo's own
   `knowledge/` tree (pre-existing findings incl. stale `ai-docs/` refs in `roadmap.md` and
@@ -91,7 +91,7 @@ Done; see State above. Details/rationale in `plans/succession-hardening/repair-i
   `plans/succession-hardening/` residency when the portfolio closes.
 - Related items live in `knowledge/questions/mechanize-invariants-follow-ons.md`.
 
-### 3. `delegated-agent-safety` (MEDIUM)
+### 3. `delegated-agent-safety` (MEDIUM) — ▶ NEXT UP (operator resequenced ahead of `prune-knowledge`, 2026-07-03; no dependency between them — run 4 first on risk priority)
 
 - (a) Structural fix for the `openspec-verifier` data-safety hazard: the verifier
   (`bash: allow`, `edit: deny`) mutated extrends' production SQLite during a real 2026-06-28
