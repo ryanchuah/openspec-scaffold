@@ -1,4 +1,4 @@
-# <FILL: project name>
+# openspec-scaffold
 
 > **MANDATORY — read before doing anything else**
 >
@@ -70,12 +70,19 @@ Authoritative one-paragraph summary, tech stack, and testing philosophy live in
 OpenSpec artifact prompt — keep it as the single short source and do not duplicate it
 at length here.
 
-<FILL: 2-4 sentences of detailed, load-bearing context too long for the config.yaml
-prompt-injection block — scope rules, what the product must/must never do, etc. Remove
-this section if the config.yaml context is sufficient.>
+This repository **is** the `openspec-scaffold` golden source: it defines the OpenSpec agent
+workflow — the skills, agents, lifecycle, delegation harness, and deterministic audit +
+scaffold-lint tooling — and propagates it to downstream project repos (currently `extrends` and
+`psc-monitor`) via `scripts/sync_scaffold.py`. Scaffold-managed files are edited **here and only
+here**; downstream repos receive them by sync, never by local edit. Because a change here can
+govern several repos, mistakes propagate — every change runs the full OpenSpec lifecycle at its
+tier, and this repo's own `pytest` suite (including the `scaffold_lint` invariant SEAL) must be
+green before commit.
 
-**Hard constraints:** <FILL: API tiers, cost limits, platform/runtime constraints,
-anything the agent must never violate — or remove this section if none.>
+**Hard constraints:** Scaffold-managed files (see `scripts/scaffold_manifest.txt`) are edited
+only in this repo; downstream propagation (`sync_scaffold.py`) and pushes to remotes are
+**operator-gated**. The full discipline is specified under "Scaffold-managed files &
+propagation" and "Working process" below — do not weaken it.
 
 ## Roles
 
