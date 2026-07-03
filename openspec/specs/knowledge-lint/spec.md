@@ -3,9 +3,10 @@
 Define the contract for detecting per-repo knowledge drift — prose and structure in tracked project
 knowledge (`knowledge/`) that has fallen out of sync with reality. Two layers cover this: a
 deterministic, stdlib-only linter (`scripts/knowledge_lint.py`) that catches structural/mechanical
-drift, and an operator-invoked LLM judgment skill (`lint-knowledge`) that catches the semantic drift a
-deterministic check cannot see. Both are detect-only — neither ever rewrites tracked prose — and both
-are scaffold-managed, propagating byte-identical to every downstream repo via `sync_scaffold.py`.
+drift, and an operator-invoked LLM judgment skill (`knowledge-drift-review`) that catches the
+semantic drift a deterministic check cannot see. Both are detect-only — neither ever rewrites
+tracked prose — and both are scaffold-managed, propagating byte-identical to every downstream repo
+via `sync_scaffold.py`.
 
 ## Requirements
 
@@ -90,7 +91,7 @@ alone SHALL apply.
 
 ### Requirement: judgment-layer-skill-detects-semantic-drift
 
-A `lint-knowledge` skill SHALL exist at `.claude/skills/lint-knowledge/SKILL.md` (one path, discovered
+A `knowledge-drift-review` skill SHALL exist at `.claude/skills/knowledge-drift-review/SKILL.md` (one path, discovered
 by both the Claude and OpenCode harnesses; no `.opencode/` copy) defining an operator-invoked LLM
 judgment pass that detects the drift a deterministic linter cannot see. It SHALL FIRST run
 `scripts/knowledge_lint.py` to clear the cheap deterministic findings, and only THEN perform the LLM
@@ -102,7 +103,7 @@ designed-not-built" claims that contradict a shipped `openspec/changes/archive/`
 README/runbook but absent from `knowledge/questions/INDEX.md` Active.
 
 #### Scenario: deterministic-pass-runs-first
-- **WHEN** the `lint-knowledge` skill is invoked
+- **WHEN** the `knowledge-drift-review` skill is invoked
 - **THEN** it SHALL run `scripts/knowledge_lint.py` before beginning its LLM judgment sweeps
 
 #### Scenario: stale-not-built-claim-flagged
@@ -119,19 +120,19 @@ README/runbook but absent from `knowledge/questions/INDEX.md` Active.
 
 #### Scenario: skill-ships-single-path-detect-only
 - **WHEN** the skill is added to the scaffold
-- **THEN** it SHALL exist only at `.claude/skills/lint-knowledge/SKILL.md` (no `.opencode/` copy), and running it SHALL produce findings only, modifying no tracked file
+- **THEN** it SHALL exist only at `.claude/skills/knowledge-drift-review/SKILL.md` (no `.opencode/` copy), and running it SHALL produce findings only, modifying no tracked file
 
 ### Requirement: knowledge-lint-tooling-is-scaffold-managed
 
 The knowledge-lint tooling SHALL be scaffold-managed: `scripts/knowledge_lint.py`, its test file
-`scripts/test_knowledge_lint.py`, and `.claude/skills/lint-knowledge/SKILL.md` SHALL be listed in
+`scripts/test_knowledge_lint.py`, and `.claude/skills/knowledge-drift-review/SKILL.md` SHALL be listed in
 `scripts/scaffold_manifest.txt` so `scripts/sync_scaffold.py` propagates them byte-identical to every
 downstream repo. The per-repo `audit.toml` SHALL NOT be added to the manifest (it is per-repo config,
 not scaffold-managed).
 
 #### Scenario: manifest-lists-linter-tooling
 - **WHEN** `scripts/scaffold_manifest.txt` is read
-- **THEN** it SHALL contain entries for `scripts/knowledge_lint.py`, `scripts/test_knowledge_lint.py`, and `.claude/skills/lint-knowledge/SKILL.md`
+- **THEN** it SHALL contain entries for `scripts/knowledge_lint.py`, `scripts/test_knowledge_lint.py`, and `.claude/skills/knowledge-drift-review/SKILL.md`
 
 #### Scenario: per-repo-config-not-scaffold-managed
 - **WHEN** the manifest is checked for `audit.toml`

@@ -5,7 +5,22 @@ Project initialised from openspec-scaffold. Delegated-work governance hardened: 
 scaffold's own `knowledge/` tree now passes `scripts/knowledge_lint.py` clean, with the
 `openspec-onboard` teaching-skill removed as a standing drift risk.
 
-## Latest change — prune-knowledge SHIPPED (2026-07-03)
+## Latest change — clarify-audit-tooling-surface SHIPPED (2026-07-03)
+
+Renamed the LLM `lint-knowledge` skill to `knowledge-drift-review`, ending near-mirrored-name
+confusion with the deterministic `knowledge_lint.py` script. Added a `run-audit` skill as the
+deterministic-audit entry point (detects repo interpreter, runs `audit_bundle.py`/`audit_scope.py`,
+gracefully handles missing per-repo wiring). Generalized `scaffold_lint.py`'s dangling-skill-ref
+detection from a single hardcoded token to an explicit frozenset so both non-openspec skills validate.
+Surgical AGENTS.md edits mark the interpreter and `just audit-*` as per-repo/illustrative. Verified:
+live probe of the generalized `check_dangling_skill_refs` confirmed correct detection for both skills
+and the deliberate D2 trade-off (renamed-name stragglers caught by grep, not the check); in-repo
+`grep -rn lint-knowledge` returned only historical lines; suite green, SEAL green, `--check-refs`
+green. No code changes to deterministic scripts. Decisions in `knowledge/decisions/INDEX.md`;
+forward-looking items parked in `knowledge/questions/`. Archive:
+`openspec/changes/archive/2026-07-03-clarify-audit-tooling-surface`.
+
+## Prior change — prune-knowledge SHIPPED (2026-07-03)
 
 A plan-based SMALL change (no `openspec/changes/` dir, no spec deltas — the succession-hardening
 portfolio closer) drove `scripts/knowledge_lint.py` to green: added `knowledge/audit-log.md` to an
@@ -33,19 +48,6 @@ rewrote the framing honestly — a speed-bump, not a semantic wall; the verifier
 filesystem-read-only via bash. Multi-model passes were NOT waived; apply/archive ran on Sonnet per
 operator directive. Downstream propagation stays FROZEN. Decisions in `knowledge/decisions/INDEX.md`;
 follow-ons in `knowledge/questions/`. Archive: `openspec/changes/archive/2026-07-03-delegated-agent-safety`.
-
-## Prior change — mechanize-invariants SHIPPED (2026-07-02)
-
-A deterministic commit-time scaffold linter, `scripts/scaffold_lint.py`, shipped with five checks
-(manifest-completeness, agents-md-structure, config-rules-last, dangling-skill-refs, budget-agreement),
-converting prose invariants into machine enforcement. This repo's commit-test gate was armed; a
-sync-time hook-wiring warning was added to `sync_scaffold.py`. Verdict: READY. Live smoke — four
-seeded probes all triggered correctly and reverted clean; the armed gate blocked a red suite and
-passed green; sync warnings behaved. Operator overrides recorded: Sonnet executor by directive
-(deepseek not attempted); deepseek verifier passes waived; simplicity gate ran (5 of 7 findings
-fixed). No downstream propagation — joins the frozen pending-sync queue. Decisions in
-`knowledge/decisions/INDEX.md`; follow-ons in `knowledge/questions/`. Archive:
-`openspec/changes/archive/2026-07-02-mechanize-invariants`.
 
 ## Immediate next action
 The succession-hardening portfolio is **fully shipped** and the proactive-build queue is empty.

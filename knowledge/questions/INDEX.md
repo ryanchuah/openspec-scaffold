@@ -26,3 +26,7 @@
 - Knowledge-lint follow-ons → `knowledge/questions/knowledge-lint-follow-ons.md`
 - Mechanize-invariants follow-ons → `knowledge/questions/mechanize-invariants-follow-ons.md`
 - Delegated-agent-safety follow-ons → `knowledge/questions/delegated-agent-safety-follow-ons.md`
+- clarify-audit-tooling propagation follow-on (tombstone `rm -rf .claude/skills/lint-knowledge/` downstream, extrends has pre-rename state) → `knowledge/questions/clarify-audit-tooling-propagation.md`
+- run-audit never exercised end-to-end (no wired audit layer in scaffold; monitored, not blocking) → `knowledge/questions/run-audit-untested.md`
+- scaffold_lint removed non-openspec-name blind spot (D2 trade-off; revisit if skill set grows or rename recurs) → `knowledge/questions/scaffold-lint-removed-name-blindspot.md`
+- Audit-skill frontmatter `compatibility` boilerplate is inaccurate for both run-audit and knowledge-drift-review → `knowledge/questions/audit-skill-metadata-cleanup.md`
