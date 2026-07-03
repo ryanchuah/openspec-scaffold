@@ -39,49 +39,49 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
 
 ## 2. check.sh — the single definition of green
 
-- [ ] 2.1 Create `scripts/check.sh` (executable, `set -euo pipefail`, byte-identical-across-repos
+- [x] 2.1 Create `scripts/check.sh` (executable, `set -euo pipefail`, byte-identical-across-repos
       shape like `test-gate.sh`). Resolve `REPO_ROOT` the same way `test-gate.sh` does. Run in order:
       (a) `ruff check`, (b) `ruff format --check`, (c) the test stage sourced from `scripts/test-cmd`.
       Exit non-zero naming the failed stage; exit 0 only if all pass.
-- [ ] 2.2 Missing-tool degradation (mirror `test-gate.sh`): if `ruff` does not resolve
+- [x] 2.2 Missing-tool degradation (mirror `test-gate.sh`): if `ruff` does not resolve
       (`command -v ruff`), warn on stderr, SKIP stages (a) and (b), and continue to the test stage —
       do NOT block on absent ruff. If `scripts/test-cmd` is absent/empty, the test stage is a no-op
       (as today). Only a present tool reporting a real violation, or a failing test, yields non-zero.
-- [ ] 2.3 Add a `scripts/test_check_sh.py` (or extend the gate smoke fixture) exercising check.sh
+- [x] 2.3 Add a `scripts/test_check_sh.py` (or extend the gate smoke fixture) exercising check.sh
       branches: clean tree → 0; injected lint violation → non-zero; format drift → non-zero; failing
       test-cmd → non-zero; ruff absent (simulate via PATH) → warns, skips lint/format, still runs
       tests, does not hard-block. Use tmp fixtures; do not depend on the real repo state.
 
 ## 3. install-tools.sh — pinned security scanners
 
-- [ ] 3.1 Create `scripts/install-tools.sh` (executable, idempotent): install pinned `gitleaks` and
+- [x] 3.1 Create `scripts/install-tools.sh` (executable, idempotent): install pinned `gitleaks` and
       `osv-scanner` to a resolvable location; note that `deptry` comes via dev extras (pip), not a
       binary install. Pin explicit current-stable versions (record the pins in the script header).
       Re-running with the pinned versions already present must be a no-op and exit 0.
 
 ## 4. test-gate.sh → check.sh rewire
 
-- [ ] 4.1 Rewire `scripts/test-gate.sh` to delegate to `scripts/check.sh` instead of running the
+- [x] 4.1 Rewire `scripts/test-gate.sh` to delegate to `scripts/check.sh` instead of running the
       test command directly: keep the hook contract (exit 0 allow / exit 2 block) — map any non-zero
       from check.sh to exit 2, exit 0 to exit 0. Preserve the existing no-op branches (no test-cmd,
       config error) by letting check.sh own them. Keep both scripts byte-identical-across-repos.
-- [ ] 4.2 Update the smoke fixture / any `scripts/test_*gate*` so the gate's five documented states
+- [x] 4.2 Update the smoke fixture / any `scripts/test_*gate*` so the gate's five documented states
       still pass through the new check.sh delegation (absent test-cmd → 0; empty → 0; unresolvable →
       0+warn; failing → 2; passing → 0), plus a lint/format-failure → 2 case.
 
 ## 5. Hook-matcher fix (fixes the parked misfire) + regression probe
 
-- [ ] 5.1 Reproduce the parked misfire first (evidence: `plans/day-to-day-tooling/c-lint-layer-research.md`
+- [x] 5.1 Reproduce the parked misfire first (evidence: `plans/day-to-day-tooling/c-lint-layer-research.md`
       §hook-matcher-bug and `knowledge/questions/commit-test-gate-hook-misfire.md`): a non-commit Bash
       command containing `git commit` only as a substring (harmless `true` payload + file
       redirections + EXIT-sentinel echo) currently trips the gate.
-- [ ] 5.2 Fix so the gate fires only on a genuine `git commit` argv. Prefer the robust layer: have
+- [x] 5.2 Fix so the gate fires only on a genuine `git commit` argv. Prefer the robust layer: have
       `test-gate.sh` read the PreToolUse tool-input command (the hook provides `tool_input.command`
       on stdin JSON) and no-op (exit 0) unless the command is actually a `git commit` invocation;
       then proceed to the check.sh delegation. (If reading stdin is not viable, tighten the
       `.claude/settings.json` PreToolUse matcher instead — but the script-layer guard is preferred so
       it travels with the scaffold-managed script.) A genuine `git commit -am`/`--amend` must still gate.
-- [ ] 5.3 Add the reproduction command to the commit-test-gate smoke fixture as a must-not-gate
+- [x] 5.3 Add the reproduction command to the commit-test-gate smoke fixture as a must-not-gate
       regression probe (asserts the gate no-ops on the substring-only command).
 
 ## 6. knowledge_lint citation-matcher hardening

@@ -3,34 +3,41 @@
 This directory contains a repeatable smoke procedure for the commit-test-gate
 (`scripts/test-gate.sh`). The gate has two independently testable layers:
 
-1. **Script layer** — `scripts/test-gate.sh` exit behavior across all five
-   branches. Deterministic; can be run from any session.
+1. **Script layer** — `scripts/test-gate.sh` exit behavior across all branches,
+   including the hook-matcher guard (task 5.2). Deterministic; can be run from
+   any session.
 2. **Hook wiring** — whether Claude's `PreToolUse` hook actually fires on
    `git commit`, and whether exit codes are correctly propagated. Requires a
    gated Claude session whose project dir carries the hook and a real
-   `scripts/test-cmd`.
+   `scripts/check.sh` + `scripts/test-cmd`.
 
 ## Script-Layer Smoke Procedure
 
-The snippet below exercises all five branches of `scripts/test-gate.sh` by
-creating a temporary workspace with various `scripts/test-cmd` contents.
-Expected exit codes are documented inline.
+The snippet below exercises all branches of `scripts/test-gate.sh` (which now
+delegates to `scripts/check.sh`) by creating a temporary workspace with various
+`scripts/test-cmd` contents. Expected exit codes are documented inline.
 
 ```bash
 #!/usr/bin/env bash
 set -uo pipefail   # NOT -e: cases below deliberately run commands that exit non-zero (the gate's exit 2)
 
 # test-gate.sh resolves scripts/test-cmd relative to ITS OWN location (BASH_SOURCE),
-# not the cwd — so copy it into a temp workspace and run the COPY, which then reads
-# that workspace's scripts/test-cmd.
-GATE_SRC="$(cd "$(dirname "$0")/../../scripts" && pwd)/test-gate.sh"
+# not the cwd — so copy both test-gate.sh and check.sh into a temp workspace and
+# run the COPY, which then reads that workspace's scripts/test-cmd.
+SRC_DIR="$(cd "$(dirname "$0")/../../scripts" && pwd)"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 mkdir -p "$WORKDIR/scripts"
-cp "$GATE_SRC" "$WORKDIR/scripts/test-gate.sh"
+cp "$SRC_DIR/test-gate.sh" "$WORKDIR/scripts/test-gate.sh"
+cp "$SRC_DIR/check.sh" "$WORKDIR/scripts/check.sh"
+cp "$SRC_DIR/ruff.toml" "$WORKDIR/"
 GATE="$WORKDIR/scripts/test-gate.sh"
 
+# The hook-matcher guard reads stdin JSON. For direct invocation (no stdin),
+# it falls through to UNKNOWN and runs the gate.
+
 echo "=== 1. No test-cmd file (absent) -> exit 0 ==="
+# check.sh handles this: no test-cmd => no-op
 "$GATE"; echo "EXIT=$?"
 
 echo "=== 2. Empty test-cmd -> exit 0 ==="
@@ -48,28 +55,62 @@ echo "false" > "$WORKDIR/scripts/test-cmd"
 echo "=== 5. Passing test command -> exit 0 ==="
 echo "true" > "$WORKDIR/scripts/test-cmd"
 "$GATE"; echo "EXIT=$?"
+
+echo "=== 6. Lint/format failure -> exit 2 (BLOCKED) ==="
+echo "true" > "$WORKDIR/scripts/test-cmd"
+# Create a file with a lint violation
+echo "import os" > "$WORKDIR/foo.py"
+"$GATE"; echo "EXIT=$?"
+
+echo "=== 7. Hook-matcher guard: non-commit command containing 'git commit' as substring -> exit 0 (no-op) ==="
+# Simulate a PreToolUse hook JSON payload with a command that contains
+# "git commit" only as a substring (not an actual commit).
+echo '{"tool_input": {"command": "echo \"use git commit to save changes\" && true"}}' | \
+    "$GATE"; echo "EXIT=$?"
+
+echo "=== 8. Hook-matcher guard: genuine git commit -> proceeds to gate (exit 2 if suite red) ==="
+echo '{"tool_input": {"command": "git commit -m \"test\""}}' | \
+    "$GATE"; echo "EXIT=$?"
 ```
 
-If run from `tests/commit-gate-smoke/`, the output should be:
+If run from `tests/commit-gate-smoke/`, the output should be approximately:
 
 ```
 === 1. No test-cmd file (absent) → exit 0 ===
-test-gate: no scripts/test-cmd; skipping (no-op)
+test-gate: running checks...
+check: no scripts/test-cmd; test stage skipped (no-op)
 EXIT=0
 === 2. Empty test-cmd → exit 0 ===
-test-gate: scripts/test-cmd is empty/whitespace-only; skipping (no-op)
+test-gate: running checks...
+check: scripts/test-cmd is empty/whitespace-only; test stage skipped (no-op)
 EXIT=0
 === 3. Unresolvable executable (e.g. 'nonexistent-binary') → exit 0 (WARNING) ===
-test-gate: WARNING — cannot run 'nonexistent-binary --flag' (config error) — NOT blocking commit
+test-gate: running checks...
+check: WARNING — cannot run 'nonexistent-binary --flag' (config error) — NOT blocking
 EXIT=0
 === 4. Failing test command → exit 2 (BLOCKED) ===
-test-gate: running 'false'...
-test-gate: tests failed — commit BLOCKED (exit code 1)
+test-gate: running checks...
+check: running 'false'...
+check: tests failed (exit code 1)
+test-gate: checks failed — commit BLOCKED
 EXIT=2
 === 5. Passing test command → exit 0 ===
-test-gate: running 'true'...
-test-gate: tests passed
+test-gate: running checks...
+check: running 'true'...
+check: all checks passed
+test-gate: all checks passed
 EXIT=0
+=== 6. Lint/format failure → exit 2 (BLOCKED) ===
+test-gate: running checks...
+check: ruff check failed
+test-gate: checks failed — commit BLOCKED
+EXIT=2
+=== 7. Hook-matcher guard: non-commit command containing 'git commit' as substring → exit 0 (no-op) ===
+test-gate: command is not a genuine 'git commit' — skipping gate (no-op)
+EXIT=0
+=== 8. Hook-matcher guard: genuine git commit → proceeds to gate (exit 2 if suite red) ===
+test-gate: running checks...
+... (check.sh runs, result depends on workspace state) ...
 ```
 
 ## Hook-Wiring Smoke Procedure
@@ -81,7 +122,7 @@ fires on `git commit`, propagates exit codes, and resolves
 **Prerequisites:** a gated Claude session whose project directory carries:
 - `.claude/settings.json` with the `PreToolUse` hook on `Bash(git commit*)`
   running `scripts/test-gate.sh`
-- A real (non-empty) `scripts/test-cmd` file
+- Real `scripts/check.sh` and `scripts/test-cmd` files
 
 **Do NOT run these in a production repo.** Use a throwaway clone or a scratch
 repo.
@@ -95,9 +136,9 @@ echo "false" > scripts/test-cmd
 # Attempt a trivial commit
 git commit --allow-empty -m "smoke-test-fail"
 
-# Expected: the hook fires, test-cmd runs and fails, git commit is BLOCKED.
-# The error message appears in the Claude session output:
-#   "test-gate: tests failed — commit BLOCKED (exit code 1)"
+# Expected: the hook fires, check.sh runs the test which fails, git commit
+# is BLOCKED. The error message appears in the Claude session output:
+#   "test-gate: checks failed — commit BLOCKED"
 ```
 
 If the commit succeeds despite the failing test, the hook wiring is broken
@@ -112,13 +153,13 @@ echo "true" > scripts/test-cmd
 # Re-attempt the commit
 git commit --allow-empty -m "smoke-test-pass"
 
-# Expected: hook fires, test passes, commit proceeds.
-# Output: "test-gate: tests passed"
+# Expected: hook fires, checks pass, commit proceeds.
+# Output: "test-gate: all checks passed"
 ```
 
 ### Check (c) — `$CLAUDE_PROJECT_DIR` expansion
 
-The hook references `scripts/test-cmd` relative to the project root. If the
+The hook references `scripts/test-gate.sh` relative to the project root. If the
 hook uses `$CLAUDE_PROJECT_DIR` for path resolution, confirm it expands
 correctly by adding a temporary diagnostic:
 
@@ -135,3 +176,15 @@ git commit --allow-empty -m "smoke-test-env"
 **Note:** The hook-wiring smoke cannot be automated from a non-gated session
 — it requires a Claude session whose project dir has the hook installed. It
 is a documented operator-run procedure.
+
+### Check (d) — hook-matcher guard does NOT block non-commit commands
+
+Confirm the hook-matcher guard (task 5.2) prevents the loose
+`Bash(git commit*)` matcher from blocking non-commit Bash. Run any complex
+non-commit command inside a gated session — it must NOT trigger the gate:
+
+```bash
+# This command is NOT a git commit but may trip the loose matcher
+echo "use git commit to save changes" && true
+# Expected: no gate output, the command runs normally.
+```

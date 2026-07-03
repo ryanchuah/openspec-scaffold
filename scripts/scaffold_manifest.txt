@@ -53,6 +53,13 @@ scripts/test_executor_body_agreement.py
 scripts/test_index_coverage.py
 scripts/test_knowledge_lint.py
 scripts/test_status_lint.py
+scripts/check.sh
+scripts/install-tools.sh
+scripts/test_check_sh.py
+scripts/test_gate_command_detection.py
+
+# Lint config (scaffold-managed; see shared-lint-gate capability)
+ruff.toml
 
 # AGENTS.md — span-replace, not wholesale copy (see D3)
 AGENTS.md
