@@ -1,6 +1,6 @@
 ---
 name: run-audit
-description: Run the deterministic audit cycle — list, floor/report, triage, optional tag, log. Operator-invoked. Writes report artifacts to output/audit/<date>/ and appends one line to knowledge/audit-log.md (tag + log-line). Never fixes code.
+description: Run the deterministic audit cycle — list, floor/report, triage, optional tag, log. Operator-invoked. Writes report artifacts to output/checks/<date>/ and appends one line to knowledge/audit-log.md (tag + log-line). Never fixes code.
 license: MIT
 compatibility: Requires openspec CLI.
 metadata:
@@ -9,9 +9,16 @@ metadata:
   generatedBy: "1.4.1"
 ---
 
-Run the deterministic audit cycle — `audit_bundle.py` to discover or run checks,
+Run the deterministic audit cycle — `checks.py` to discover or run checks,
 `audit_scope.py` to anchor and log. Operator-invoked; the cycle writes report
 artifacts (untracked) and, on explicit request, appends one tracked log line.
+
+**Ceremony vs day-to-day.** The audit ceremony covers both families:
+check-family detectors (findings-capable, gated by preflight) and fact-family
+snapshots (always degrade gracefully, never fail a run). Both write dated output
+under `--report`. For quick orientation snapshots that regenerate on use, use
+`facts.py` directly — it runs fact-family entries undated to `output/facts/`
+and is not part of the audit ceremony.
 
 **Interpreter convention.** Use `<py>` below as a placeholder for the repo's
 Python interpreter. Resolve it in this try-order:
@@ -21,7 +28,7 @@ Python interpreter. Resolve it in this try-order:
 4. `python` otherwise.
 
 **Step 0 — pre-check.** Before entering the cycle, confirm that both
-`scripts/audit_bundle.py` and `scripts/audit_scope.py` exist and run under
+`scripts/checks.py` and `scripts/audit_scope.py` exist and run under
 `<py>`. If either is missing or fails, stop immediately with a clear message
 — do not discover the gap mid-cycle.
 
@@ -29,21 +36,22 @@ Python interpreter. Resolve it in this try-order:
 
 1. **Discover.** List available checks:
    ```bash
-   <py> scripts/audit_bundle.py --list
+   <py> scripts/checks.py --list
    ```
 
 2. **Run.** Execute the audit. Choose one:
-   - Quick floor (no date-stamped output):
+   - Quick floor (no date-stamped output) — check-family entries only:
      ```bash
-     <py> scripts/audit_bundle.py --floor
+      <py> scripts/checks.py --floor
      ```
-   - Full report with date-stamped output directory:
+   - Full report with date-stamped output directory — both
+     check-family and fact-family entries, all dated:
      ```bash
-     <py> scripts/audit_bundle.py --report --date YYYY-MM-DD
+      <py> scripts/checks.py --report --date YYYY-MM-DD
      ```
-     Results land in `output/audit/<date>/` (untracked, single-use).
+     Results land in `output/checks/<date>/` (untracked, single-use).
 
-3. **Triage.** Read the JSON artifacts written to `output/audit/<date>/`.
+3. **Triage.** Read the JSON artifacts written to `output/checks/<date>/`.
    Apply judgment to determine which findings are real defects vs.
    environment/configuration noise. The skill's LLM value is in this step.
 
@@ -62,16 +70,37 @@ Python interpreter. Resolve it in this try-order:
    Append the printed line to `knowledge/audit-log.md`. This is the **sole
    tracked-file write** — operator-review it.
 
+**Preflight semantics (enabled vs installed).** Before executing any
+check-family entry, `checks.py --floor`/`--report` preflights every selected
+enabled tool. If one or more tools are unavailable (not on PATH or version
+mismatch), all missing tools are reported at once in a self-explaining message,
+**nothing is run**, and the process exits 3. Install the missing binary, or
+disable the check in `checks.toml` — disabling a security tool (e.g.
+gitleaks, osv-scanner) drops that coverage, which is the operator's call.
+
+Fact-family entries are **exempt** from preflight: they degrade gracefully if
+a tool is absent (e.g. radon missing produces an empty result, not a failure).
+For day-to-day fact snapshots that do not need the ceremony, run
+`scripts/facts.py` directly.
+
+**Staleness cadence.** Trigger a full audit from the inventory signal
+(`audit_anchor.commits_since`), not a calendar — run one when
+`commits_since` grows large enough that the baseline may be stale.
+
+**Annual re-justify.** Once per year (at minimum), re-justify every entry in
+the suppression baseline / whitelist — tools and configurations drift, and
+suppressions that were correct at baseline may mask regressions.
+
 **Error handling**
 - Stop the cycle on the first non-zero script exit and report the failure.
   Do not proceed to later steps.
-- If `output/audit/<date>/` already exists when you attempt to run a full
+- If `output/checks/<date>/` already exists when you attempt to run a full
   report, report it and do **not** overwrite or re-run without explicit
   operator direction.
 
 **Wiring-detection branch**
 - Before running, check whether the per-repo audit layer is wired:
-  - `audit.toml` (check configuration)
+  - `checks.toml` (check configuration)
   - `checks/` directory (check definitions)
   - A task-runner `audit-*` target (convenience entry point)
 - If any are absent, say so and provide concise inline guidance on what each
@@ -79,7 +108,7 @@ Python interpreter. Resolve it in this try-order:
   operator-directed work.
 
 **Guardrails**
-- `audit_bundle.py` writes reports only — it never mutates repo state.
+- `checks.py` writes reports only — it never mutates repo state.
 - `audit_scope.py tag` is the sole repo-state mutation, and it is
   operator-gated (step 4).
 - The `knowledge/audit-log.md` append is the sole tracked-file write; the

@@ -8,3 +8,8 @@
 # prune-knowledge portfolio (2026-07-03). Downstream copies still exist,
 # notably in psc-monitor.
 .claude/skills/openspec-onboard/
+
+# checks-facts-split (2026-07-03): audit_bundle.py and its test file
+# renamed to checks.py / test_checks.py; facts.py is the facts surface.
+scripts/audit_bundle.py
+scripts/test_audit_bundle.py

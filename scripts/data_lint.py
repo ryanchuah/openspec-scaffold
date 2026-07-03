@@ -69,7 +69,7 @@ DB_URL_ENV_VAR = "AUDIT_DB_URL"
 
 def _write_json_atomic(path: Path, payload) -> None:
     """Write JSON to *path* atomically: full content to ``<path>.tmp``, then
-    ``os.replace`` over the destination (matches audit_bundle's
+    ``os.replace`` over the destination (matches checks.py's
     ``_write_manifest`` pattern)."""
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

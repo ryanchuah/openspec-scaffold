@@ -22,7 +22,7 @@ Checks (each yields zero or more findings; a finding is
      ``<root>`` tree (not scoped to ``knowledge/``).
   2. **retired-path token** — per-line substring scan of in-scope knowledge
      markdown for any active retired-path token (built-in defaults, plus an
-     optional per-repo `audit.toml` extension — see below). Skips
+      optional per-repo `checks.toml` extension — see below). Skips
      ``knowledge/research/`` (period-correct history).
   3. **broken prose path citation** — a backtick-wrapped, repo-relative,
      path-like token (contains a ``/`` or ends in ``.md``; not a URL, not
@@ -58,10 +58,10 @@ Checks 2 and 3 scan ``<root>/knowledge/**/*.md`` excluding
 ``knowledge/research/``; check 4 scans the same corpus WITHOUT that
 exclusion; check 5 targets one specific file; check 1 scans ``<root>``.
 
-Per-repo config (D5): an optional repo-root ``audit.toml``
+Per-repo config (D5): an optional repo-root ``checks.toml``
 ``[knowledge_lint].retired_paths`` array (read via stdlib ``tomllib``) is
 MERGED with the built-in retired-path defaults. Absent file/table/key means
-only the defaults apply. ``audit.toml`` is per-repo config, never
+only the defaults apply. ``checks.toml`` is per-repo config, never
 scaffold-managed.
 
 Detect-only: this script performs **zero filesystem writes** under any flag
@@ -283,11 +283,11 @@ def make_git_ignore_checker(root: Path) -> Callable[[str], bool]:
 
 
 def load_retired_paths(root: Path) -> list[str]:
-    """Built-in defaults merged with an optional repo-root ``audit.toml``
+    """Built-in defaults merged with an optional repo-root ``checks.toml``
     ``[knowledge_lint].retired_paths`` extension. Absent file/table/key ->
     defaults only."""
     tokens = list(DEFAULT_RETIRED_PATHS)
-    config_path = root / "audit.toml"
+    config_path = root / "checks.toml"
     if not config_path.is_file():
         return tokens
     with config_path.open("rb") as fh:

@@ -4,7 +4,7 @@ Both `run-audit/SKILL.md` and `knowledge-drift-review/SKILL.md` carry a frontmat
 `compatibility: Requires openspec CLI` line — template boilerplate that is inaccurate for
 both skills:
 
-- `run-audit` does **not** require the openspec CLI. It drives `audit_bundle.py` and
+- `run-audit` does **not** require the openspec CLI. It drives `checks.py` and
   `audit_scope.py` — stdlib-only scripts with no openspec CLI dependency. The skill's
   interpreter-detection logic handles `.venv/bin/python`, `python3`, and `python`.
 - `knowledge-drift-review` does **not** require the openspec CLI. It runs

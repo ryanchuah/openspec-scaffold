@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for audit_bundle.py — stdlib unittest, no pytest.
+"""Tests for checks.py — stdlib unittest, no pytest.
 
 Every external binary (ruff, gitleaks, osv-scanner, deptry, radon, jscpd,
 vulture, psql) is faked with a small stub shell script prepended to PATH.
@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import audit_bundle  # noqa: E402
+import checks  # noqa: E402
 
 _BASE_PATH = "/usr/bin:/bin"
 
@@ -185,7 +185,7 @@ class AuditBundleTestBase(unittest.TestCase):
     def _capture(self, argv: list[str]) -> tuple[int, str]:
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = audit_bundle.main(argv)
+            rc = checks.main(argv)
         return rc, buf.getvalue()
 
     def _invoke_log_lines(self) -> list[str]:
@@ -229,7 +229,7 @@ class AutodetectTest(AuditBundleTestBase):
     def test_autodetect_enables_exactly_triggered_checks(self):
         rc, out = self._capture(["--list"])
         self.assertEqual(rc, 0)
-        lines = {line.split()[0]: line.split()[2] for line in out.splitlines()}
+        lines = {line.split()[0]: line.split()[3] for line in out.splitlines()}
         # triggers present in fixture: pyproject.toml, .git/, requirements.txt, checks/*.sql
         self.assertEqual(lines["scope"], "enabled")
         self.assertEqual(lines["ruff"], "enabled")
@@ -247,7 +247,7 @@ class AutodetectTest(AuditBundleTestBase):
 
 class CustomCheckTest(AuditBundleTestBase):
     def test_custom_check_command_captured_to_txt(self):
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.custom.mycheck]\n'
             'command = ["sh", "-c", "echo hello-custom"]\n'
             'tier = "floor"\n'
@@ -262,7 +262,7 @@ class CustomCheckTest(AuditBundleTestBase):
         self.assertIn("mycheck: ok — ? findings ->", out)
 
     def test_custom_check_gate_false_never_findings(self):
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.custom.failer]\n'
             'command = ["sh", "-c", "exit 1"]\n'
             'tier = "heavy"\n'
@@ -273,7 +273,7 @@ class CustomCheckTest(AuditBundleTestBase):
         self.assertEqual(rc, 0)  # gate=false -> report-only, never FINDINGS
 
     def test_custom_check_gate_true_nonzero_is_findings(self):
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.custom.failer]\n'
             'command = ["sh", "-c", "exit 1"]\n'
             'tier = "heavy"\n'
@@ -298,11 +298,11 @@ class ConfigCoercionTest(AuditBundleTestBase):
     def test_data_lint_paths_scalar_string_same_as_list_form(self):
         self._write_alt_checks_dir()
 
-        (self.repo / "audit.toml").write_text('[checks.data-lint]\npaths = "alt_checks"\n')
+        (self.repo / "checks.toml").write_text('[checks.data-lint]\npaths = "alt_checks"\n')
         out_dir_scalar = self.tmpdir / "out-scalar"
         rc_scalar, _ = self._capture(["--check", "data-lint", "--out", str(out_dir_scalar)])
 
-        (self.repo / "audit.toml").write_text('[checks.data-lint]\npaths = ["alt_checks"]\n')
+        (self.repo / "checks.toml").write_text('[checks.data-lint]\npaths = ["alt_checks"]\n')
         out_dir_list = self.tmpdir / "out-list"
         rc_list, _ = self._capture(["--check", "data-lint", "--out", str(out_dir_list)])
 
@@ -322,13 +322,13 @@ class ConfigCoercionTest(AuditBundleTestBase):
         queries_dir.mkdir()
         (queries_dir / "q.sql").write_text("SELECT * FROM users WHERE email = 'x';\n")
 
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.index-coverage]\nschema = "schema.sql"\nqueries = ["queries/*.sql"]\n'
         )
         out_dir_scalar = self.tmpdir / "out-scalar"
         rc_scalar, _ = self._capture(["--check", "index-coverage", "--out", str(out_dir_scalar)])
 
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.index-coverage]\nschema = ["schema.sql"]\nqueries = ["queries/*.sql"]\n'
         )
         out_dir_list = self.tmpdir / "out-list"
@@ -350,13 +350,13 @@ class ConfigCoercionTest(AuditBundleTestBase):
         queries_dir.mkdir()
         (queries_dir / "q.sql").write_text("SELECT * FROM users WHERE email = 'x';\n")
 
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.index-coverage]\nschema = "schema.sql"\nqueries = "queries/*.sql"\n'
         )
         out_dir_scalar = self.tmpdir / "out-scalar"
         rc_scalar, _ = self._capture(["--check", "index-coverage", "--out", str(out_dir_scalar)])
 
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.index-coverage]\nschema = "schema.sql"\nqueries = ["queries/*.sql"]\n'
         )
         out_dir_list = self.tmpdir / "out-list"
@@ -371,7 +371,7 @@ class ConfigCoercionTest(AuditBundleTestBase):
 
     def test_data_lint_paths_two_entries_infra_fail_with_config_error(self):
         self._write_alt_checks_dir()
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.data-lint]\npaths = ["checks", "alt_checks"]\n'
         )
         out_dir = self.tmpdir / "out"
@@ -383,7 +383,7 @@ class ConfigCoercionTest(AuditBundleTestBase):
         self.assertIn("only a single checks directory is supported", record["error"])
 
     def test_data_lint_paths_wrong_type_infra_fail_with_config_error(self):
-        (self.repo / "audit.toml").write_text("[checks.data-lint]\npaths = 5\n")
+        (self.repo / "checks.toml").write_text("[checks.data-lint]\npaths = 5\n")
         out_dir = self.tmpdir / "out"
         rc, out = self._capture(["--report", "--out", str(out_dir)])
         self.assertEqual(rc, 3)
@@ -615,58 +615,96 @@ class VersionMismatchReportTest(AuditBundleTestBase):
         out_dir = self.tmpdir / "out"
         out_buf, err_buf = io.StringIO(), io.StringIO()
         with redirect_stdout(out_buf), redirect_stderr(err_buf):
-            rc = audit_bundle.main(["--report", "--out", str(out_dir)])
+            rc = checks.main(["--report", "--out", str(out_dir)])
         self.assertEqual(rc, 3)
         self.assertIn("1.2.3", err_buf.getvalue())
         self.assertIn("8.30.1", err_buf.getvalue())
 
 
-class MissingBinaryAbortTest(AuditBundleTestBase):
-    def test_missing_binary_unavailable_in_list_but_abort_in_report(self):
-        os.remove(self.stub_bin / "deptry")
+class PreflightTest(AuditBundleTestBase):
+    """Preflight semantics (task 2.2): missing check-family tools are all
+    reported in one pass before any check executes; mid-run failures still
+    stop on first failure."""
 
-        rc_list, out_list = self._capture(["--list"])
-        self.assertEqual(rc_list, 0)
-        lines = {line.split()[0]: line for line in out_list.splitlines()}
-        self.assertIn("unavailable", lines["deptry"])
+    def test_preflight_reports_all_missing_and_runs_nothing(self):
+        """(a) Two missing check-family tools both reported; none executed."""
+        os.remove(self.stub_bin / "deptry")
+        os.remove(self.stub_bin / "gitleaks")
 
         out_dir = self.tmpdir / "out"
-        rc_report, out_report = self._capture(["--report", "--out", str(out_dir)])
-        self.assertEqual(rc_report, 3)
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+        stderr = err_buf.getvalue()
+
+        # Both missing tools reported in stderr with INFRA-FAIL
+        self.assertIn("deptry", stderr)
+        self.assertIn("gitleaks", stderr)
+        self.assertIn("INFRA-FAIL", stderr)
+        # Each carries install-or-disable guidance
+        self.assertIn("Install deptry", stderr)
+        self.assertIn("Install gitleaks", stderr)
+
+        # No check was actually executed
+        self.assertEqual(self._invoke_log_lines(), [])
+
+        # Manifest has both INFRA-FAIL records
+        manifest = json.loads((out_dir / "run-manifest.json").read_text())
+        records = {r["check"]: r for r in manifest if not r.get("meta")}
+        self.assertIn("deptry", records)
+        self.assertEqual(records["deptry"]["status"], "INFRA-FAIL")
+        self.assertIn("gitleaks", records)
+        self.assertEqual(records["gitleaks"]["status"], "INFRA-FAIL")
+
+    def test_mid_run_infra_fail_stops_after_failing_check(self):
+        """(b) Mid-run INFRA-FAIL (binary passes preflight but crashes at
+        runtime) records the aborting check and stops."""
+        # osv-scanner stub exists with correct version (passes preflight),
+        # but its output is unparseable — triggers INFRA-FAIL at run time.
+        os.environ["OSV_SCANNER_FIXTURE"] = "not valid json"
+
+        out_dir = self.tmpdir / "out"
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
 
         manifest = json.loads((out_dir / "run-manifest.json").read_text())
-        checks_run = [r["check"] for r in manifest if not r.get("meta")]
-        # scope, ruff, gitleaks, osv-scanner precede deptry in registry order
-        # and should have completed; deptry itself is recorded as the
-        # aborting INFRA-FAIL; nothing after it (data-lint, inventory) runs.
-        self.assertIn("scope", checks_run)
+        records = [r for r in manifest if not r.get("meta")]
+        checks_run = [r["check"] for r in records]
+
+        # Checks before osv-scanner in registry order completed
         self.assertIn("ruff", checks_run)
         self.assertIn("gitleaks", checks_run)
-        self.assertIn("osv-scanner", checks_run)
-        self.assertIn("deptry", checks_run)
+        # osv-scanner itself is INFRA-FAIL
+        osv_record = next(r for r in records if r["check"] == "osv-scanner")
+        self.assertEqual(osv_record["status"], "INFRA-FAIL")
+        # Checks after osv-scanner did NOT run
+        self.assertNotIn("deptry", checks_run)
         self.assertNotIn("data-lint", checks_run)
         self.assertNotIn("inventory", checks_run)
-        deptry_record = next(r for r in manifest if r.get("check") == "deptry")
-        self.assertEqual(deptry_record["status"], "INFRA-FAIL")
 
 
 class ResumeOrderProofTest(AuditBundleTestBase):
-    def test_resume_skips_completed_checks_and_runs_the_rest(self):
-        os.remove(self.stub_bin / "deptry")
+    def test_resume_skips_completed_checks_and_retries_infra_fails(self):
+        """--resume skips completed (ok/FINDINGS) checks; retries INFRA-FAIL."""
+        # Mid-run failure via osv-scanner unparseable output
+        os.environ["OSV_SCANNER_FIXTURE"] = "not valid json"
         out_dir = self.tmpdir / "out"
 
-        rc1, _ = self._capture(["--report", "--out", str(out_dir)])
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc1 = checks.main(["--report", "--out", str(out_dir)])
         self.assertEqual(rc1, 3)
         first_log = list(self._invoke_log_lines())
         self.assertTrue(any("ruff invoked" in line for line in first_log))
         self.assertTrue(any("gitleaks invoked" in line for line in first_log))
 
-        # "Fix" the missing binary and resume.
-        self._write_generic_stub("deptry", "DEPTRY")
-        # deptry needs the -o-writing variant, not the generic stdout one.
-        self._write_stub("deptry", _DEPTRY_STUB)
+        # "Fix" osv-scanner: restore valid fixture.
+        os.environ["OSV_SCANNER_FIXTURE"] = '{"results": []}'
 
-        rc2, _ = self._capture(["--report", "--out", str(out_dir), "--resume"])
+        rc2, out2 = self._capture(["--report", "--out", str(out_dir), "--resume"])
         self.assertEqual(rc2, 0)
 
         second_log = self._invoke_log_lines()
@@ -675,12 +713,72 @@ class ResumeOrderProofTest(AuditBundleTestBase):
         # Only ONE invocation each across both runs — resume did not re-run them.
         self.assertEqual(len(ruff_calls), 1)
         self.assertEqual(len(gitleaks_calls), 1)
-        self.assertTrue(any(line.startswith("deptry invoked") for line in second_log))
+        # osv-scanner was retried (INFRA-FAIL is not a completion).
+        osv_calls = [line for line in second_log if line.startswith("osv-scanner invoked")]
+        self.assertEqual(len(osv_calls), 2)
 
         manifest = json.loads((out_dir / "run-manifest.json").read_text())
-        checks_run = {r["check"] for r in manifest if not r.get("meta")}
-        self.assertIn("data-lint", checks_run)
-        self.assertIn("inventory", checks_run)
+        completed = {r["check"] for r in manifest if not r.get("meta") and r["status"] != "INFRA-FAIL"}
+        self.assertIn("deptry", completed)
+        self.assertIn("data-lint", completed)
+        self.assertIn("inventory", completed)
+
+
+class PreflightMessageShapeTest(AuditBundleTestBase):
+    """Task 6.2: preflight-message shape — trigger, install-or-disable,
+    coverage note; fact-family missing does NOT trigger preflight; --list
+    summary line appears when a check-family entry is unavailable."""
+
+    def test_infra_fail_line_contains_trigger_and_coverage_note(self):
+        """Each INFRA-FAIL line carries trigger, install-or-disable, and
+        coverage note."""
+        os.remove(self.stub_bin / "deptry")
+
+        out_dir = self.tmpdir / "out"
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+        stderr = err_buf.getvalue()
+
+        # Trigger: deptry has trigger "pyproject.toml present"
+        self.assertIn("pyproject.toml present", stderr)
+        # Install-or-disable guidance
+        self.assertIn("Install deptry", stderr)
+        self.assertIn("disable in checks.toml", stderr)
+        self.assertIn("[checks.deptry]", stderr)
+        # Coverage note
+        self.assertIn("drops dependency-hygiene checking", stderr)
+
+    def test_fact_family_missing_does_not_trigger_preflight(self):
+        """A missing fact-family tool (radon) does NOT trigger preflight
+        failure in --report — it degrades gracefully."""
+        os.remove(self.stub_bin / "radon")
+        # Enable radon in config so it's selected (heavy, default disabled).
+        (self.repo / "checks.toml").write_text("[checks.radon]\nenabled = true\n")
+
+        out_dir = self.tmpdir / "out"
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        # --report should still succeed; radon degrades gracefully,
+        # producing "ok — 0 findings" with a null version.
+        self.assertEqual(rc, 0)
+        # Preflight failure NOT triggered for radon
+        self.assertNotIn("INFRA-FAIL", err_buf.getvalue())
+
+    def test_list_summary_line_when_check_family_unavailable(self):
+        """--list prints the summary line when an enabled check-family
+        entry is unavailable."""
+        os.remove(self.stub_bin / "deptry")
+
+        rc, out = self._capture(["--list"])
+        self.assertEqual(rc, 0)
+        lines = out.splitlines()
+        # The last line should be the summary
+        last_line = lines[-1]
+        self.assertIn("enabled check(s) unavailable", last_line)
+        self.assertIn("--floor/--report will fail preflight", last_line)
 
 
 class SummaryLineFormatTest(AuditBundleTestBase):
@@ -693,9 +791,9 @@ class SummaryLineFormatTest(AuditBundleTestBase):
         self.assertTrue(len(per_check_lines) >= 7)
         for line in per_check_lines:
             self.assertRegex(line, r"^\S+: (ok|FINDINGS|INFRA-FAIL|skipped) — (\d+|\?) findings -> .+$")
-        final_lines = [line for line in lines if line.startswith("audit_bundle: ")]
+        final_lines = [line for line in lines if line.startswith("checks: ")]
         self.assertEqual(len(final_lines), 1)
-        self.assertRegex(final_lines[0], r"^audit_bundle: \d+ findings across \d+ checks -> .+$")
+        self.assertRegex(final_lines[0], r"^checks: \d+ findings across \d+ checks -> .+$")
 
 
 class BaselineDiffTest(AuditBundleTestBase):
@@ -756,13 +854,13 @@ class ReportDateTest(AuditBundleTestBase):
     def test_report_without_date_uses_today_dir_name(self):
         rc, out = self._capture(["--report"])
         self.assertEqual(rc, 0)
-        expected_dir = self.repo / "output" / "audit" / date.today().isoformat()
+        expected_dir = self.repo / "output" / "checks" / date.today().isoformat()
         self.assertTrue(expected_dir.is_dir())
 
     def test_report_with_date_pins_dir_name(self):
         rc, out = self._capture(["--report", "--date", "2026-01-15"])
         self.assertEqual(rc, 0)
-        expected_dir = self.repo / "output" / "audit" / "2026-01-15"
+        expected_dir = self.repo / "output" / "checks" / "2026-01-15"
         self.assertTrue(expected_dir.is_dir())
 
 
@@ -782,14 +880,14 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_floor_no_checks_enabled_exits_0(self):
-        (self.repo / "audit.toml").write_text(
+        (self.repo / "checks.toml").write_text(
             '[checks.scope]\nenabled = false\n'
         )
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = audit_bundle.main(["--floor"])
+            rc = checks.main(["--floor"])
         self.assertEqual(rc, 0)
-        self.assertIn("audit_bundle: no floor checks enabled", buf.getvalue())
+        self.assertIn("checks: no floor checks enabled", buf.getvalue())
 
 
 if __name__ == "__main__":

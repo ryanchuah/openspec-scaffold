@@ -33,9 +33,10 @@ openspec/config.yaml
 
 # Scripts
 scripts/_convergence.py
-scripts/audit_bundle.py
 scripts/audit_scope.py
+scripts/checks.py
 scripts/data_lint.py
+scripts/facts.py
 scripts/fetch_clean.py
 scripts/index_coverage.py
 scripts/knowledge_lint.py
@@ -43,7 +44,8 @@ scripts/scaffold_check.py
 scripts/scaffold_manifest.txt
 scripts/status_lint.py
 scripts/test-gate.sh
-scripts/test_audit_bundle.py
+scripts/test_checks.py
+scripts/test_facts.py
 scripts/test_audit_scope.py
 scripts/test_convergence.py
 scripts/test_data_lint.py

@@ -339,20 +339,32 @@ run in parallel and checkpoint to disk.
 
 ## Deterministic audit tooling
 
+Three surfaces under the check/fact/audit naming contract:
+
+- **Detectors (`checks.py`).** Findings-capable check-family entries gated by
+  preflight (unavailable tools stop the run). Day-to-day entry points:
+  `scripts/checks.py --floor` (check-family only, no date stamp) and
+  `scripts/checks.py --report` (both families, dated). Configuration:
+  `checks.toml` with per-check `enabled = true|false`.
+- **Snapshots (`facts.py`).** Fact-family entries that regenerate on use and
+  never fail the process. Run `scripts/facts.py` for undated orientation
+  snapshots under `output/facts/` — not part of the audit ceremony.
+- **Ceremony (audit).** The `run-audit` skill orchestrates the cycle: `checks.py --report` →
+  triage → `audit_scope.py tag` (sole repo-state mutation) → append the `log-line` output
+  to `knowledge/audit-log.md`. The LLM audit uses the bundle as its index. Tag format:
+  `- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>`.
+  `audit_scope.py` is the scan/tag/log-line surface; `audit` in this context means the
+  operator ceremony (tag, log, `run-audit` skill, `audit_scope.py`, `knowledge/audit-log.md`).
+
 Audit tooling **detects and reports — it never writes to or fixes code**; its outputs land in
-untracked report dirs, and the sole repo-state mutation is the explicit `audit_scope.py tag` anchor.
+untracked report dirs (`output/checks/<date>/`, `output/facts/`), and the sole repo-state
+mutation is the explicit `audit_scope.py tag` anchor.
 
-Discover checks: `python scripts/audit_bundle.py --list` (interpreter is per-repo; `python` shown
-illustratively — the `run-audit` skill resolves it). Per-repo task-runner targets follow an `audit-*`
-namespace (e.g. `just audit-floor`, if defined) — per-repo, not scaffold-managed.
+Per-repo task-runner targets follow an `audit-*` namespace (e.g. `just audit-floor`, if
+defined) — per-repo, not scaffold-managed.
 
-Output contract: every check writes full JSON to disk plus a one-line stdout summary;
-`output/audit/<date>/` is untracked and disposable, regenerated per audit.
-
-Audit cycle: `audit_bundle.py --report` → triage → `audit_scope.py tag` + append the
-`log-line` output to `knowledge/audit-log.md` → the LLM audit uses the bundle as its index.
-Registry-line format: `- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>`
-Use the `run-audit` skill as the entry point for this cycle; `knowledge_lint.py` is the
+Discover checks: `python scripts/checks.py --list` (interpreter is per-repo; `python` shown
+illustratively — the `run-audit` skill resolves it). `knowledge_lint.py` is the
 deterministic linter (structural), while `knowledge-drift-review` is the LLM semantic pass.
 
 ## Scaffold-managed files & propagation

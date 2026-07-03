@@ -199,7 +199,7 @@ def test_audit_log_present_and_malformed_flags_bad_line(tmp_path):
 
 
 # ===================================================================
-# 2.6 — per-repo config: audit.toml retired_paths merges with defaults
+# 2.6 — per-repo config: checks.toml retired_paths merges with defaults
 # ===================================================================
 
 
@@ -213,7 +213,7 @@ def test_no_audit_toml_only_default_tokens_flag(tmp_path):
             )
         },
     )
-    assert not (tmp_path / "audit.toml").exists()
+    assert not (tmp_path / "checks.toml").exists()
 
     findings = knowledge_lint.collect_findings(tmp_path)
     retired = [f for f in findings if f.check == "retired-path-token"]
@@ -229,7 +229,7 @@ def test_audit_toml_retired_paths_extend_defaults(tmp_path):
                 "Cites ai-docs/legacy.md (default token) and old-legacy/thing.md "
                 "(custom token, now configured).\n"
             ),
-            "audit.toml": '[knowledge_lint]\nretired_paths = ["old-legacy/"]\n',
+            "checks.toml": '[knowledge_lint]\nretired_paths = ["old-legacy/"]\n',
         },
     )
 

@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""audit_bundle.py — check-only orchestrator (D1, D2, D3, D6, D8).
+"""checks.py — checks-and-facts engine (D1, D2, D3, D6, D8).
 
-Enumerates, runs, and normalizes a fixed registry of deterministic checks —
-never writes to code or repo state (the ONLY exception anywhere in this
-tooling layer is `audit_scope.py tag`, a separate script). Delivery shape,
-not a new analysis: this module wires together already-existing detectors
-(ruff, gitleaks, osv-scanner, deptry, radon, jscpd, vulture) plus this
-change's own delegating scripts (`audit_scope.py`, `data_lint.py`,
-`index_coverage.py`) behind one discovery surface (`--list`) and one output
-contract (full JSON to disk + one-line stdout summaries).
+The checks/facts/audit trichotomy:
+  **checks** = findings-capable detectors (gate/record semantics, dated
+  output). ``ruff``, ``gitleaks``, ``osv-scanner``, ``deptry``,
+  ``data-lint``, ``jscpd``, ``vulture``.
+  **facts**  = can't-fail repo snapshots (cache semantics, undated output,
+  regenerate-on-use). ``scope``, ``radon``, ``index-coverage``,
+  ``inventory``.
+  **audit**  = the operator ceremony: ``audit_scope.py`` tag/log + the
+  ``run-audit`` skill + ``knowledge/audit-log.md``.
+
+Entry points: ``checks.py`` (checks + inventory fact; all modes) and
+``facts.py`` (thin facts-only CLI, imports engine from here).
 
 `repo_root` is resolved via `git rev-parse --show-toplevel` (falling back to
 `Path.cwd()` if that fails, e.g. no git binary or not a repo) — NOT bare
@@ -16,22 +20,23 @@ contract (full JSON to disk + one-line stdout summaries).
 with `audit_scope`'s git-root-relative paths even when invoked from a repo
 subdirectory.
 
-Config schema (`audit.toml`, repo root, stdlib `tomllib`; self-documenting —
-this docstring + `--help` are the ONLY documentation, per D1/knowledge-
-recoverability: no standing doc file for a code-derivable schema)
+Config schema (``checks.toml``, repo root, stdlib ``tomllib``;
+self-documenting — this docstring + ``--help`` are the ONLY documentation,
+per D1/knowledge-recoverability: no standing doc file for a code-derivable
+schema)
 --------------------------------------------------------------------------
-Absent `audit.toml` → built-in defaults with trigger-based auto-detection
-(only for FLOOR checks with an external-tool dependency; checks with no
-external dependency — `scope`, `inventory` — are unconditionally enabled;
-HEAVY checks — `radon`, `jscpd`, `vulture`, `index-coverage` — default
-DISABLED absent explicit config, since they are on-demand/audit-time per
-the brief's D8e, and `index-coverage` additionally has no sane default
-`--schema` path to auto-detect):
+Absent config → built-in defaults with trigger-based auto-detection (only
+for floor-tier checks with an external-tool dependency; checks with no
+external dependency — ``scope``, ``inventory`` — are unconditionally
+enabled; heavy-tier checks — ``radon``, ``jscpd``, ``vulture``,
+``index-coverage`` — default DISABLED absent explicit config, since they are
+on-demand/audit-time per the brief's D8e, and ``index-coverage``
+additionally has no sane default ``--schema`` path to auto-detect):
 
     pyproject.toml                                        -> ruff, deptry
     .git/                                                  -> gitleaks, scope
     requirements*.txt | poetry.lock | uv.lock | package-lock.json
-                                                            -> osv-scanner
+                                                             -> osv-scanner
     checks/ (any *.sql)                                    -> data-lint
     (always)                                               -> inventory
 
@@ -59,7 +64,7 @@ captured and the run continues regardless of exit code). Output is always
 captured verbatim to ``<check>.txt`` with a null findings-count (`?` in the
 stdout summary) — there is no parser for custom commands.
 
-**D3 caveat (custom checks):** the bundle cannot prevent a custom
+**D3 caveat (custom checks):** the engine cannot prevent a custom
 ``command`` from writing to the repo — keeping a custom check check-only is
 the CONFIGURING repo's responsibility, not something this orchestrator can
 enforce for arbitrary argv.
@@ -104,14 +109,15 @@ status without failing. Python-ecosystem tools (ruff, deptry, radon,
 vulture) are probed the same way but NEVER fail on a version mismatch —
 pinned in each repo's dev extras, not here; their probed version is only
 *recorded*, and an unprobeable one is ``null``. A tool missing from PATH is
-an infra failure in `--report`/`--floor` (stop-on-first-failure) but merely
+an infra failure in `--report`/`--floor` (stop-on-first-failure for
+check-family; fact-family entries degrade gracefully) but merely
 ``unavailable``/``skipped`` (no failure) in `--list`/single `--check`.
 
 Modes
 -----
 ``--list``                one line per registered check, always exit 0.
 ``--check <name>``        run exactly one check (query shape).
-``--floor``                all enabled floor checks.
+``--floor``                all enabled floor-tier check-family entries.
 ``--report [--out DIR] [--date YYYY-MM-DD] [--resume] [--baseline PATH]``
                             floor + heavy + snapshot checks, in registry
                             order, checkpointed incrementally.
@@ -123,12 +129,12 @@ or ``<out>/<check>.txt`` (custom), plus one stdout summary line:
 ``<check>: <ok|FINDINGS|INFRA-FAIL|skipped> — <n or ?> findings ->
 <artifact-path>``. After a full/floor run: aggregate ``<out>/findings.json``
 (all normalized findings from built-in PARSED checks only) and a final
-line ``audit_bundle: <n> findings across <m> checks -> <out>``.
+line ``checks: <n> findings across <m> checks -> <out>``.
 
 Exit codes
 ----------
 0 — ran clean / no findings. 2 — findings present. 3 — infra failure or
-abort (stop-on-first-failure; findings never abort).
+abort (preflight failure or stop-on-first-failure; findings never abort).
 """
 
 from __future__ import annotations
@@ -155,7 +161,7 @@ import audit_scope  # noqa: E402
 import data_lint  # noqa: E402
 import index_coverage  # noqa: E402
 
-GENERATED_BY = "audit_bundle.py"
+GENERATED_BY = "checks.py"
 
 # Live-verified 2026-07-02 (GitHub Releases API): gitleaks v8.30.1,
 # osv-scanner v2.4.0, jscpd v5.0.11. Overridable via `[tools]`.
@@ -168,17 +174,41 @@ EXPECTED_TOOL_VERSIONS: dict[str, str] = {
 # Registry order is load-bearing: --list, --report, and run-manifest
 # ordering all follow this sequence.
 _REGISTRY: list[dict] = [
-    {"name": "scope", "tier": "floor", "kind": "delegate"},
-    {"name": "ruff", "tier": "floor", "kind": "builtin"},
-    {"name": "gitleaks", "tier": "floor", "kind": "builtin"},
-    {"name": "osv-scanner", "tier": "floor", "kind": "builtin"},
-    {"name": "deptry", "tier": "floor", "kind": "builtin"},
-    {"name": "data-lint", "tier": "floor", "kind": "delegate"},
-    {"name": "radon", "tier": "heavy", "kind": "builtin"},
-    {"name": "jscpd", "tier": "heavy", "kind": "builtin"},
-    {"name": "vulture", "tier": "heavy", "kind": "builtin"},
-    {"name": "index-coverage", "tier": "heavy", "kind": "delegate"},
-    {"name": "inventory", "tier": "snapshot", "kind": "builtin"},
+    {"name": "scope", "tier": "floor", "kind": "delegate", "family": "fact"},
+    {
+        "name": "ruff", "tier": "floor", "kind": "builtin", "family": "check",
+        "trigger": "pyproject.toml present",
+        "coverage_note": "disabling drops lint checking",
+    },
+    {
+        "name": "gitleaks", "tier": "floor", "kind": "builtin", "family": "check",
+        "trigger": ".git present",
+        "coverage_note": "disabling drops secret scanning",
+    },
+    {
+        "name": "osv-scanner", "tier": "floor", "kind": "builtin", "family": "check",
+        "trigger": "lockfile present",
+        "coverage_note": "drops known-vulnerability scanning",
+    },
+    {
+        "name": "deptry", "tier": "floor", "kind": "builtin", "family": "check",
+        "trigger": "pyproject.toml present",
+        "coverage_note": "drops dependency-hygiene checking",
+    },
+    {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
+    {"name": "radon", "tier": "heavy", "kind": "builtin", "family": "fact"},
+    {
+        "name": "jscpd", "tier": "heavy", "kind": "builtin", "family": "check",
+        "trigger": "always (enabled explicitly)",
+        "coverage_note": "disabling drops duplication detection",
+    },
+    {
+        "name": "vulture", "tier": "heavy", "kind": "builtin", "family": "check",
+        "trigger": "always (enabled explicitly)",
+        "coverage_note": "disabling drops dead-code detection",
+    },
+    {"name": "index-coverage", "tier": "heavy", "kind": "delegate", "family": "fact"},
+    {"name": "inventory", "tier": "snapshot", "kind": "builtin", "family": "fact"},
 ]
 
 _LOCKFILE_PATTERNS = (
@@ -218,12 +248,12 @@ def _resolve_repo_root() -> Path:
 
 
 def _load_config(repo_root: Path) -> tuple[dict, str]:
-    """Return (config_dict, source) — source is "audit.toml" or "defaults"."""
-    config_path = repo_root / "audit.toml"
+    """Return (config_dict, source) — source is "checks.toml" or "defaults"."""
+    config_path = repo_root / "checks.toml"
     if not config_path.is_file():
         return {}, "defaults"
     with open(config_path, "rb") as f:
-        return tomllib.load(f), "audit.toml"
+        return tomllib.load(f), "checks.toml"
 
 
 def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
@@ -259,6 +289,7 @@ def _custom_checks(config: dict) -> list[dict]:
                 "name": name,
                 "tier": spec.get("tier", "heavy"),
                 "kind": "custom",
+                "family": "check",
                 "command": spec.get("command", []),
                 "gate": spec.get("gate", True),
             }
@@ -598,11 +629,31 @@ def _run_inventory(repo_root: Path) -> dict:
         if result.returncode == 0
         else []
     )
+    # Compute audit_anchor from the latest audit/* tag.
+    tag = None
+    commits_since = None
+    try:
+        tag_result = subprocess.run(
+            ["git", "-C", str(repo_root), "tag", "--list", "audit/*", "--sort=-creatordate"],
+            capture_output=True, text=True, timeout=15,
+        )
+        lines = [ln for ln in tag_result.stdout.splitlines() if ln.strip()]
+        if lines:
+            tag = lines[0]
+            count_result = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-list", "--count", f"{tag}..HEAD"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if count_result.returncode == 0:
+                commits_since = int(count_result.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
     return {
         "generated_by": GENERATED_BY,
         "tree": tracked,
         "entrypoints": _detect_entrypoints(repo_root),
         "env_vars": sorted(_detect_env_vars(repo_root, tracked)),
+        "audit_anchor": {"tag": tag, "commits_since": commits_since},
     }
 
 
@@ -1064,16 +1115,25 @@ def _all_checks(config: dict) -> list[dict]:
 
 
 def _mode_list(config: dict, defaults: dict, pins: dict, repo_root: Path) -> int:
+    unavailable_enabled_checks = 0
     for check in _all_checks(config):
         name = check["name"]
         tier = check["tier"]
+        family = check.get("family", "check")
         if check["kind"] == "custom":
-            enabled = True  # a custom check's presence in audit.toml IS the opt-in
+            enabled = True  # a custom check's presence in checks.toml IS the opt-in
         else:
             enabled = _is_enabled(name, config, defaults)
         avail = _availability_for_check(check, pins)
         print(
-            f"{name}  {tier}  {'enabled' if enabled else 'disabled'}  {avail['status']}"
+            f"{name}  {tier}  {family}  {'enabled' if enabled else 'disabled'}  {avail['status']}"
+        )
+        if enabled and family == "check" and avail["status"] in ("unavailable", "version-mismatch"):
+            unavailable_enabled_checks += 1
+    if unavailable_enabled_checks:
+        print(
+            f"checks: {unavailable_enabled_checks} enabled check(s) unavailable"
+            f" — --floor/--report will fail preflight until installed or disabled."
         )
     return 0
 
@@ -1083,7 +1143,7 @@ def _mode_check(
 ) -> int:
     all_checks = {c["name"]: c for c in _all_checks(config)}
     if name not in all_checks:
-        print(f"audit_bundle: INFRA-FAIL — unknown check {name!r}", file=sys.stderr)
+        print(f"checks: INFRA-FAIL — unknown check {name!r}", file=sys.stderr)
         return 3
     check = all_checks[name]
 
@@ -1096,7 +1156,7 @@ def _mode_check(
         return 0
     if avail["status"] == "version-mismatch":
         print(
-            f"audit_bundle: INFRA-FAIL — {name}: version mismatch "
+            f"checks: INFRA-FAIL — {name}: version mismatch "
             f"(expected {avail['expected']}, found {avail['version']})",
             file=sys.stderr,
         )
@@ -1129,6 +1189,8 @@ def _mode_multi(
     for check in all_checks:
         if check["tier"] not in tiers:
             continue
+        if tiers == {"floor"} and check.get("family") != "check":
+            continue
         if check["kind"] == "custom":
             enabled = True
         else:
@@ -1137,7 +1199,7 @@ def _mode_multi(
             selected.append(check)
 
     if not selected and tiers == {"floor"}:
-        print("audit_bundle: no floor checks enabled")
+        print("checks: no floor checks enabled")
         return 0
 
     # The non-empty---out refusal is a --report-only guarantee (task 4.4) —
@@ -1149,7 +1211,7 @@ def _mode_multi(
         and not resume
     ):
         print(
-            f"audit_bundle: INFRA-FAIL — --out {out_dir} already exists and is non-empty "
+            f"checks: INFRA-FAIL — --out {out_dir} already exists and is non-empty "
             "(use --resume or a different --out)",
             file=sys.stderr,
         )
@@ -1179,6 +1241,50 @@ def _mode_multi(
     meta = {"config": config_source, "date": date_str}
     aborted = False
 
+    # Preflight: check availability for all selected check-family entries
+    # before executing any. Fact-family entries are exempt (graceful degradation).
+    preflight_failures = []
+    for check in selected:
+        name = check["name"]
+        if name in completed_names:
+            continue
+        if check.get("family") != "check":
+            continue
+        avail = _availability_for_check(check, pins)
+        if avail["status"] in ("unavailable", "version-mismatch"):
+            preflight_failures.append((check, avail))
+
+    if preflight_failures:
+        for check, avail in preflight_failures:
+            name = check["name"]
+            trigger = check.get("trigger", "auto-detected")
+            coverage_note = check.get("coverage_note", "")
+            if avail["status"] == "unavailable":
+                reason = "not on PATH"
+                install_part = f"Install {name}"
+            else:
+                reason = f"version mismatch (expected {avail['expected']}, found {avail['version']})"
+                install_part = f"Install {name} {avail['expected']}"
+            print(
+                f"checks: INFRA-FAIL — {name}: {reason}"
+                f" (enabled by trigger: {trigger})."
+                f" {install_part}, or"
+                f" disable in checks.toml: [checks.{name}] enabled = false"
+                f" — {coverage_note}.",
+                file=sys.stderr,
+            )
+            error_msg = (
+                "unavailable" if avail["status"] == "unavailable"
+                else f"version mismatch: expected {avail['expected']}, found {avail['version']}"
+            )
+            record = {
+                "check": name, "status": "INFRA-FAIL", "count": None, "artifact": "",
+                "error": error_msg,
+            }
+            records.append(record)
+        _write_manifest(manifest_path, meta, records)
+        return 3
+
     for check in selected:
         name = check["name"]
         if name in completed_names:
@@ -1189,38 +1295,55 @@ def _mode_multi(
             continue
 
         avail = _availability_for_check(check, pins)
-        if avail["status"] == "unavailable":
-            print(f"audit_bundle: INFRA-FAIL — {name}: tool unavailable (missing from PATH)", file=sys.stderr)
-            record = {"check": name, "status": "INFRA-FAIL", "count": None, "artifact": "", "error": "unavailable"}
+        if avail["status"] in ("unavailable", "version-mismatch"):
+            is_fact = check.get("family") == "fact"
+            if avail["status"] == "unavailable":
+                reason = "not on PATH" if not is_fact else "unavailable (graceful degradation)"
+                error_detail = "unavailable"
+            else:
+                reason = f"version mismatch (expected {avail['expected']}, found {avail['version']})"
+                error_detail = f"version mismatch: expected {avail['expected']}, found {avail['version']}"
+            if is_fact:
+                # Fact-family: degrade gracefully — record as skipped and continue.
+                record = {"check": name, "status": "skipped", "count": None, "artifact": ""}
+                print(_summary_line(record))
+                records.append(record)
+                _write_manifest(manifest_path, meta, records)
+            else:
+                # Check-family: INFRA-FAIL with install-or-disable guidance.
+                print(
+                    f"checks: INFRA-FAIL — {name}: {reason}"
+                    f" (enabled by trigger: {check.get('trigger', 'auto-detected')})."
+                    f" Install {name}{' ' + avail['expected'] if avail['expected'] else ''}, or"
+                    f" disable in checks.toml: [checks.{name}] enabled = false"
+                    f" — {check.get('coverage_note', '')}.",
+                    file=sys.stderr,
+                )
+                record = {"check": name, "status": "INFRA-FAIL", "count": None, "artifact": "", "error": error_detail}
+                records.append(record)
+                _write_manifest(manifest_path, meta, records)
+                aborted = True
+                break
+        else:
+            record = _execute_check(check, config, out_dir, repo_root, avail)
+            print(_summary_line(record))
             records.append(record)
             _write_manifest(manifest_path, meta, records)
-            aborted = True
-            break
-        if avail["status"] == "version-mismatch":
-            print(
-                f"audit_bundle: INFRA-FAIL — {name}: version mismatch "
-                f"(expected {avail['expected']}, found {avail['version']})",
-                file=sys.stderr,
-            )
-            record = {
-                "check": name, "status": "INFRA-FAIL", "count": None, "artifact": "",
-                "error": f"version mismatch: expected {avail['expected']}, found {avail['version']}",
-            }
-            records.append(record)
-            _write_manifest(manifest_path, meta, records)
-            aborted = True
-            break
 
-        record = _execute_check(check, config, out_dir, repo_root, avail)
-        print(_summary_line(record))
-        records.append(record)
-        _write_manifest(manifest_path, meta, records)
-
-        if record["status"] == "INFRA-FAIL":
-            aborted = True
-            break
-
-        all_findings.extend(record.get("_findings", []))
+            if record["status"] == "INFRA-FAIL":
+                if check.get("family") == "check":
+                    print(
+                        f"  (enabled by trigger: {check.get('trigger', 'auto-detected')})."
+                        f" Install {name}, or"
+                        f" disable in checks.toml: [checks.{name}] enabled = false"
+                        f" — {check.get('coverage_note', '')}.",
+                        file=sys.stderr,
+                    )
+                    aborted = True
+                    break
+                # Fact-family INFRA-FAIL degrades gracefully — continue.
+            else:
+                all_findings.extend(record.get("_findings", []))
 
     findings_path = out_dir / "findings.json"
     _write_json(findings_path, all_findings)
@@ -1232,7 +1355,7 @@ def _mode_multi(
             try:
                 baseline = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
             except OSError as exc:
-                print(f"audit_bundle: INFRA-FAIL — could not read baseline: {exc}", file=sys.stderr)
+                print(f"checks: INFRA-FAIL — could not read baseline: {exc}", file=sys.stderr)
                 return 3
             diff = _baseline_diff(all_findings, baseline)
             _write_json(out_dir / "delta.json", diff)
@@ -1243,7 +1366,7 @@ def _mode_multi(
         else:
             exit_code = 2 if any(r["status"] == "FINDINGS" for r in records) else 0
 
-    print(f"audit_bundle: {len(all_findings)} findings across {len(records)} checks -> {out_dir}")
+    print(f"checks: {len(all_findings)} findings across {len(records)} checks -> {out_dir}")
     return exit_code
 
 
@@ -1270,10 +1393,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
     if args.baseline and not args.report:
-        print("audit_bundle: INFRA-FAIL — --baseline is only valid with --report", file=sys.stderr)
+        print("checks: INFRA-FAIL — --baseline is only valid with --report", file=sys.stderr)
         return 3
     if args.resume and not args.report:
-        print("audit_bundle: INFRA-FAIL — --resume is only valid with --report", file=sys.stderr)
+        print("checks: INFRA-FAIL — --resume is only valid with --report", file=sys.stderr)
         return 3
 
     repo_root = _resolve_repo_root()
@@ -1301,7 +1424,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.out:
         out_dir = Path(args.out)
     else:
-        out_dir = Path("output") / "audit" / date_str
+        out_dir = Path("output") / "checks" / date_str
     return _mode_multi(
         {"floor", "heavy", "snapshot"}, config, defaults, pins, repo_root, out_dir,
         resume=args.resume, baseline_path=args.baseline, date_str=date_str, config_source=config_source,

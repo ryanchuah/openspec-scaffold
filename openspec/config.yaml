@@ -2,7 +2,7 @@ schema: spec-driven
 
 context: |
   Project: openspec-scaffold
-  Purpose: The golden-source scaffold that defines the OpenSpec agent workflow (skills, agents, lifecycle, delegation harness, deterministic audit + scaffold-lint tooling) and propagates it to downstream project repos (extrends, psc-monitor) via scripts/sync_scaffold.py.
+  Purpose: The golden-source scaffold that defines the OpenSpec agent workflow (skills, agents, lifecycle, delegation harness, deterministic checks, facts, and audit + scaffold-lint tooling) and propagates it to downstream project repos (extrends, psc-monitor) via scripts/sync_scaffold.py.
   Tech stack: Python 3.13 standard-library-only scripts (no third-party runtime deps); pytest for tests; markdown skills/agents loaded by both Claude Code and OpenCode.
   Testing: pytest (invoke as `pytest -q`; scripts/test-cmd encodes it); prefer property/invariant tests over output-pinning; 'tests pass' + 'the system ran clean' are the only live-status signals — never record test/doc/row counts in any tracked doc, even as history; only a failing/skipped test is worth a note.
   Style: no inline comments unless the WHY is non-obvious; no docstrings unless public API.

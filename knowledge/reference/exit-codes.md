@@ -6,7 +6,7 @@ source; if a script changes its codes, update this table.
 
 | Script | Exit codes | Meaning |
 |---|---|---|
-| `audit_bundle.py` | 0 / 2 / 3 | clean / findings present / infra failure or abort |
+| `checks.py` | 0 / 2 / 3 | clean / findings present / infra failure or abort |
 | `data_lint.py` | 0 / 2 / 3 | pass (or no checks) / violating rows / infra failure |
 | `audit_scope.py` | 0 / 3 | ran clean or tag created / git-or-radon failure (or tag exists). **Never 2** |
 | `index_coverage.py` | 0 / 3 | ran (leads are informational, never gate) / infra failure. **Never 2** |

@@ -57,7 +57,7 @@ drift; the judgment sweep catches what the manifest cannot see. You need both.
    still lives downstream until deleted by hand. Currently owed: delete the `openspec-onboard` skill in
    each downstream repo (the onboard tombstone) and confirm it is gone. Whenever a propagation batch
    includes a scaffold-side deletion, record it as an explicit per-repo manual step before syncing.
-8. **Per-repo wiring follow-ons.** Anything downstream the scaffold cannot carry: `audit.toml`,
+8. **Per-repo wiring follow-ons.** Anything downstream the scaffold cannot carry: `checks.toml`,
    `checks/*.sql`, task-runner (`just`) targets, dev-extras pins for the audit layer, and a first
    `knowledge-drift-review` pass. These are per-repo build-out tracked as parked follow-ons in
    `knowledge/questions/INDEX.md` — verify they exist / are updated; do not assume the sync created them.

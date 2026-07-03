@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""audit_scope.py — audit bookkeeping, delta scope, and hotspot ranking.
+"""audit_scope.py — audit-ceremony surface (scan/tag/log-line).
+
+This is the audit-ceremony entry point: ``scan`` (delta scope + hotspot ranking),
+``tag`` (create the audit anchor), and ``log-line`` (print the registry line).
+Day-to-day check/fact entry points are ``checks.py`` (findings-capable detectors)
+and ``facts.py`` (can't-fail repo snapshots).
 
 Three subcommands (``scan`` is the default when none is given):
 
@@ -85,7 +90,7 @@ GENERATED_BY = "audit_scope.py"
 def _write_json_atomic(path: Path, payload) -> None:
     """Write JSON to *path* atomically: full content to ``<path>.tmp``, then
     ``os.replace`` over the destination — a reader never observes a
-    partially-written file (matches audit_bundle's ``_write_manifest``
+    partially-written file (matches checks.py's ``_write_manifest``
     pattern)."""
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -337,6 +342,17 @@ def cmd_log_line(args: argparse.Namespace) -> int:
         print(f"audit_scope: INFRA-FAIL — git rev-parse failed: {result.stderr.strip()}", file=sys.stderr)
         return 3
     short_sha = result.stdout.strip()
+    # Hint on stderr when knowledge/audit-log.md does not exist (first audit).
+    repo_result = _run_git(["rev-parse", "--show-toplevel"])
+    if repo_result.returncode == 0:
+        log_path = Path(repo_result.stdout.strip()) / "knowledge" / "audit-log.md"
+        if not log_path.exists():
+            print(
+                "audit_scope: knowledge/audit-log.md does not exist yet"
+                " (first audit) — create it with a '# Audit log' heading,"
+                " then append the line below.",
+                file=sys.stderr,
+            )
     print(f"- **{args.date}** · audit/{args.date} · {short_sha} · {args.essence}")
     return 0
 

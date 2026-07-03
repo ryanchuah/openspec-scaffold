@@ -38,7 +38,7 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
 ## Follow-ons (not this change), all frozen pending operator downstream-sync go-ahead
 
 - **Downstream wiring (after operator sync go-ahead):** sync the scaffold, then per-repo SMALL
-  changes wiring `audit.toml`, `checks/*.sql` (~5 deliberate invariants each, grown from incidents
+  changes wiring `checks.toml`, `checks/*.sql` (~5 deliberate invariants each, grown from incidents
   per D4), `audit-*` task-runner targets, dev-extras pins, and custom checks (eslint/tsc for
   psc-monitor, alembic-check for extrends, sqlfluff for psc-monitor migrations).
 - **First audit cycle (operator-driven):** a full `--report` run, a first-run wall triage (once),

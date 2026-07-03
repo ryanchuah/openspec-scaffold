@@ -17,7 +17,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -101,6 +101,13 @@ class AuditScopeTest(unittest.TestCase):
         with redirect_stdout(buf):
             rc = audit_scope.main(argv)
         return rc, buf.getvalue()
+
+    def _capture_both(self, argv: list[str]) -> tuple[int, str, str]:
+        out_buf = io.StringIO()
+        err_buf = io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = audit_scope.main(argv)
+        return rc, out_buf.getvalue(), err_buf.getvalue()
 
     # ------------------------------------------------------------------
     # scan — no tag => full scope
@@ -336,6 +343,45 @@ class AuditScopeTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         expected = f"- **2026-06-03** · audit/2026-06-03 · {short_sha} · found 3 bugs\n"
         self.assertEqual(out, expected)
+
+    # ------------------------------------------------------------------
+    # log-line — first-run hint on stderr
+    # ------------------------------------------------------------------
+
+    def test_log_line_first_run_hint(self):
+        short_sha = _run(
+            ["git", "rev-parse", "--short", "HEAD"], self.repo
+        ).strip()
+        expected_stdout = (
+            "- **2026-06-04** · audit/2026-06-04 ·"
+            f" {short_sha} · hint test\n"
+        )
+
+        # Phase 1: knowledge/audit-log.md absent → hint on stderr
+        rc1, out1, err1 = self._capture_both(
+            ["log-line", "--date", "2026-06-04", "--essence", "hint test"]
+        )
+        self.assertEqual(rc1, 0)
+        self.assertEqual(out1, expected_stdout)
+        self.assertIn(
+            "knowledge/audit-log.md does not exist yet", err1
+        )
+        self.assertIn(
+            "create it with a '# Audit log' heading", err1
+        )
+
+        # Phase 2: knowledge/audit-log.md exists → no hint on stderr
+        (self.repo / "knowledge").mkdir(exist_ok=True)
+        (self.repo / "knowledge" / "audit-log.md").write_text(
+            "# Audit log\n"
+        )
+
+        rc2, out2, err2 = self._capture_both(
+            ["log-line", "--date", "2026-06-04", "--essence", "hint test"]
+        )
+        self.assertEqual(rc2, 0)
+        self.assertEqual(out2, expected_stdout)  # stdout byte-identical
+        self.assertEqual(err2, "")  # no hint
 
     # ------------------------------------------------------------------
     # summary line — single line, contains the JSON path

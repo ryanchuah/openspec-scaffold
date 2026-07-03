@@ -60,3 +60,7 @@ OpenSpec/
 
 # Session scratch / exploration temp files
 tmp_*.md
+
+# Deterministic check/fact artifacts (untracked, disposable, regenerated per run)
+output/
+/run-manifest.json
