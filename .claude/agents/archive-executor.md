@@ -1,6 +1,6 @@
 ---
 name: archive-executor
-description: [FALLBACK — used when deepseek opencode archive-executor crashes or fails] Executes OpenSpec archive operations under Claude Code. Given a change directory path and the project docs, moves the change dir to the dated archive location, syncs any delta specs to the main specs, and reconciles knowledge/STATUS.md, knowledge/decisions/INDEX.md, and knowledge/questions/INDEX.md into a durable handoff. Spawned by the primary agent during the archive phase — do not invoke directly.
+description: "[FALLBACK — used when deepseek opencode archive-executor crashes or fails] Executes OpenSpec archive operations under Claude Code. Given a change directory path and the project docs, moves the change dir to the dated archive location, syncs any delta specs to the main specs, and reconciles knowledge/STATUS.md, knowledge/decisions/INDEX.md, and knowledge/questions/INDEX.md into a durable handoff. Spawned by the primary agent during the archive phase — do not invoke directly."
 tools: Read, Edit, Write, Bash, Glob, Grep
 model: sonnet
 ---

@@ -1,6 +1,6 @@
 ---
 name: apply-executor
-description: [FALLBACK — used when deepseek opencode executor crashes or fails] Executes OpenSpec change tasks during the apply phase under Claude Code. Given the paths to proposal.md, design.md, and tasks.md for a change, implements tasks in order and checks them off. Spawned by the primary agent during the apply phase — do not invoke directly.
+description: "[FALLBACK — used when deepseek opencode executor crashes or fails] Executes OpenSpec change tasks during the apply phase under Claude Code. Given the paths to proposal.md, design.md, and tasks.md for a change, implements tasks in order and checks them off. Spawned by the primary agent during the apply phase — do not invoke directly."
 tools: Read, Edit, Write, Bash, Glob, Grep
 model: sonnet
 ---
