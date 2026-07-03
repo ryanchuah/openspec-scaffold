@@ -128,3 +128,72 @@ name; it is folded in here rather than deferred, because a gate that false-posit
   being independently confirmed by the parallel extrends knowledge-drift burn-down session, which
   writes a linter-gap report to `/tmp/extrends-lint-gap-report.md`. C's AC#3 does not block on that
   report; the report is corroboration, and C's fix propagates the cure downstream via D1/D2.
+
+## Verify outcome (2026-07-03, orchestrator = Opus 4.8 under Claude Code)
+
+**1. Verdict: NEEDS REVISION** — two confirmed defects (below), plus one downstream design decision.
+Multi-model deepseek verifier passes **waived by operator instruction**; the orchestrator's own deep
+behavioral review is the basis of this verdict. The extrends gap report
+(`/tmp/extrends-lint-gap-report.md`) was cross-checked against C's hardening.
+
+**2. Live output eyeballed (behavioral review):**
+- `check.sh` real run: executes ruff check → `ruff format --check` (29 files already formatted) → the
+  `pytest -q` test stage; exit 0. Missing-tool degradation and no-op branches read correctly.
+- Matcher probe (tmp repo, 8 citation forms): brace `{3,4,5}`, `YYYY-Www`, `file.py::sym` (existing),
+  `file.py:1-2` (existing), and `output/…` are correctly SKIPPED; genuinely-missing `src/gone.py` and
+  `src/gone.py::sym` correctly FLAG. **Deviation found:** `src/real.py:1` (single-line number) is
+  FLAGGED — a false-positive (see defect 1).
+- `install-tools.sh` URL HEAD smoke (real network): BOTH constructed URLs return **404** (see defect 2).
+- `test-gate.sh` command-detection guard parses stdin JSON with `json.load` + token classification —
+  no `eval`/injection surface; fail-safe (unknown → run gate) confirmed by unit tests + live commits.
+
+**3. Defects found + fixes:**
+- **Defect 1 — 🔴 matcher false-positives on single-line refs — FIXED (re-delegated flash executor).**
+  `_LINE_RANGE_RE` was `r":(\d+)-(\d+)$"` (only `:N-M`); a common `file.py:42` citation was flagged on a
+  hard gate. Changed to `r":(\d+)(?:-(\d+))?$"` (strips `:N` and `:N-M`); tests added. Re-probe confirms
+  `src/real.py:42` (exists) skipped, `src/gone.py:42` (missing) still flags. (Self-review; corroborated
+  by gap-report Class 4.)
+- **Class 6 — planned/forward-reference citations — ADDRESSED (operator chose the suppression marker).**
+  Added an inline `<!-- lint:planned -->` line marker: `_check_broken_citations` skips broken-citation
+  findings on any line carrying it (line-scoped). Spec requirement + scenarios added; tests + re-probe
+  confirm marked line suppressed, unmarked still flags. This lets extrends' 2 forward-references reach
+  green under the gate without weakening drift detection for unmarked citations.
+- **Defect 2 — 🔴 install-tools.sh downloads 404 — OPEN, pending operator direction.** Both pinned asset
+  URLs 404; no SHA256 verification. Operator flagged the whole curl-installer as fragile and is deciding
+  between: (A) descope to a provisioning reference doc + `go install` helper (CI uses official actions,
+  deferred to D1/D2) — orchestrator recommendation; (B) harden the script (GitHub-API asset resolution +
+  checksum verification); (C) other. AC#8 will be reworded to match the chosen direction.
+
+**4. As-built deltas (not already in artifacts):**
+- `check.sh` exits **1** on failure; `test-gate.sh` maps check.sh non-zero → **2** (hook block contract).
+- Command-detection reads `tool_input.command` from PreToolUse stdin via a 0.2s non-blocking
+  `select`, fail-safe to running the gate on unknown/unparseable input.
+- Orchestrator interventions during apply: `data_lint` `zip(strict=False)` restored (behavior-preserving,
+  §1); manifest registrations pulled forward into §2 (a scaffold file absent from the manifest fails the
+  SEAL and blocks all commits).
+- `output/` ephemeral skip is a hardcoded first-segment prefix (the gap report notes a more general
+  `.gitignore`-aware rule as the robust form).
+
+**5. Forward-looking items (fold into knowledge/questions/INDEX.md at archive):**
+- **Class 6 — planned/not-yet-built citations (DESIGN DECISION, downstream-blocking).** The gap report's
+  Class 6 (2 extrends findings: `scripts/_autolabel_v2_oneoff.py`, `config/subreddits_general.yaml`)
+  are correct forward-references to artifacts a named follow-on will create — a pure matcher cannot
+  distinguish them from real drift. C ships NO suppression convention, so extrends' `knowledge_lint`
+  will NOT reach zero after C syncs, blocking D1 from turning the live-tree gate green there. Options:
+  (a) add an authoring opt-out marker (e.g. `<!-- lint:planned -->`) to scaffold `knowledge_lint`
+  (new C scope); (b) reword the 2 extrends docs to not backtick-cite the planned paths (author-side, in
+  D1); (c) `.gitignore`-aware skip won't help (these aren't gitignored). Recommend (a) — greppable,
+  explicit, preserves the drift signal for unmarked citations.
+- **install-tools checksum verification** — supply-chain hardening beyond current spec; fold into the
+  Defect-2 fix or track as a security follow-on.
+- **install-tools robustness** — resolve the download asset via the GitHub release API (match a
+  linux/arch asset) rather than a hardcoded filename template that drifts across versions.
+- **`output/` ephemeral rule** — consider the `.gitignore`-aware general form vs the hardcoded prefix.
+- **data_lint strict row-validation** — whether `zip(strict=True)` (fail-loud on ragged CSV) is
+  actually wanted is a deliberate call deferred here (kept behavior-preserving).
+- **commit-test-gate wiring-smoke doc** — the hook now has a stdin command-detection layer; the
+  gated-session smoke procedure in `tests/commit-gate-smoke/README.md` could note verifying it.
+
+**Still owned by archive:** `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`,
+`knowledge/questions/INDEX.md`, spec promotion into `openspec/specs/` (new `shared-lint-gate` capability
++ the `commit-test-gate`/`knowledge-lint` deltas), and cleanup. Do not reconcile here.

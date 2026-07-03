@@ -621,6 +621,108 @@ def test_line_range_on_missing_file_still_flagged(tmp_path):
 
 
 # ===================================================================
+# 8.1 — Single-line number citations (`:N` suffix): existing file not
+# flagged; missing file still flagged (FIX 1 for shared-lint-layer).
+# ===================================================================
+
+
+def test_single_line_number_on_existing_file_not_flagged(tmp_path):
+    """``file.py:42`` (single line number, no range) on an existing file
+    is NOT flagged — the ``:N`` suffix is stripped before the existence
+    check, same as ``:N-M``."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `src/real.py:42` for the key line.\n"),
+            "src/real.py": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 0
+
+
+def test_single_line_number_on_missing_file_still_flagged(tmp_path):
+    """``file.py:42`` where the underlying file does NOT exist still flags
+    — the ``:N`` strip does not blind the check to real drift."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `src/gone.py:42` for the key line.\n"),
+            "src/real.py": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "src/gone.py" in citation_findings[0].message
+
+
+# ===================================================================
+# 8.2 — Inline ``<!-- lint:planned -->`` suppression marker: a line
+# bearing the marker skips broken-citation checks entirely (FIX 2 for
+# shared-lint-layer). Author opt-out for forward-referenced files.
+# ===================================================================
+
+
+def test_lint_planned_marker_suppresses_broken_citation(tmp_path):
+    """A broken citation on a line CONTAINING ``<!-- lint:planned -->``
+    is NOT flagged — the entire line is suppressed."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `src/gone.py` for the upcoming change. <!-- lint:planned -->\n"
+            ),
+            "src/exists.md": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 0
+
+
+def test_lint_planned_marker_only_affects_marked_line(tmp_path):
+    """The SAME broken citation on a line WITHOUT the marker IS still
+    flagged — suppression is line-scoped and does not leak."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `src/gone.py` for the upcoming change. <!-- lint:planned -->\n"
+                "\n"
+                "See `src/gone.py` for the actual file (no marker).\n"
+            ),
+            "src/exists.md": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "src/gone.py" in citation_findings[0].message
+
+
+def test_lint_planned_marker_does_not_affect_other_lines(tmp_path):
+    """A broken citation on an unmarked line is unaffected by a marker
+    on a different line elsewhere in the same file."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `src/gone.py` for the actual file (no marker).\n"
+                "\n"
+                "See `src/other.py` for the follow-on change. <!-- lint:planned -->\n"
+            ),
+            "src/exists.md": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "src/gone.py" in citation_findings[0].message
+
+
+# ===================================================================
 # 7.1 — Root-handoff file check: files matching HANDOFF* / HANDOVER*
 # at the repo root are flagged; knowledge/HANDOFF.md is exempt.
 # ===================================================================

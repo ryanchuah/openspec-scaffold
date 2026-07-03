@@ -147,8 +147,9 @@ _AUDIT_LOG_FULL_RE = re.compile(
 # Must anchor on the whole stem.
 _DATE_TOKEN = r"(?:Y{2,4}|M{1,2}|D{1,2}|H{1,2}|S{1,2}|Www|Q[1-4]?)"
 _DATE_FORMAT_PLACEHOLDER_RE = re.compile(rf"^{_DATE_TOKEN}(?:-{_DATE_TOKEN})*$")
-# Matches a trailing `:N-M` line-range suffix (e.g. `:10-20`, `:490-524`).
-_LINE_RANGE_RE = re.compile(r":(\d+)-(\d+)$")
+# Matches a trailing `:N-M` line-range suffix (e.g. `:10-20`, `:490-524`)
+# OR a `:N` single-line number (e.g. `:42`).
+_LINE_RANGE_RE = re.compile(r":(\d+)(?:-(\d+))?$")
 
 
 class Finding(NamedTuple):
@@ -386,6 +387,11 @@ def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
     for path in files:
         rel = _relpath(root, path)
         for lineno, line in enumerate(_read_lines(path), start=1):
+            # Inline suppression marker: a line containing the literal string
+            # ``<!-- lint:planned -->`` means the author is deliberately
+            # forward-referencing a not-yet-created file — skip the entire line.
+            if "<!-- lint:planned -->" in line:
+                continue
             for m in _BACKTICK_RE.finditer(line):
                 token = m.group(1).strip()
                 if not token:
