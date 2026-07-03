@@ -30,3 +30,4 @@
 - Knowledge-lint follow-ons → `knowledge/questions/knowledge-lint-follow-ons.md`
 - `.claude` fallback-agent `description:` lines aren't strict YAML (latent, low-pri) → `knowledge/questions/claude-agent-frontmatter-yaml.md`
 - Mechanize-invariants follow-ons → `knowledge/questions/mechanize-invariants-follow-ons.md`
+- Delegated-agent-safety follow-ons → `knowledge/questions/delegated-agent-safety-follow-ons.md`

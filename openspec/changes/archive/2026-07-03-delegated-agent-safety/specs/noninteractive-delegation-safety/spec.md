@@ -29,6 +29,10 @@ Each delegated agent's permission configuration SHALL leave no `ask`-default gua
 
 ### Requirement: Verify verifier is denied destructive shell commands regardless of path
 
+The verify verifier SHALL be denied destructive shell commands regardless of path, via a `bash:`
+denylist pattern map replacing its bare `bash: allow` scalar, because the existing `external_directory`
+containment alone is insufficient.
+
 The existing `external_directory` containment on the verify verifier
 (`{ "*": deny, "/tmp/**": allow }`) is insufficient to prevent the verifier from mutating a
 production data store, because opencode's `external_directory` path-scanning for bash commands is
@@ -107,6 +111,9 @@ SHALL NOT describe it as robust/complete coverage of "destructive commands" gene
   specific `deny` rule take effect
 
 ### Requirement: Verify verifier prompt carries a data-safety preamble as the judgment layer
+
+The verify verifier prompt SHALL carry a data-safety preamble as a co-primary control, stating the
+denylist's residual-risk boundary honestly rather than presenting it as fully closed.
 
 The permission denylist above cannot cover every data-mutation vector, and this residual boundary
 SHALL be stated honestly rather than presented as fully closed. The residual vectors are:
