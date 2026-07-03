@@ -131,10 +131,15 @@ name; it is folded in here rather than deferred, because a gate that false-posit
 
 ## Verify outcome (2026-07-03, orchestrator = Opus 4.8 under Claude Code)
 
-**1. Verdict: NEEDS REVISION** — two confirmed defects (below), plus one downstream design decision.
-Multi-model deepseek verifier passes **waived by operator instruction**; the orchestrator's own deep
-behavioral review is the basis of this verdict. The extrends gap report
-(`/tmp/extrends-lint-gap-report.md`) was cross-checked against C's hardening.
+**1. Verdict: NEEDS REVISION — 1 item remaining, HANDED OFF.** Behavioral review found two defects +
+one design decision. Defect 1 (matcher `:N`) and the class-6 design decision (operator chose the
+`lint:planned` marker) are FIXED, verified from disk, and committed (`ddbeb65`). Defect 2
+(install-tools 404) remains: the operator chose Option A (descope the fragile curl-installer to a
+reference doc + `go install` helper) and asked to hand off the rest. **The install-tools descope +
+re-verify + archive are handed off in `knowledge/HANDOFF.md`.** Multi-model deepseek verifier passes
+**waived by operator instruction**; the orchestrator's own deep behavioral review is the basis of this
+verdict. The extrends gap report (`/tmp/extrends-lint-gap-report.md`) was cross-checked against C's
+hardening.
 
 **2. Live output eyeballed (behavioral review):**
 - `check.sh` real run: executes ruff check → `ruff format --check` (29 files already formatted) → the
