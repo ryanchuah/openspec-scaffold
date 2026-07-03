@@ -17,7 +17,6 @@
 - Fix-convergence-guard (W3) follow-ons → `knowledge/questions/fix-convergence-guard-follow-ons.md`
 - Propagate-baseline (W6) follow-ons → `knowledge/questions/propagate-baseline-follow-ons.md`
 - Lean-boot-context follow-ons → `knowledge/questions/lean-boot-context-follow-ons.md`
-- Migration cleanup items → `knowledge/questions/parked-migration.md`
 - Instruction-surface cleanup items → `knowledge/questions/parked-instruction-surface.md`
 - State-bounding items → `knowledge/questions/parked-state-bounding.md`
 - Sync-mechanism items → `knowledge/questions/parked-sync-mechanism.md`
@@ -25,6 +24,5 @@
 - Premise-review-gate follow-ons → `knowledge/questions/premise-review-gate-follow-ons.md`
 - Deterministic-tooling-layer follow-ons → `knowledge/questions/deterministic-tooling-layer-follow-ons.md`
 - Knowledge-lint follow-ons → `knowledge/questions/knowledge-lint-follow-ons.md`
-- `.claude` fallback-agent `description:` lines aren't strict YAML (latent, low-pri) → `knowledge/questions/claude-agent-frontmatter-yaml.md`
 - Mechanize-invariants follow-ons → `knowledge/questions/mechanize-invariants-follow-ons.md`
 - Delegated-agent-safety follow-ons → `knowledge/questions/delegated-agent-safety-follow-ons.md`
