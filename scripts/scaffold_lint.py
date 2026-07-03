@@ -76,13 +76,14 @@ Checks
     Scans ``AGENTS.md`` plus every ``.md`` file under ``.claude/skills/``
     (recursive — ``_shared/*.md`` is intentionally included and expected
     to stay clean), ``.claude/agents/``, and ``.opencode/agents/`` for
-    tokens matching ``\\bopenspec-[a-z][a-z-]*[a-z]\\b``, plus the literal
-    token ``lint-knowledge`` (special-cased because it is the only skill
-    name that does not start with ``openspec-``). Every matched token must
-    resolve to one of: a skill directory name under ``.claude/skills/``, an
-    agent file stem under ``.claude/agents/`` or ``.opencode/agents/``, or
-    the allowlist constant ``{"openspec-scaffold"}``. An unresolved token
-    is a finding naming the file and the token.
+    tokens matching ``\\bopenspec-[a-z][a-z-]*[a-z]\\b``, plus any token
+    in ``_NON_OPENSPEC_SKILL_TOKENS`` (an explicit set of non-``openspec-``
+    skill names, kept in step with actual skill directories). Every matched
+    token must resolve to one of: a skill directory name under
+    ``.claude/skills/``, an agent file stem under ``.claude/agents/`` or
+    ``.opencode/agents/``, or the allowlist constant
+    ``{"openspec-scaffold"}``. An unresolved token is a finding naming the
+    file and the token.
 
   budget-agreement
     Extracts every numeric ``timeout -k <G> <B>`` pair (regex
@@ -152,7 +153,11 @@ _SCAN_BASE_DIRS: tuple[str, ...] = (
 
 # dangling-skill-refs
 _TOKEN_RE = re.compile(r"\bopenspec-[a-z][a-z-]*[a-z]\b")
-_LINT_KNOWLEDGE_RE = re.compile(r"\blint-knowledge\b")
+# Non-openspec skills have no shared prefix to pattern-match, so police them by
+# explicit name. Keep in step with actual .claude/skills/ non-openspec dirs.
+_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset(
+    {"knowledge-drift-review", "run-audit"}
+)
 _DANGLING_ALLOWLIST: frozenset[str] = frozenset({"openspec-scaffold"})
 
 # budget-agreement
@@ -335,9 +340,9 @@ def check_dangling_skill_refs(
         rel = path.relative_to(root).as_posix()
 
         tokens: set[str] = set(_TOKEN_RE.findall(text))
-        m = _LINT_KNOWLEDGE_RE.search(text)
-        if m is not None:
-            tokens.add(m.group())
+        for t in _NON_OPENSPEC_SKILL_TOKENS:
+            if re.search(rf"\b{re.escape(t)}\b", text):
+                tokens.add(t)
 
         for token in sorted(tokens):
             if token not in valid_tokens:

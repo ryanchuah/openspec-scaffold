@@ -1,5 +1,5 @@
 ---
-name: lint-knowledge
+name: knowledge-drift-review
 description: Detect per-repo knowledge drift — stale "not yet built" claims, intra-doc contradictions, and buried operator gates — that the deterministic linter cannot see. Use when the operator asks to audit/lint the knowledge tree, or periodically as a standalone maintenance pass. Not run automatically on every archive.
 license: MIT
 compatibility: Requires openspec CLI.
@@ -26,8 +26,10 @@ tracked file — every finding is reported for the operator/primary to act on se
 
 1. **Run the deterministic linter first.**
 
+   *Note: use the repo's interpreter — prefer a task-runner `audit-*` target if one exists; else `.venv/bin/python` if present; else `python3`; else `python`. Referred to as `<py>` below.*
+
    ```bash
-   python scripts/knowledge_lint.py
+   <py> scripts/knowledge_lint.py
    ```
 
    Read every reported finding (orphan/duplicate canonical files, retired-path tokens, broken

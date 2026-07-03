@@ -93,7 +93,7 @@ _SKILL_CLEAN = """\
 name: openspec-demo
 ---
 
-Demo skill body. See `openspec-demo` for details and `lint-knowledge` for
+Demo skill body. See `openspec-demo` for details and `knowledge-drift-review` for
 the knowledge linter.
 
 ```bash
@@ -101,12 +101,20 @@ timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor
 ```
 """
 
-_LINT_KNOWLEDGE_SKILL = """\
+_KNOWLEDGE_DRIFT_REVIEW_SKILL = """\
 ---
-name: lint-knowledge
+name: knowledge-drift-review
 ---
 
-The lint-knowledge skill body.
+The knowledge-drift-review skill body.
+"""
+
+_RUN_AUDIT_SKILL = """\
+---
+name: run-audit
+---
+
+The run-audit skill body.
 """
 
 _AGENT_APPLY_EXECUTOR = """\
@@ -122,16 +130,18 @@ def _clean_tree() -> dict[str, str]:
         "openspec/config.yaml": _CONFIG_YAML_CLEAN,
         "scripts/scaffold_manifest.txt": (
             "scripts/scaffold_manifest.txt\n"
+            ".claude/skills/knowledge-drift-review/SKILL.md\n"
             ".claude/skills/openspec-demo/SKILL.md\n"
-            ".claude/skills/lint-knowledge/SKILL.md\n"
+            ".claude/skills/run-audit/SKILL.md\n"
             ".claude/skills/_shared/delegation-harness.md\n"
             ".claude/agents/apply-executor.md\n"
             ".opencode/agents/apply-executor.md\n"
             "scripts/foo.py\n"
         ),
         "scripts/foo.py": "# a scaffold-managed script\n",
+        ".claude/skills/knowledge-drift-review/SKILL.md": _KNOWLEDGE_DRIFT_REVIEW_SKILL,
         ".claude/skills/openspec-demo/SKILL.md": _SKILL_CLEAN,
-        ".claude/skills/lint-knowledge/SKILL.md": _LINT_KNOWLEDGE_SKILL,
+        ".claude/skills/run-audit/SKILL.md": _RUN_AUDIT_SKILL,
         ".claude/skills/_shared/delegation-harness.md": _HARNESS_CLEAN,
         ".claude/agents/apply-executor.md": _AGENT_APPLY_EXECUTOR,
         ".opencode/agents/apply-executor.md": _AGENT_APPLY_EXECUTOR,
@@ -376,6 +386,34 @@ def test_dangling_skill_refs_allowlisted_token_not_flagged(tmp_path):
 
     findings = scaffold_lint.collect_findings(tmp_path)
     assert not any(f.startswith("dangling-skill-refs:") for f in findings)
+
+
+def test_dangling_skill_refs_non_openspec_skill_without_dir_flagged(tmp_path):
+    """Regression: a non-openspec skill in _NON_OPENSPEC_SKILL_TOKENS whose
+    directory exists resolves cleanly; one whose directory does NOT exist is
+    flagged as a dangling ref (detect-then-validate holds for the generalized
+    set, not only a single hardcoded literal)."""
+    tree = _clean_tree()
+    # Remove run-audit dir + manifest entry so only knowledge-drift-review
+    # exists on disk; reference both in AGENTS.md.
+    tree.pop(".claude/skills/run-audit/SKILL.md")
+    tree["scripts/scaffold_manifest.txt"] = tree["scripts/scaffold_manifest.txt"].replace(
+        ".claude/skills/run-audit/SKILL.md\n", ""
+    )
+    tree["AGENTS.md"] = _AGENTS_MD_CLEAN + (
+        "\nUse `knowledge-drift-review` for the LLM pass and "
+        "`run-audit` for the audit cycle.\n"
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    dangling_findings = [f for f in findings if f.startswith("dangling-skill-refs:")]
+    assert len(dangling_findings) == 1
+    assert "AGENTS.md" in dangling_findings[0]
+    assert "run-audit" in dangling_findings[0]
+
+    exit_code, _stdout = _run_main(tmp_path)
+    assert exit_code == 1
 
 
 # ===================================================================

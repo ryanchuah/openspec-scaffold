@@ -62,7 +62,7 @@ run `scripts/sync_scaffold.py` against it until authorized; it still needs the s
 re-sync verification + onboard-tombstone deletion apply.
 
 **Per-repo follow-ons owed in extrends** (parked, not blockers): a first `knowledge_lint` /
-`lint-knowledge` pass (pre-existing citation drift in extrends' own knowledge tree, newly surfaced now
+`knowledge-drift-review` pass (pre-existing citation drift in extrends' own knowledge tree, newly surfaced now
 the linter is present) and the audit-layer wiring (`audit.toml`, `checks/`, task-runner `audit-*`
 targets, dev-extras pins, an `audit-log.md` seed on first audit).
 

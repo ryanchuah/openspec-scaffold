@@ -51,7 +51,7 @@ drift; the judgment sweep catches what the manifest cannot see. You need both.
    `knowledge/decisions/`, `knowledge/questions/`, `knowledge/lessons.md`, `knowledge/roadmap.md`,
    `knowledge/reference/`, `knowledge/research/`) or `openspec/specs/`. If the scaffold change introduced
    or renamed any *terminology, rule, or process concept*, re-apply that change **by hand** in each
-   downstream repo's knowledge and specs, then re-read for contradictions. The `lint-knowledge` skill is
+   downstream repo's knowledge and specs, then re-read for contradictions. The `knowledge-drift-review` skill is
    the semantic-drift pass for this; `knowledge_lint` only catches *structural* drift, not stale meaning.
 7. **Deletions / tombstones.** The manifest has no delete mechanism, so a file the scaffold *removed*
    still lives downstream until deleted by hand. Currently owed: delete the `openspec-onboard` skill in
@@ -59,7 +59,7 @@ drift; the judgment sweep catches what the manifest cannot see. You need both.
    includes a scaffold-side deletion, record it as an explicit per-repo manual step before syncing.
 8. **Per-repo wiring follow-ons.** Anything downstream the scaffold cannot carry: `audit.toml`,
    `checks/*.sql`, task-runner (`just`) targets, dev-extras pins for the audit layer, and a first
-   `lint-knowledge` pass. These are per-repo build-out tracked as parked follow-ons in
+   `knowledge-drift-review` pass. These are per-repo build-out tracked as parked follow-ons in
    `knowledge/questions/INDEX.md` — verify they exist / are updated; do not assume the sync created them.
 
 ## Deeper reference

@@ -6,13 +6,14 @@
 .claude/agents/archive-executor.md
 
 # Skills (.claude)
-.claude/skills/lint-knowledge/SKILL.md
+.claude/skills/knowledge-drift-review/SKILL.md
 .claude/skills/openspec-apply-change/SKILL.md
 .claude/skills/openspec-archive-change/SKILL.md
 .claude/skills/openspec-explore/SKILL.md
 .claude/skills/openspec-propose/SKILL.md
 .claude/skills/openspec-sync-specs/SKILL.md
 .claude/skills/openspec-verify-change/SKILL.md
+.claude/skills/run-audit/SKILL.md
 
 # Agent definitions (.opencode)
 .opencode/agents/apply-executor.md

@@ -14,9 +14,9 @@ operator/downstream action.
   OPEN QUESTION resolved: a general known-absent/allowlist mechanism is NOT added (YAGNI holds); the
   residual linter-smarts gap — it cannot natively distinguish contrast / cross-repo / archived-change
   citations from real drift — stays a deferred follow-on.
-- **Downstream propagation burn-down (follow-on):** once `knowledge_lint.py` + the `lint-knowledge`
+- **Downstream propagation burn-down (follow-on):** once `knowledge_lint.py` + the `knowledge-drift-review`
   skill propagate to extrends/psc-monitor via `sync_scaffold.py`, each repo should run a first
-  `lint-knowledge` pass to burn down its own drift backlog — a separate per-repo follow-on. Propagation
+  `knowledge-drift-review` pass to burn down its own drift backlog — a separate per-repo follow-on. Propagation
   itself is frozen pending operator go-ahead (see `knowledge/STATUS.md`), joining the
   `deterministic-tooling-layer` pending-propagation queue.
 - **Latent check, untested against real data:** the audit-log registry-format check is guarded on
@@ -30,5 +30,5 @@ operator/downstream action.
 - **Simplicity suggestion (non-blocking):** a few token-exclusion predicates in `knowledge_lint.py`
   (`_is_url`, `_is_absolute_system_path`, `_has_whitespace`) are now partly redundant behind the
   first-segment gate; left as belt-and-suspenders, could be pruned in a future pass. The
-  `lint-knowledge` skill also uses `python` not `python3` (mixed convention repo-wide; agents adapt) —
+  `knowledge-drift-review` skill also uses `python` not `python3` (mixed convention repo-wide; agents adapt) —
   minor.
