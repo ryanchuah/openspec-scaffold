@@ -1,0 +1,10 @@
+# Removed scaffold-managed inventory — one repo-relative path per line.
+# '#' and blank lines are ignored. A trailing '/' marks a directory entry;
+# anything else is a file entry. Files/directories listed here must NOT
+# exist in downstream repos: sync() will delete them and --check will
+# report them as STALE.
+
+# Seed: openspec-onboard skill was removed from scaffold in the
+# prune-knowledge portfolio (2026-07-03). Downstream copies still exist,
+# notably in psc-monitor.
+.claude/skills/openspec-onboard/

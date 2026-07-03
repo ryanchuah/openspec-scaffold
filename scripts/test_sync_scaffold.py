@@ -1037,5 +1037,205 @@ class HookWiringWarningTest(unittest.TestCase):
         self.assertIn("WARNING", buf.getvalue())
 
 
+class SyncRemovedManifestTest(unittest.TestCase):
+    """Tests for the removed manifest deletion pass (change B)."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.fixture_scaffold = _make_fixture_scaffold(self.tmpdir)
+        self.fixture_target = _make_fixture_target(self.tmpdir)
+
+        # Write the removed manifest to fixture scaffold
+        self.removed_path = (
+            self.fixture_scaffold / "scripts" / "scaffold_manifest_removed.txt"
+        )
+
+        self._scaffold_root_patcher = patch.object(
+            sync_scaffold, "_scaffold_root", return_value=self.fixture_scaffold
+        )
+        self._scaffold_root_patcher.start()
+
+    def tearDown(self):
+        self._scaffold_root_patcher.stop()
+        for root, dirs, files in os.walk(self.tmpdir, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
+        os.rmdir(self.tmpdir)
+
+    # ── fixture helpers ───────────────────────────────────────────────────
+
+    def _write_removed(self, lines: str) -> None:
+        self.removed_path.write_text(lines)
+
+    def _create_target_file(self, rel: str, content: str = "tombstone\n") -> None:
+        p = self.fixture_target / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+    def _create_target_dir(self, rel: str) -> None:
+        p = self.fixture_target / rel
+        p.mkdir(parents=True, exist_ok=True)
+
+    # ── deletion of file entry ────────────────────────────────────────────
+
+    def test_delete_file_entry(self):
+        self._create_target_file("stale-file.txt")
+        self._write_removed("stale-file.txt\n")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertFalse((self.fixture_target / "stale-file.txt").exists())
+        self.assertIn("REMOVED  stale-file.txt", buf.getvalue())
+
+    def test_delete_dir_entry(self):
+        self._create_target_dir("stale-dir")
+        self._write_removed("stale-dir/\n")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertFalse((self.fixture_target / "stale-dir").exists())
+        self.assertIn("REMOVED  stale-dir/", buf.getvalue())
+
+    # ── idempotent no-op when absent ──────────────────────────────────────
+
+    def test_delete_noop_when_absent(self):
+        """An entry in the removed list that does not exist in the target
+        is a silent no-op — no REMOVED line, no error."""
+        self._write_removed("ghost-file.txt\n")
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        self.assertNotIn("REMOVED", buf.getvalue())
+        # Normal sync should still proceed
+        self.assertTrue((self.fixture_target / "test-regular.txt").exists())
+
+    # ── check() STALE reporting ──────────────────────────────────────────
+
+    def test_check_reports_stale_file(self):
+        self._create_target_file("stale-file.txt")
+        self._write_removed("stale-file.txt\n")
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 1)
+
+    def test_check_reports_stale_dir(self):
+        self._create_target_dir("stale-dir")
+        self._write_removed("stale-dir/\n")
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 1)
+
+    def test_check_clean_when_removed_entry_absent(self):
+        """STALE is NOT reported when the removed-list entry does not exist
+        in the target — --check still exits 0 if manifest files are fine."""
+        # Sync first so manifest files match
+        sync_scaffold.sync(str(self.fixture_target))
+        self._write_removed("nonexistent-stale.txt\n")
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 0)
+
+    # ── both-lists conflict ───────────────────────────────────────────────
+
+    def test_both_lists_conflict_aborts(self):
+        """A path in both scaffold_manifest.txt and the removed list
+        triggers a hard error — no deletions performed."""
+        self._create_target_file("valid-deletable.txt")
+        self._write_removed("test-regular.txt\nvalid-deletable.txt\n")
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync(str(self.fixture_target))
+        # Manifest file must still exist (nothing deleted)
+        self.assertTrue(
+            (self.fixture_target / "test-regular.txt").exists()
+        )
+        # Valid deletable entry must NOT be deleted — no deletion happened
+        self.assertTrue(
+            (self.fixture_target / "valid-deletable.txt").exists()
+        )
+
+    # ── upstream-still-exists conflict ────────────────────────────────────
+
+    def test_removed_path_exists_in_scaffold_aborts(self):
+        """A removed-list path that still exists in the scaffold repo is
+        a hard error — the lists disagree with reality; no deletions."""
+        # 'test-regular.txt' exists in the fixture scaffold
+        self._create_target_file("valid-deletable.txt")
+        self._write_removed("test-regular.txt\nvalid-deletable.txt\n")
+        # Remove it from manifest so the both-lists guard doesn't fire
+        manifest = (
+            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
+        )
+        current = manifest.read_text()
+        manifest.write_text(current.replace("test-regular.txt\n", ""))
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync(str(self.fixture_target))
+        # Valid deletable entry must NOT be deleted — no deletion happened
+        self.assertTrue(
+            (self.fixture_target / "valid-deletable.txt").exists()
+        )
+
+    # ── path-escape rejection ─────────────────────────────────────────────
+
+    def test_path_escape_rejected(self):
+        """A removed-list entry with '..' that resolves outside the
+        target root is rejected as a hard error — no deletions."""
+        self._create_target_file("valid-deletable.txt")
+        self._write_removed("../escape.txt\nvalid-deletable.txt\n")
+        with self.assertRaises(SystemExit):
+            sync_scaffold.sync(str(self.fixture_target))
+        # Valid deletable entry must NOT be deleted — no deletion happened
+        self.assertTrue(
+            (self.fixture_target / "valid-deletable.txt").exists()
+        )
+
+    # ── two violations both reported ──────────────────────────────────────
+
+    def test_two_guard_2_violations_both_reported(self):
+        """Two entries that both violate guard 2 (still-exists-in-scaffold)
+        both get reported in a single run with no deletions."""
+        # Remove both from manifest so the both-lists guard doesn't fire
+        manifest = (
+            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
+        )
+        current = manifest.read_text()
+        manifest.write_text(
+            current
+            .replace("test-regular.txt\n", "")
+            .replace("subdir/data.txt\n", "")
+        )
+        # Both still exist in the scaffold — add to removed list
+        self._write_removed("test-regular.txt\nsubdir/data.txt\n")
+        buf = io.StringIO()
+        with self.assertRaises(SystemExit), redirect_stderr(buf):
+            sync_scaffold.sync(str(self.fixture_target))
+        stderr = buf.getvalue()
+        self.assertIn("test-regular.txt", stderr)
+        self.assertIn("subdir/data.txt", stderr)
+        # Neither file was deleted
+        self.assertTrue(
+            (self.fixture_target / "test-regular.txt").exists()
+        )
+        self.assertTrue(
+            (self.fixture_target / "subdir/data.txt").exists()
+        )
+
+    # ── missing removed-list file tolerated ───────────────────────────────
+
+    def test_missing_removed_file_tolerated(self):
+        """When no scaffold_manifest_removed.txt exists, sync() behaves
+        exactly as before — no change in behavior."""
+        self.assertFalse(self.removed_path.exists())
+        sync_scaffold.sync(str(self.fixture_target))
+        # Normal sync should succeed
+        rc = sync_scaffold.check(str(self.fixture_target))
+        self.assertEqual(rc, 0)
+
+    def test_check_missing_removed_file_tolerated(self):
+        """check() tolerates a missing removed manifest."""
+        self.assertFalse(self.removed_path.exists())
+        rc = sync_scaffold.check(str(self.fixture_target))
+        # Target not synced yet, so should be 1 (MISSING files)
+        self.assertEqual(rc, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

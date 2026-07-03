@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import os
 import re
 import shutil
 import subprocess
@@ -48,6 +49,28 @@ def _read_manifest() -> list[str]:
     """Return non-blank, non-comment lines from the manifest."""
     lines: list[str] = []
     with open(_manifest_path()) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                lines.append(line)
+    return lines
+
+
+def _removed_manifest_path() -> Path:
+    return _scaffold_root() / "scripts" / "scaffold_manifest_removed.txt"
+
+
+def _read_removed_manifest() -> list[str]:
+    """Return non-blank, non-comment lines from the removed manifest.
+
+    Tolerates a missing file (returns empty list) for backward
+    compatibility with repos that have not yet created it.
+    """
+    path = _removed_manifest_path()
+    if not path.is_file():
+        return []
+    lines: list[str] = []
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#"):
@@ -289,8 +312,107 @@ def sync(target_path_str: str) -> None:
     for line in manifest_lines:
         _sync_file(line, target_path, scaffold_root)
 
+    removed_lines = _read_removed_manifest()
+    if removed_lines:
+        _delete_removed_entries(removed_lines, target_path, scaffold_root)
+
     _warn_if_hook_unwired(target_path)
     _write_provenance_beacon(target_path)
+
+
+# ── Deletion pass ────────────────────────────────────────────────────────────
+
+
+def _delete_removed_entries(
+    removed_lines: list[str], target_root: Path, scaffold_root: Path
+) -> None:
+    """Delete removed-list entries from *target_root*.
+
+    Two phases: (1) validate ALL entries against four guards, collecting
+    every violation to stderr, then ``sys.exit(1)`` if any — no deletions
+    performed; (2) delete loop runs only when validation found zero
+    violations.
+
+    Guards (validated before any deletion):
+
+    1. A path listed in BOTH ``scaffold_manifest.txt`` and the removed list.
+    2. A removed-list path that still exists in the scaffold repo itself.
+    3. The resolved target path must stay inside *target_root* (reject
+       ``..``, absolute entries, and symlink escapes).
+    4. A dir-marked entry (trailing ``/``) that is a file in the target
+       (or vice versa).
+
+    Absent entries are silent no-ops.
+    """
+    manifest_lines = _read_manifest()
+    # Normalise both sides for conflict comparison (strip trailing /)
+    manifest_set: set[str] = {p.rstrip("/") for p in manifest_lines}
+    removed_orig: dict[str, str] = {}  # normalised -> original
+    for line in removed_lines:
+        removed_orig[line.rstrip("/")] = line
+
+    # ── Guard 1: both-lists conflict ─────────────────────────────────────
+    conflicts = manifest_set & set(removed_orig.keys())
+    if conflicts:
+        for norm in sorted(conflicts):
+            print(
+                f"ERROR: path in both scaffold_manifest.txt and "
+                f"scaffold_manifest_removed.txt: {removed_orig[norm]}",
+                file=sys.stderr,
+            )
+        sys.exit(1)
+
+    # ── Validation loop (guards 2-4, all checked before any deletion) ──
+    errors: list[str] = []
+    entry_info: list[tuple[str, Path, bool]] = []  # (original_line, resolved_dst, is_dir)
+
+    for line in removed_lines:
+        normalised = line.rstrip("/")
+        is_dir = line.endswith("/")
+        dst = (target_root / normalised).resolve()
+
+        # Guard 2: path still exists in scaffold repo
+        scaffold_path = scaffold_root / normalised
+        if scaffold_path.exists():
+            errors.append(
+                f"ERROR: removed-list path still exists in scaffold: {line}",
+            )
+
+        # Guard 3: path escape
+        if not str(dst).startswith(str(target_root) + os.sep):
+            errors.append(
+                f"ERROR: removed-list path resolves outside target root: {line}",
+            )
+
+        # Guard 4: dir/file kind mismatch (only when dst exists)
+        if dst.exists():
+            dst_is_dir = dst.is_dir()
+            if is_dir and not dst_is_dir:
+                errors.append(
+                    f"ERROR: removed-list entry marked as dir but is a "
+                    f"file in target: {line}",
+                )
+            if not is_dir and dst_is_dir:
+                errors.append(
+                    f"ERROR: removed-list entry marked as file but is a "
+                    f"dir in target: {line}",
+                )
+
+        entry_info.append((line, dst, is_dir))
+
+    if errors:
+        for err in errors:
+            print(err, file=sys.stderr)
+        sys.exit(1)
+
+    # ── Deletion loop (only runs when validation found zero violations) ─
+    for line, dst, is_dir in entry_info:
+        if dst.exists():
+            if is_dir:
+                shutil.rmtree(dst)
+            else:
+                dst.unlink()
+            print(f"REMOVED  {line}")
 
 
 # ── Check mode ─────────────────────────────────────────────────────────────
@@ -336,6 +458,14 @@ def check(target_path_str: str) -> int:
             else:
                 print(f"DIFFERS   {line}")
                 exit_code = 1
+
+    removed_lines = _read_removed_manifest()
+    for line in removed_lines:
+        normalised = line.rstrip("/")
+        dst = target_path / normalised
+        if dst.exists():
+            print(f"STALE  {line}")
+            exit_code = 1
 
     _warn_if_hook_unwired(target_path)
 

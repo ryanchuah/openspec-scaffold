@@ -25,7 +25,7 @@ Each finding is printed as exactly one stdout line:
 
     scaffold-lint: <check-id>: <detail>
 
-All five checks run even after an earlier one has produced findings — this
+All six checks run even after an earlier one has produced findings — this
 script reports everything in one pass, then exits 1. If all checks are
 clean, it prints ``scaffold-lint: clean`` and exits 0.
 
@@ -44,9 +44,18 @@ Checks
 
     Exclusion list (authoring-side tooling that is deliberately never
     manifest-listed / never synced downstream):
+      ``scripts/scaffold_manifest_removed.txt``,
       ``scripts/sync_scaffold.py``, ``scripts/test_sync_scaffold.py``,
       ``scripts/scaffold_lint.py``, ``scripts/test_scaffold_lint.py``,
       ``scripts/test-cmd``, and the glob ``scripts/_*_oneoff.*``.
+
+  manifest-no-conflict
+    A path may not appear in both ``scripts/scaffold_manifest.txt`` AND
+    ``scripts/scaffold_manifest_removed.txt`` (normalised by stripping
+    trailing ``/``). If the same normalised path is in both files, that
+    is a finding naming the path — the live manifest says "copy this"
+    while the removed manifest says "delete this", which is contradictory
+    and can never be resolved.
 
   agents-md-structure
     Two sub-checks over ``AGENTS.md`` (the reused ``sync_scaffold`` span
@@ -135,6 +144,7 @@ _MANAGED_GLOBS: tuple[str, ...] = (
 
 _MANIFEST_EXCLUDE_EXACT: frozenset[str] = frozenset(
     {
+        "scripts/scaffold_manifest_removed.txt",
         "scripts/sync_scaffold.py",
         "scripts/test_sync_scaffold.py",
         "scripts/scaffold_lint.py",
@@ -243,6 +253,50 @@ def check_manifest_completeness(root: Path) -> list[str]:
                 f"manifest-completeness: manifest entry {rel} does not exist on disk"
             )
 
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check: manifest-no-conflict
+# ---------------------------------------------------------------------------
+
+
+def _read_removed_manifest_entries(root: Path) -> set[str]:
+    """Return the normalised set of non-blank, non-comment lines from
+    ``scaffold_manifest_removed.txt``, with trailing ``/`` stripped.
+    Returns an empty set if the file does not exist."""
+    path = root / "scripts" / "scaffold_manifest_removed.txt"
+    if not path.is_file():
+        return set()
+    entries: set[str] = set()
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                entries.add(line.rstrip("/"))
+    return entries
+
+
+def check_manifest_no_conflict(root: Path) -> list[str]:
+    """A path may not appear in both scaffold_manifest.txt and
+    scaffold_manifest_removed.txt (normalised by stripping trailing /)."""
+    findings: list[str] = []
+    manifest_path = root / "scripts" / "scaffold_manifest.txt"
+    if not manifest_path.is_file():
+        return findings  # manifest absent → nothing to conflict with
+
+    # Reuse the existing helper but normalise
+    manifest_entries = {
+        p.rstrip("/") for p in _read_manifest_entries(root)
+    }
+    removed_entries = _read_removed_manifest_entries(root)
+    conflicts = manifest_entries & removed_entries
+    for c in sorted(conflicts):
+        findings.append(
+            f"manifest-no-conflict: {c} appears in both "
+            f"scripts/scaffold_manifest.txt and "
+            f"scripts/scaffold_manifest_removed.txt"
+        )
     return findings
 
 
@@ -424,6 +478,7 @@ def collect_findings(root: Path) -> list[str]:
 
     findings: list[str] = []
     findings.extend(check_manifest_completeness(root))
+    findings.extend(check_manifest_no_conflict(root))
     findings.extend(check_agents_md_structure(root))
     findings.extend(check_config_rules_last(root))
     findings.extend(check_dangling_skill_refs(root, scanned))

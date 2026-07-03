@@ -138,6 +138,10 @@ def _clean_tree() -> dict[str, str]:
             ".opencode/agents/apply-executor.md\n"
             "scripts/foo.py\n"
         ),
+        "scripts/scaffold_manifest_removed.txt": (
+            "# clean fixture — no paths overlap with manifest\n"
+            ".claude/skills/openspec-onboard/\n"
+        ),
         "scripts/foo.py": "# a scaffold-managed script\n",
         ".claude/skills/knowledge-drift-review/SKILL.md": _KNOWLEDGE_DRIFT_REVIEW_SKILL,
         ".claude/skills/openspec-demo/SKILL.md": _SKILL_CLEAN,
@@ -229,6 +233,55 @@ def test_manifest_completeness_oneoff_sh_excluded(tmp_path):
     findings = scaffold_lint.collect_findings(tmp_path)
     manifest_findings = [f for f in findings if f.startswith("manifest-completeness:")]
     assert manifest_findings == []
+
+
+# ===================================================================
+# manifest-no-conflict
+# ===================================================================
+
+
+def test_manifest_no_conflict_clean_no_findings(tmp_path):
+    _build_clean_repo(tmp_path)
+    findings = scaffold_lint.collect_findings(tmp_path)
+    assert not any(f.startswith("manifest-no-conflict:") for f in findings)
+
+
+def test_manifest_no_conflict_overlap_flagged(tmp_path):
+    tree = _clean_tree()
+    # Add a path to the removed list that also appears in the manifest
+    tree["scripts/scaffold_manifest_removed.txt"] = (
+        "# fixture — conflict\n"
+        "scripts/foo.py\n"
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    no_conflict_findings = [f for f in findings if f.startswith("manifest-no-conflict:")]
+    assert len(no_conflict_findings) == 1
+    assert "scripts/foo.py" in no_conflict_findings[0]
+    assert "appears in both" in no_conflict_findings[0]
+
+    exit_code, _stdout = _run_main(tmp_path)
+    assert exit_code == 1
+
+
+def test_manifest_no_conflict_normalised_overlap_flagged(tmp_path):
+    """A dir entry with trailing / in the removed list conflicts with the
+    same normalised path in the manifest."""
+    tree = _clean_tree()
+    tree["scripts/scaffold_manifest_removed.txt"] = (
+        "# fixture — normalised conflict\n"
+        "scripts/foo.py/\n"
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    no_conflict_findings = [f for f in findings if f.startswith("manifest-no-conflict:")]
+    assert len(no_conflict_findings) == 1
+    assert "scripts/foo.py" in no_conflict_findings[0]
+
+    exit_code, _stdout = _run_main(tmp_path)
+    assert exit_code == 1
 
 
 # ===================================================================
@@ -466,14 +519,14 @@ def test_live_repo_lints_clean():
     This test is a SEAL, not test fragility: once it is green, any future
     instruction-file edit (AGENTS.md, a SKILL.md, an agent file, the
     delegation-harness budget table, openspec/config.yaml) that introduces
-    a manifest-completeness / agents-md-structure / config-rules-last /
-    dangling-skill-refs / budget-agreement violation will fail the suite
-    by design. That IS the enforcement mechanism this change adds — a red
-    result here means a real invariant was violated, not that the test is
-    brittle. If this test ever surfaces a violation, the correct response
-    is to fix the violating instruction file (or, if the fix is genuinely
-    out of scope, to stop and report it as a blocker) — never to loosen or
-    delete this test to make it pass.
+    a manifest-completeness / manifest-no-conflict / agents-md-structure /
+    config-rules-last / dangling-skill-refs / budget-agreement violation
+    will fail the suite by design. That IS the enforcement mechanism this
+    change adds — a red result here means a real invariant was violated,
+    not that the test is brittle. If this test ever surfaces a violation,
+    the correct response is to fix the violating instruction file (or, if
+    the fix is genuinely out of scope, to stop and report it as a blocker)
+    — never to loosen or delete this test to make it pass.
     """
     repo_root = Path(__file__).resolve().parent.parent
     findings = scaffold_lint.collect_findings(repo_root)
