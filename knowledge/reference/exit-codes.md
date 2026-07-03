@@ -16,7 +16,8 @@ source; if a script changes its codes, update this table.
 | `sync_scaffold.py --check-refs` | 0 / 1 | no dangling refs / dangling refs found |
 | `sync_scaffold.py` (sync mode) | 0 / 1 | synced / preflight validation failure (target missing, no .git, missing scaffold source) |
 | `status_lint.py` | 0 / 2 | clean / hard violations |
-| `test-gate.sh` | 0 / 2 | allow commit (tests pass, or no/empty test-cmd, or config error) / block commit (tests failed) |
+| `check.sh` | 0 / non-zero | all stages pass (ruff check + format --check + test-cmd) / a named stage failed (stderr names which). Missing-tool degradation: absent ruff → warn+skip lint/format, proceed to tests. Absent/empty test-cmd → no-op (exit 0) |
+| `test-gate.sh` | 0 / 2 | allow commit (delegates to `check.sh`, maps 0→0) / block commit (maps check.sh non-zero→2). Unresolvable tool / no test-cmd → no-op exit 0 (preserved from pre-check.sh behavior) |
 | `_convergence.py` | verdict on **stdout** | prints `CONTINUE` or `STOP:<a\|b\|c>:<detail>`; `main()` always returns 0 — the exit code is NOT the signal |
 
 Notes:

@@ -303,6 +303,7 @@ What would you like to do?
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
+- **Before marking a task done, run `ruff check --fix` and `ruff format` on every Python file the executor created or edited (the executor autofix habit — see the apply-executor agent rules).**
 - **PHASE GATE**: When implementation is complete, STOP. Inform the user and prompt them for the next step. Never invoke verification without an explicit user request. This is a hard rule.
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess

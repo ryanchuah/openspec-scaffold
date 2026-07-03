@@ -571,6 +571,23 @@ def test_missing_file_still_flagged(tmp_path):
     assert "src/x/gone.py" in citation_findings[0].message
 
 
+def test_all_caps_component_not_mistaken_as_placeholder(tmp_path):
+    """An all-caps path component like ``API`` must NOT be treated as a date
+    placeholder — ``src/API/gone.py`` (where ``src/`` is a real top-level dir
+    but the file does not exist) must still flag as a broken citation."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `src/API/gone.py` for the API impl.\n"),
+            "src/exists.md": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "src/API/gone.py" in citation_findings[0].message
+
+
 def test_symbol_node_id_on_missing_file_still_flagged(tmp_path):
     """``file.py::symbol`` where the underlying file does NOT exist still
     flags — drift is not blinded by the ``::symbol`` strip."""

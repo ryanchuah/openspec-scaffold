@@ -141,10 +141,12 @@ _AUDIT_LOG_ANCHOR_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\*")
 _AUDIT_LOG_FULL_RE = re.compile(
     r"^- \*\*\d{4}-\d{2}-\d{2}\*\* · audit/\d{4}-\d{2}-\d{2} · [0-9a-f]{7,40} · \S.*$"
 )
-# Matches date/period placeholders like `YYYY` or `YYYY-Www` (3-4 uppercase
-# letters, optionally followed by -Uppercase+lowercase).  Must anchor on the
-# whole stem so a longer real word (e.g. "README") does not accidentally match.
-_DATE_FORMAT_PLACEHOLDER_RE = re.compile(r"^[A-Z]{3,4}(?:-[A-Z][a-z]{1,3})?$")
+# Matches date/period placeholders like `YYYY`, `YYYY-Www`, `MM-DD`, or
+# `YY-MM-DD`.  Built from a date-token alternation so all-caps component
+# names like `API`, `SQL`, `CSV`, `JSON`, `YAML`, `TODO` do NOT match.
+# Must anchor on the whole stem.
+_DATE_TOKEN = r"(?:Y{2,4}|M{1,2}|D{1,2}|H{1,2}|S{1,2}|Www|Q[1-4]?)"
+_DATE_FORMAT_PLACEHOLDER_RE = re.compile(rf"^{_DATE_TOKEN}(?:-{_DATE_TOKEN})*$")
 # Matches a trailing `:N-M` line-range suffix (e.g. `:10-20`, `:490-524`).
 _LINE_RANGE_RE = re.compile(r":(\d+)-(\d+)$")
 

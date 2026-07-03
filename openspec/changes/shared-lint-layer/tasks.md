@@ -122,31 +122,31 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
 
 ## 9. Executor autofix habit (byte-identical bodies) + apply skill
 
-- [ ] 9.1 Add an autofix instruction to BOTH `.claude/agents/apply-executor.md` and
+- [x] 9.1 Add an autofix instruction to BOTH `.claude/agents/apply-executor.md` and
       `.opencode/agents/apply-executor.md`, byte-identical bodies: before reporting a task done, run
       `ruff check --fix` + `ruff format` on the files touched. `scripts/test_executor_body_agreement.py`
       MUST stay green (byte-compare passes).
-- [ ] 9.2 Add the matching autofix-before-done line to the apply SKILL
+- [x] 9.2 Add the matching autofix-before-done line to the apply SKILL
       (`.claude/skills/openspec-apply-change/SKILL.md`).
 
 ## 10. Manifest + propagation
 
-- [ ] 10.1 Add `ruff.toml`, `scripts/check.sh`, `scripts/install-tools.sh` to
+- [x] 10.1 Add `ruff.toml`, `scripts/check.sh`, `scripts/install-tools.sh` to
       `scripts/scaffold_manifest.txt`. Do NOT add `checks.toml` (per-repo). Ensure any new test files
       that are scaffold-managed by convention are handled per the manifest's existing rules.
-- [ ] 10.2 Run `scripts/scaffold_lint.py` (manifest completeness + no-conflict) and
+- [x] 10.2 Run `scripts/scaffold_lint.py` (manifest completeness + no-conflict) and
       `python scripts/sync_scaffold.py --check-refs` against this repo — both must exit 0.
 
 ## 11. Reference docs
 
-- [ ] 11.1 Update `knowledge/reference/exit-codes.md` with the `check.sh` exit convention (0 green /
+- [x] 11.1 Update `knowledge/reference/exit-codes.md` with the `check.sh` exit convention (0 green /
       non-zero = failed stage; test-gate maps to allow/block 0/2).
-- [ ] 11.2 Update `knowledge/reference/new-repo-bootstrap.md` with the `scripts/install-tools.sh`
+- [x] 11.2 Update `knowledge/reference/new-repo-bootstrap.md` with the `scripts/install-tools.sh`
       step (and the ruff dev-dependency).
 
 ## 12. Final green self-check (executor, before reporting done)
 
-- [ ] 12.1 Run and confirm all green: full suite via `scripts/test-cmd`; `scripts/check.sh` (exit 0);
+- [x] 12.1 Run and confirm all green: full suite via `scripts/test-cmd`; `scripts/check.sh` (exit 0);
       `scripts/scaffold_lint.py`; live-tree `knowledge_lint.py` (self) and `status_lint.py`;
       `sync_scaffold.py --check-refs`. Report any non-green stage with its output rather than
       continuing.

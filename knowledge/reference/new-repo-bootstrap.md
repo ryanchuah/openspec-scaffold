@@ -31,6 +31,14 @@ each step verified against the real repo.
    skill refs, budgets) and `python3 scripts/knowledge_lint.py` (orphan/duplicate canonical files,
    retired-path tokens, broken prose citations, dangling archive pointers) must both exit `0` before the
    repo is considered bootstrapped.
+6. **Provision pinned security scanners.** Run `bash scripts/install-tools.sh` to install pinned
+   `gitleaks` and `osv-scanner` (idempotent — re-running with pinned versions already present is a
+   no-op). `deptry` comes via dev extras (pip), not a binary install.
+7. **Install ruff (dev dependency).** `ruff` is pinned in `dev-requirements.txt` (repo root) and is the
+   lint + format engine behind `scripts/check.sh`. Install it as part of your Python environment:
+   `.venv/bin/python -m pip install -r dev-requirements.txt` or the equivalent for your
+   environment. Without ruff, `check.sh` runs a degraded mode (warns, skips lint/format, still runs
+   tests).
 
 **Provenance stamp:** after the first real `sync_scaffold.py <target>` run (not `--check`), the target
 repo carries `.scaffold-version` at its root — a non-manifest beacon recording the scaffold HEAD short
