@@ -13,3 +13,8 @@
 # renamed to checks.py / test_checks.py; facts.py is the facts surface.
 scripts/audit_bundle.py
 scripts/test_audit_bundle.py
+
+# clarify-audit-tooling-surface (2026-07-03): the lint-knowledge skill was
+# renamed to knowledge-drift-review. Downstream copies still carry the old
+# skill dir (extrends, psc-monitor) — delete it on sync.
+.claude/skills/lint-knowledge/
