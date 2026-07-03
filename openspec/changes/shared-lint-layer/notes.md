@@ -53,10 +53,16 @@ name; it is folded in here rather than deferred, because a gate that false-posit
    misfires on complex non-commit Bash (the parked reproduction — a harmless `true` payload with
    file redirections + an EXIT-sentinel echo — runs ungated); a genuine `git commit` with a red
    suite still blocks. A regression probe is added to the commit-test-gate smoke fixture.
-8. **install-tools.sh provisions scanners:** scaffold-managed `scripts/install-tools.sh` installs
-   pinned gitleaks + osv-scanner (deptry via dev extras), idempotent, documented in
-   `new-repo-bootstrap.md`. (CI *enforcement* of scanners is per-repo D1/D2 — C ships the mechanism,
-   not the downstream CI wiring.)
+8. **Scanners documented + provisioned (descoped to Option A):** the scaffold documents the required
+   scanners (`gitleaks`, `osv-scanner`), their pinned versions, and recommended provisioning per
+   environment (CI = official actions `gitleaks/gitleaks-action` + `google/osv-scanner-action`;
+   local = `go install` / package manager) in `knowledge/reference/security-scanners.md`, and ships a
+   scaffold-managed `scripts/install-tools.sh` `go install` helper guarded on `command -v go` (warns +
+   points to the reference doc when Go is absent, exits 0 — degrade-don't-block). `deptry` via dev
+   extras. Live: with Go absent the helper warns + exits 0; the reference doc names both tools, pinned
+   versions, and CI/local paths. (CI *enforcement* is per-repo D1/D2 — C ships the mechanism, not the
+   downstream CI wiring.) **Supersedes** the original bespoke curl-installer (verify Defect 2:
+   hardcoded release-asset URLs 404'd, no checksum verification) — operator chose descope (Option A).
 9. **Scaffold-managed + propagating:** `ruff.toml`, `scripts/check.sh`, `scripts/install-tools.sh`
    are on `scripts/scaffold_manifest.txt`; `scaffold_lint` (manifest completeness + no-conflict)
    green. `checks.toml` stays **per-repo** (never manifest), per A's seed convention.

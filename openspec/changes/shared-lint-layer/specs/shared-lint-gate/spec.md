@@ -52,20 +52,28 @@ from memory-invoked tooling to gate-enforced invariants without changing their d
 - **WHEN** the knowledge tree has no drift findings
 - **THEN** the live-tree doc-lint tests SHALL pass
 
-### Requirement: install-tools.sh provisions pinned security scanners
-The scaffold SHALL ship a scaffold-managed `scripts/install-tools.sh` that installs pinned versions
-of the security scanners `gitleaks` and `osv-scanner` (with `deptry` provided via dev extras rather
-than a binary install). It SHALL be idempotent (safe to re-run) and its use SHALL be documented in
-`knowledge/reference/new-repo-bootstrap.md`. C ships this provisioning mechanism; per-repo CI
-enforcement of the scanners is downstream wiring (D1/D2), not part of this capability.
+### Requirement: The scaffold documents and provisions pinned security scanners
+The scaffold SHALL document the required security scanners — `gitleaks` (secrets) and `osv-scanner`
+(dependency CVEs) — their pinned versions, and the recommended provisioning **per environment** in
+`knowledge/reference/security-scanners.md`: **CI via the official actions**
+(`gitleaks/gitleaks-action`, `google/osv-scanner-action`) and **local development via `go install`**
+(both tools are Go binaries) **or a package manager**. It SHALL additionally ship a scaffold-managed
+`scripts/install-tools.sh` local-dev helper that provisions the pinned scanners via `go install`,
+guarded on the presence of the Go toolchain. `deptry` is provided via dev extras, not a binary
+install. C ships this documentation plus the local helper; per-repo CI enforcement of the scanners is
+downstream wiring (D1/D2), not part of this capability.
 
-#### Scenario: install provisions the pinned scanners
-- **WHEN** `scripts/install-tools.sh` runs on a machine without the scanners
-- **THEN** it installs the pinned `gitleaks` and `osv-scanner` versions and exits `0`
+#### Scenario: the helper provisions the pinned scanners when Go is present
+- **WHEN** `scripts/install-tools.sh` runs on a machine with the Go toolchain (`go`) on PATH
+- **THEN** it SHALL `go install` the pinned `gitleaks` and `osv-scanner` versions and exit `0`
 
-#### Scenario: re-running is idempotent
-- **WHEN** `scripts/install-tools.sh` runs again with the scanners already present at the pinned versions
-- **THEN** it SHALL NOT error and SHALL leave the environment unchanged
+#### Scenario: the helper degrades without the Go toolchain
+- **WHEN** `scripts/install-tools.sh` runs on a machine with no `go` on PATH
+- **THEN** it SHALL warn on stderr, point to `knowledge/reference/security-scanners.md`, and exit `0` without hard-failing (mirroring `check.sh`'s degrade-don't-block posture on absent tooling)
+
+#### Scenario: provisioning is documented per environment
+- **WHEN** an operator provisions the scanners for a repo
+- **THEN** `knowledge/reference/security-scanners.md` SHALL name the two tools, their pinned versions, and the recommended CI (official actions) and local (`go install` / package manager) provisioning paths
 
 ### Requirement: The apply executor autofixes touched files before reporting done
 The apply phase SHALL run `ruff check --fix` and `ruff format` on the files it touched before

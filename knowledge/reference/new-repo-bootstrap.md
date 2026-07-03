@@ -31,9 +31,13 @@ each step verified against the real repo.
    skill refs, budgets) and `python3 scripts/knowledge_lint.py` (orphan/duplicate canonical files,
    retired-path tokens, broken prose citations, dangling archive pointers) must both exit `0` before the
    repo is considered bootstrapped.
-6. **Provision pinned security scanners.** Run `bash scripts/install-tools.sh` to install pinned
-   `gitleaks` and `osv-scanner` (idempotent — re-running with pinned versions already present is a
-   no-op). `deptry` comes via dev extras (pip), not a binary install.
+6. **Provision pinned security scanners.** See `knowledge/reference/security-scanners.md` for the two
+   scanners (`gitleaks` for secrets, `osv-scanner` for dependency CVEs), their pinned versions, and the
+   recommended provisioning per environment. For **CI**, wire the official actions
+   (`gitleaks/gitleaks-action`, `google/osv-scanner-action`) — per-repo wiring, deferred to D1/D2. For
+   **local development**, run `bash scripts/install-tools.sh`, which `go install`s the pinned scanners
+   when the Go toolchain is present (both tools are Go binaries) and otherwise warns + points to the
+   reference doc without hard-failing. `deptry` comes via dev extras (pip), not a binary install.
 7. **Install ruff (dev dependency).** `ruff` is pinned in `dev-requirements.txt` (repo root) and is the
    lint + format engine behind `scripts/check.sh`. Install it as part of your Python environment:
    `.venv/bin/python -m pip install -r dev-requirements.txt` or the equivalent for your
