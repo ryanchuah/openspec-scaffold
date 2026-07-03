@@ -208,6 +208,19 @@ def test_manifest_completeness_exclusion_list_not_flagged(tmp_path):
     assert manifest_findings == []
 
 
+def test_manifest_completeness_oneoff_sh_excluded(tmp_path):
+    """A scripts/_x_oneoff.sh present but not manifest-listed must NOT be
+    flagged by manifest-completeness — the exclude glob now covers .sh oneoffs
+    (scripts/_*_oneoff.*)."""
+    tree = _clean_tree()
+    tree["scripts/_x_oneoff.sh"] = "#!/usr/bin/env bash\necho oneoff\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    manifest_findings = [f for f in findings if f.startswith("manifest-completeness:")]
+    assert manifest_findings == []
+
+
 # ===================================================================
 # agents-md-structure
 # ===================================================================

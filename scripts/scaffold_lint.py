@@ -46,7 +46,7 @@ Checks
     manifest-listed / never synced downstream):
       ``scripts/sync_scaffold.py``, ``scripts/test_sync_scaffold.py``,
       ``scripts/scaffold_lint.py``, ``scripts/test_scaffold_lint.py``,
-      ``scripts/test-cmd``, and the glob ``scripts/_*_oneoff.py``.
+      ``scripts/test-cmd``, and the glob ``scripts/_*_oneoff.*``.
 
   agents-md-structure
     Two sub-checks over ``AGENTS.md`` (the reused ``sync_scaffold`` span
@@ -141,7 +141,7 @@ _MANIFEST_EXCLUDE_EXACT: frozenset[str] = frozenset(
         "scripts/test-cmd",
     }
 )
-_MANIFEST_EXCLUDE_GLOB = "scripts/_*_oneoff.py"
+_MANIFEST_EXCLUDE_GLOB = "scripts/_*_oneoff.*"
 
 # dangling-skill-refs / budget-agreement shared scan surface
 _SCAN_BASE_DIRS: tuple[str, ...] = (

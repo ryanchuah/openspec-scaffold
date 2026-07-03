@@ -357,8 +357,10 @@ def check(target_path_str: str) -> int:
 _REF_SCAN_EXCLUDE = ("openspec/changes/", "knowledge/research/")
 # Known-ephemeral knowledge paths — legitimately absent in the steady state, so a
 # citation to one is NOT dangling. knowledge/HANDOFF.md is the sanctioned mid-session
-# handoff file (written mid-change, deleted on absorption).
-_EPHEMERAL_PATHS = ("knowledge/HANDOFF.md",)
+# handoff file (written mid-change, deleted on absorption). knowledge/audit-log.md is
+# created on first audit run (also legitimately absent).  Keep this set in step with
+# knowledge_lint.EPHEMERAL_PATHS (the single source of truth).
+_EPHEMERAL_PATHS = ("knowledge/HANDOFF.md", "knowledge/audit-log.md")
 # `knowledge/....md` path citations (e.g. in synced rules).
 _KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")
 # `<file>.md § "Section"` citations (any file; we only resolve canonical docs).

@@ -31,8 +31,13 @@ drift; the judgment sweep catches what the manifest cannot see. You need both.
 1. **Convergence.** `scripts/sync_scaffold.py --check <target>` → exit `0`; every manifest file reports
    IDENTICAL. A per-repo `## Project context` / `context:` block is correctly ignored; a DIFFERS or
    MISSING means the sync did not fully land — re-run the full sync and investigate.
-2. **Scaffold lint.** In the target: `python3 scripts/scaffold_lint.py` → exit `0` (AGENTS.md anchors,
-   dangling skill refs, config-rules-last, manifest completeness, budget agreement).
+2. **Scaffold lint (structural checks).** `scaffold_lint.py` is authoring-side and never syncs, so run
+   it FROM the scaffold against the target: `python3 scripts/scaffold_lint.py --root <target>`. The four
+   *structural* checks — AGENTS.md anchors, dangling skill refs, config-rules-last, budget agreement —
+   are the meaningful downstream gate and must be clean. Its fifth check, *manifest-completeness*, is a
+   scaffold-authoring invariant: run against a downstream repo it will legitimately flag that repo's own
+   per-repo scripts (e.g. `run_trendscope.sh`, `_*_oneoff.sh`) that are not in the shared manifest —
+   those findings are expected downstream, not drift.
 3. **Knowledge lint.** In the target: `python3 scripts/knowledge_lint.py` → exit `0` (orphan/duplicate
    canonical files, retired-path tokens, broken prose citations, dangling archive pointers).
 4. **Suite green.** The target's own test suite passes (its `scaffold_lint` invariant SEAL plus all

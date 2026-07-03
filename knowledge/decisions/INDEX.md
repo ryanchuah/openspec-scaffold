@@ -6,6 +6,7 @@ One line per decision. Format:
 
 ---
 
+- **2026-07-03** · propagation-tooling-drift-fix · `sync_scaffold` `--check-refs` ephemeral allowlist realigned with `knowledge_lint.EPHEMERAL_PATHS` (add `audit-log.md`); `scaffold_lint` oneoff-exclude glob broadened `_*_oneoff.py`→`_*_oneoff.*`; both files authoring-side, not propagated → `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`
 - **2026-06-13** · all-state-in-tracked-files · [inline] project state lives only in tracked files visible to all harnesses; no harness-native memory (Claude-only stores break cross-agent continuity)
 - **2026-06-13** · skills-in-dot-claude-only · [inline] opencode ≥1.16 auto-discovers `.claude/skills/**`; a second .opencode/skills/ copy would create a divergence hazard
 - **2026-06-13** · no-lifecycle-hooks · [inline] hooks are Claude-only; equivalent guardrails live in skills both harnesses honor (deliberate carve-out: commit-test-gate hook added 2026-06-16)

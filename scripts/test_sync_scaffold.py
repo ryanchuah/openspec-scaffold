@@ -657,6 +657,28 @@ class TestCheckReferences(unittest.TestCase):
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
         self.assertEqual(rc, 1)
 
+    def test_ephemeral_audit_log_citation_not_flagged(self):
+        # knowledge/audit-log.md is a known-ephemeral path (created on first audit
+        # run, legitimately absent in the steady state, cross-referenced from
+        # knowledge_lint.EPHEMERAL_PATHS) — citing it must not be flagged as
+        # dangling, even when the file is absent.
+        self._write(
+            "AGENTS.md",
+            "## Roles\nSee `knowledge/audit-log.md` for audit trail.\n",
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
+        self.assertEqual(rc, 0)
+
+        # A citation to a genuinely-missing knowledge/ path is still flagged
+        # even when the ephemeral exemption also applies — proving the exemption
+        # does not mask real dangling refs.
+        self._write(
+            "AGENTS.md",
+            "## Roles\nSee `knowledge/audit-log.md` and `knowledge/does-not-exist.md`.\n",
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
+        self.assertEqual(rc, 1)
+
     def test_dangling_when_section_missing(self):
         self._write("AGENTS.md", "## Roles\n")
         self._write("doc.md", 'See AGENTS.md § "Nonexistent Section".\n')
