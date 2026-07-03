@@ -22,5 +22,7 @@ fields 4–5). All cosmetic or low-priority; none block current work.
   `kind == "custom"` branches are unreachable dead code (customs are always check-family) — prune in
   the same pass.
 
-See also [[commit-test-gate-hook-misfire]] (a separate bug found live during this change's apply
-phase, tracked standalone since it's a delegation-harness concern, not an audit-tooling one).
+The commit-test-gate hook misfire (a separate bug found live during this change's apply phase — the
+`PreToolUse` gate firing on complex non-commit Bash) was **resolved by shared-lint-layer (C)** via the
+hook-matcher fix plus a must-not-gate regression probe; see
+`openspec/changes/archive/2026-07-03-shared-lint-layer/`.
