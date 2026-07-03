@@ -4,17 +4,16 @@ Parked from `openspec/changes/archive/2026-07-02-knowledge-lint/notes.md` (field
 items"). None of these are active blockers — all are deferred, monitored, or gated behind a later
 operator/downstream action.
 
-- **Scaffold's own pre-existing knowledge drift the linter now surfaces** (out-of-scope to fix in the
-  knowledge-lint change itself, but real): `knowledge/roadmap.md` still recommends the retired
-  `ai-docs/` path; `knowledge/lessons.md` cites `openspec/changes/fix-convergence-guard/` without its
-  `archive/2026-06-17-` prefix; `knowledge/decisions/INDEX.md` (line 38) mentions `ai-docs/` (judgment
-  call — may be legitimate historical context). Per-repo content-cleanup follow-on.
-- **Known-absent-by-design paths still flag as forward-references:** `knowledge/audit-log.md` (created
-  per-repo once audits run), `scripts/test-cmd` (per-repo, legitimately absent in the scaffold),
-  `.opencode/skills/` (deliberately absent per the `skills-in-dot-claude-only` decision), and a
-  cross-repo `plans/historical-reports.md` cited in `knowledge/questions/parked-psc-monitor.md`. OPEN
-  QUESTION: add a known-absent/allowlist mechanism to drive these to zero, or keep
-  enumerate-and-judge? Deliberately NOT added now (simplicity/YAGNI) — revisit only if the noise grows.
+- **Scaffold's own pre-existing knowledge drift** — RESOLVED 2026-07-03 by `prune-knowledge`. All three
+  sub-items fixed: the roadmap entry was closed (shipped changes referenced by decision name), the
+  lessons.md lesson-archive path was repointed to the archive prefix, and the decisions/INDEX.md
+  historical mention was de-slashed. Per-repo content-cleanup follow-on complete.
+- **Known-absent-by-design paths** — all concrete instances now addressed: knowledge/audit-log.md is
+  handled via the linter's EPHEMERAL_PATHS mechanism (task 1.1); the .opencode/skills/ contrast
+  citations and the cross-repo historical-reports.md ref are handled by de-citing (tasks 3.1–3.3).
+  OPEN QUESTION resolved: a general known-absent/allowlist mechanism is NOT added (YAGNI holds); the
+  residual linter-smarts gap — it cannot natively distinguish contrast / cross-repo / archived-change
+  citations from real drift — stays a deferred follow-on.
 - **Downstream propagation burn-down (follow-on):** once `knowledge_lint.py` + the `lint-knowledge`
   skill propagate to extrends/psc-monitor via `sync_scaffold.py`, each repo should run a first
   `lint-knowledge` pass to burn down its own drift backlog — a separate per-repo follow-on. Propagation

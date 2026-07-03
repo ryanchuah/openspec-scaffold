@@ -111,14 +111,13 @@ DEFAULT_RETIRED_PATHS: tuple[str, ...] = (
     "ai-docs/",
     "plans/open-issues.md",
     "docs/reviews/",
-    "/home/me/",
 )
 
 # Known-ephemeral knowledge paths: legitimately absent in the steady state, so a
 # citation to one is NOT a broken citation. knowledge/HANDOFF.md is the sanctioned
 # mid-session handoff file (written mid-change, deleted on absorption) — see the
 # knowledge taxonomy (knowledge/README.md).
-EPHEMERAL_PATHS: tuple[str, ...] = ("knowledge/HANDOFF.md",)
+EPHEMERAL_PATHS: tuple[str, ...] = ("knowledge/HANDOFF.md", "knowledge/audit-log.md")
 
 # Content checks (retired-path token, broken citation) exclude this dir —
 # period-correct historical analyses legitimately cite pre-restructure

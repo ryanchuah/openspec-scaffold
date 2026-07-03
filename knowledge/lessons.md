@@ -9,7 +9,7 @@ Hard-learned process lessons from operating this scaffold and the W0–W6 harden
 **Subagents were confidently wrong on falsifiable specifics.** During the 2026-06 industry-standards hardening, research subagents claimed:
 - Certain `sst/opencode` GitHub issues were "open" (actually closed/fixed).
 - "Every multi-turn deepseek dispatch silently falls back to the default agent" (false since opencode v1.14.24, PR #24146).
-- An `.opencode/skills/` discovery convention exists (hallucinated — OpenCode ≥1.16 auto-loads `.claude/skills/`).
+- An .opencode/skills/ discovery convention exists (hallucinated — OpenCode ≥1.16 auto-loads `.claude/skills/`).
 
 All were caught only by verifying against `gh`, official docs, and local binary inspection.
 
@@ -73,7 +73,7 @@ A brief written to `/tmp` is silently unreadable — the run no-ops. Write the b
 
 ### Executor overreach into neighbor changes
 
-On the W3 apply, deepseek-flash was briefed ONLY on `openspec/changes/fix-convergence-guard/` but correctly implemented W3 AND then also implemented `cleanup-workflow-ergonomics` (W5), which was at the propose-complete/pre-freeze stage. Its completion report described only the W5 work; the W3 work was buried mid-transcript.
+On the W3 apply, deepseek-flash was briefed ONLY on `openspec/changes/archive/2026-06-17-fix-convergence-guard/` but correctly implemented W3 AND then also implemented `cleanup-workflow-ergonomics` (W5), which was at the propose-complete/pre-freeze stage. Its completion report described only the W5 work; the W3 work was buried mid-transcript.
 
 Tell-tale: the changed-file list mixed two changes' scopes.
 

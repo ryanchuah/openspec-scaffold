@@ -26,6 +26,5 @@ checks (dangling-refs, budget-agreement) is worth syncing downstream later.
 
 ## `knowledge_lint.py` DEFAULT_RETIRED_PATHS personal path
 
-`knowledge_lint.py`'s `DEFAULT_RETIRED_PATHS` bakes a personal path (`/home/me/`) from one
-downstream incident into golden-source defaults — a repo-agnosticism smell worth a look
-during the succession-hardening prune change.
+The `/home/me/` entry has been removed from `DEFAULT_RETIRED_PATHS` (prune-knowledge task 1.2,
+2026-07-03) — RESOLVED.
