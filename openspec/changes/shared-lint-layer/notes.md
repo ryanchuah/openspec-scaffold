@@ -137,14 +137,13 @@ name; it is folded in here rather than deferred, because a gate that false-posit
 
 ## Verify outcome (2026-07-03, orchestrator = Opus 4.8 under Claude Code)
 
-**1. Verdict: NEEDS REVISION — 1 item remaining, HANDED OFF.** Behavioral review found two defects +
-one design decision. Defect 1 (matcher `:N`) and the class-6 design decision (operator chose the
-`lint:planned` marker) are FIXED, verified from disk, and committed (`ddbeb65`). Defect 2
-(install-tools 404) remains: the operator chose Option A (descope the fragile curl-installer to a
-reference doc + `go install` helper) and asked to hand off the rest. **The install-tools descope +
-re-verify + archive are handed off in `knowledge/HANDOFF.md`.** Multi-model deepseek verifier passes
-**waived by operator instruction**; the orchestrator's own deep behavioral review is the basis of this
-verdict. The extrends gap report (`/tmp/extrends-lint-gap-report.md`) was cross-checked against C's
+**1. Verdict: READY.** Behavioral review found two defects + one design decision, now all RESOLVED.
+Defect 1 (matcher `:N`) and the class-6 design decision (operator chose the `lint:planned` marker) were
+FIXED and committed (`ddbeb65`). Defect 2 (install-tools 404) is RESOLVED via operator-approved Option A
+— the fragile curl-installer was descoped to a `go install` helper + a `security-scanners.md`
+provisioning reference (committed `53d6590`); re-verify note in §6 below. Multi-model deepseek verifier
+passes **waived by operator instruction**; the orchestrator's own deep behavioral review is the basis of
+this verdict. The extrends gap report (`/tmp/extrends-lint-gap-report.md`) was cross-checked against C's
 hardening.
 
 **2. Live output eyeballed (behavioral review):**
@@ -169,11 +168,12 @@ hardening.
   findings on any line carrying it (line-scoped). Spec requirement + scenarios added; tests + re-probe
   confirm marked line suppressed, unmarked still flags. This lets extrends' 2 forward-references reach
   green under the gate without weakening drift detection for unmarked citations.
-- **Defect 2 — 🔴 install-tools.sh downloads 404 — OPEN, pending operator direction.** Both pinned asset
-  URLs 404; no SHA256 verification. Operator flagged the whole curl-installer as fragile and is deciding
-  between: (A) descope to a provisioning reference doc + `go install` helper (CI uses official actions,
-  deferred to D1/D2) — orchestrator recommendation; (B) harden the script (GitHub-API asset resolution +
-  checksum verification); (C) other. AC#8 will be reworded to match the chosen direction.
+- **Defect 2 — 🔴 install-tools.sh downloads 404 — RESOLVED (Option A, committed `53d6590`).** Both pinned
+  asset URLs 404'd; no SHA256 verification. Operator chose Option A: descope the curl-installer to a thin
+  `go install` helper (both scanners are Go binaries) + a `knowledge/reference/security-scanners.md`
+  provisioning reference (CI = official actions `gitleaks/gitleaks-action` + `google/osv-scanner-action`,
+  deferred to D1/D2). AC#8 + the delta spec's install-tools requirement reworded to match. Fix
+  re-delegated to a fresh flash apply-executor and reviewed from disk. Re-verify in §6.
 
 **4. As-built deltas (not already in artifacts):**
 - `check.sh` exits **1** on failure; `test-gate.sh` maps check.sh non-zero → **2** (hook block contract).
@@ -186,24 +186,38 @@ hardening.
   `.gitignore`-aware rule as the robust form).
 
 **5. Forward-looking items (fold into knowledge/questions/INDEX.md at archive):**
-- **Class 6 — planned/not-yet-built citations (DESIGN DECISION, downstream-blocking).** The gap report's
-  Class 6 (2 extrends findings: `scripts/_autolabel_v2_oneoff.py`, `config/subreddits_general.yaml`)
-  are correct forward-references to artifacts a named follow-on will create — a pure matcher cannot
-  distinguish them from real drift. C ships NO suppression convention, so extrends' `knowledge_lint`
-  will NOT reach zero after C syncs, blocking D1 from turning the live-tree gate green there. Options:
-  (a) add an authoring opt-out marker (e.g. `<!-- lint:planned -->`) to scaffold `knowledge_lint`
-  (new C scope); (b) reword the 2 extrends docs to not backtick-cite the planned paths (author-side, in
-  D1); (c) `.gitignore`-aware skip won't help (these aren't gitignored). Recommend (a) — greppable,
-  explicit, preserves the drift signal for unmarked citations.
-- **install-tools checksum verification** — supply-chain hardening beyond current spec; fold into the
-  Defect-2 fix or track as a security follow-on.
-- **install-tools robustness** — resolve the download asset via the GitHub release API (match a
-  linux/arch asset) rather than a hardcoded filename template that drifts across versions.
+- **Class 6 — planned/not-yet-built citations — marker SHIPPED (`ddbeb65`).** C added the
+  `<!-- lint:planned -->` line marker to scaffold `knowledge_lint` (an opt-out that suppresses a
+  broken-citation finding on the marked line, preserving drift detection for every unmarked line).
+  Forward follow-on for **D1**: the 2 extrends forward-references (`scripts/_autolabel_v2_oneoff.py`,
+  `config/subreddits_general.yaml`) should get the marker (or be reworded) once C syncs, so extrends'
+  `knowledge_lint` reaches zero and its live-tree gate can go green. Also: document the marker
+  convention for authors.
+- **install-tools checksum / asset-URL robustness — SUPERSEDED by Option A (`53d6590`).** The go-install
+  rewrite eliminates both concerns: Go's module system provides checksummed, versioned resolution
+  (recorded in `go.sum`), with no hardcoded release-asset URLs and no bespoke SHA256 step. No longer a
+  follow-on.
+- **Pinned scanner versions have no CVE-drift auto-bump** — dependabot/renovate is a parked operator
+  decision; bump `security-scanners.md` + `scripts/install-tools.sh` together by hand.
 - **`output/` ephemeral rule** — consider the `.gitignore`-aware general form vs the hardcoded prefix.
 - **data_lint strict row-validation** — whether `zip(strict=True)` (fail-loud on ragged CSV) is
   actually wanted is a deliberate call deferred here (kept behavior-preserving).
 - **commit-test-gate wiring-smoke doc** — the hook now has a stdin command-detection layer; the
   gated-session smoke procedure in `tests/commit-gate-smoke/README.md` could note verifying it.
+
+**6. Re-verify — install-tools descope (2026-07-03, orchestrator behavioral; multi-model still waived):**
+- `go install` helper's `command -v go` guard exercised **live** (Go absent on this host): it warns to
+  stderr, points to `security-scanners.md`, and exits `0` — degrade-don't-block confirmed. `bash -n`
+  syntax clean; file executable.
+- Install commands verified **resolvable against the Go module proxy** (definitive for `go install X@v`):
+  `github.com/zricethezav/gitleaks/v8@v8.30.1` and `github.com/google/osv-scanner/v2@v2.4.0` each return
+  200 with the correct VCS URL + tag — the direct contrast to the old 404 asset URLs. Module paths
+  confirmed against go.mod/README (gitleaks uses the original-author `zricethezav` namespace; osv-scanner
+  the `/v2/cmd/osv-scanner` path). Both pins are the current latest.
+- Reference doc accurate — every fact cross-checked against live GitHub + the Go proxy; both CI action
+  repos (`gitleaks/gitleaks-action`, `google/osv-scanner-action`) confirmed to exist.
+- Gates green at re-verify: `check.sh` (ruff check + `ruff format --check` + full suite), `scaffold_lint`,
+  `knowledge_lint`, `status_lint`, `sync_scaffold.py --check-refs .` — all exit `0`. **Verdict: READY.**
 
 **Still owned by archive:** `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`,
 `knowledge/questions/INDEX.md`, spec promotion into `openspec/specs/` (new `shared-lint-gate` capability
