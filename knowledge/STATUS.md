@@ -5,7 +5,23 @@ Project initialised from openspec-scaffold. Delegated-work governance hardened: 
 scaffold's own `knowledge/` tree now passes `scripts/knowledge_lint.py` clean, with the
 `openspec-onboard` teaching-skill removed as a standing drift risk.
 
-## Latest change — clarify-audit-tooling-surface SHIPPED (2026-07-03)
+## Latest change — checks-facts-split SHIPPED (2026-07-03)
+
+Split the deterministic audit engine into a checks/facts/audit trichotomy: `audit_bundle.py`
+renamed to `scripts/checks.py` (findings-capable detectors, preflight-gated, dated `--report` output)
+alongside a new `scripts/facts.py` (cache-semantics snapshots — undated, regenerate-on-use, never
+fails), sharing one engine/registry via a `family` field. Preflight turns serial tool-discovery into
+one informed report: before any check-family tool runs, `--floor`/`--report` compute availability for
+every enabled entry and, on any gap, print one self-explaining line per tool (trigger, install-or-disable
+guidance, coverage-loss note), record an INFRA-FAIL, run nothing, exit 3; fact-family tools keep today's
+graceful per-tool degradation. Config renamed `audit.toml` → `checks.toml`. Inventory gained an
+`audit_anchor` (latest audit tag + commits-since) for staleness-cadence signalling; `audit_scope.py`'s
+ceremony is unchanged. Verify: self-review passed in full (multi-model passes waived by operator
+instruction); suite green. A commit-test-gate hook misfire was discovered live during apply and parked,
+not fixed here. Decisions in `knowledge/decisions/INDEX.md`; forward items parked in `knowledge/questions/`.
+Archive: `openspec/changes/archive/2026-07-03-checks-facts-split`.
+
+## Prior change — clarify-audit-tooling-surface SHIPPED (2026-07-03)
 
 Renamed the LLM `lint-knowledge` skill to `knowledge-drift-review`, ending near-mirrored-name
 confusion with the deterministic `knowledge_lint.py` script. Added a `run-audit` skill as the
@@ -35,20 +51,6 @@ residue from the already-shipped `pro-agent-flash-delegation`. Gates green at co
 exit 0, suite green). Closes the succession-hardening portfolio — all four changes now shipped.
 Decisions in `knowledge/decisions/INDEX.md`.
 
-## Prior change — delegated-agent-safety SHIPPED (2026-07-03)
-
-Delegated-agent data-safety hardened across four scopes: (a) the verify verifier's `bash: allow`
-scalar became a destructive-command denylist (catch-all allow) plus a co-primary data-safety
-preamble; (b) a sanctioned mid-session handoff file `knowledge/HANDOFF.md` (ephemeral, boot-if-present);
-(c) `sync_scaffold.py` stamps a non-manifest `.scaffold-version` provenance beacon; (d) a new-repo
-bootstrap checklist reference. Verify outcome: the security pass live-proved the denylist matches
-literal command spelling, not command identity — `sed -i`, `cp`, `find -delete`, `/usr/bin/rm`,
-`env rm`, and a version-suffixed interpreter all bypassed it. Fix: broadened the enumerated set and
-rewrote the framing honestly — a speed-bump, not a semantic wall; the verifier is not truly
-filesystem-read-only via bash. Multi-model passes were NOT waived; apply/archive ran on Sonnet per
-operator directive. Downstream propagation stays FROZEN. Decisions in `knowledge/decisions/INDEX.md`;
-follow-ons in `knowledge/questions/`. Archive: `openspec/changes/archive/2026-07-03-delegated-agent-safety`.
-
 ## Immediate next action
 The succession-hardening portfolio is **fully shipped** and the proactive-build queue is empty.
 
@@ -65,8 +67,10 @@ re-sync verification + onboard-tombstone deletion apply.
 
 **Per-repo follow-ons owed in extrends** (parked, not blockers): a first `knowledge_lint` /
 `knowledge-drift-review` pass (pre-existing citation drift in extrends' own knowledge tree, newly surfaced now
-the linter is present) and the audit-layer wiring (`audit.toml`, `checks/`, task-runner `audit-*`
-targets, dev-extras pins, an `audit-log.md` seed on first audit).
+the linter is present) and the audit-layer wiring (`checks.toml`, `checks/`, task-runner `audit-*`
+targets, dev-extras pins, an `audit-log.md` seed on first audit). The `checks-facts-split` rename
+(`audit_bundle.py`→`checks.py`/`facts.py`, `audit.toml`→`checks.toml`) is also unsynced downstream —
+folds into the same pending propagation batch once the operator authorizes the next sync.
 
 **Scaffold-tooling fix SHIPPED 2026-07-03** — `fix-propagation-tooling-drift` (SMALL, archived at
 `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`): found during the extrends

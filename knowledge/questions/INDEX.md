@@ -30,3 +30,5 @@
 - run-audit never exercised end-to-end (no wired audit layer in scaffold; monitored, not blocking) → `knowledge/questions/run-audit-untested.md`
 - scaffold_lint removed non-openspec-name blind spot (D2 trade-off; revisit if skill set grows or rename recurs) → `knowledge/questions/scaffold-lint-removed-name-blindspot.md`
 - Audit-skill frontmatter `compatibility` boilerplate is inaccurate for both run-audit and knowledge-drift-review → `knowledge/questions/audit-skill-metadata-cleanup.md`
+- checks-facts-split follow-ons (cosmetic UX/wording, dead-code prune, engine-refactor additions) → `knowledge/questions/checks-facts-split-follow-ons.md`
+- commit-test-gate hook misfires on some complex non-commit Bash commands (workaround in place; root-cause fix owed) → `knowledge/questions/commit-test-gate-hook-misfire.md`

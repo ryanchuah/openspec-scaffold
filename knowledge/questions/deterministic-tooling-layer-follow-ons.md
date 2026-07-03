@@ -10,7 +10,10 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
   against web-verified schemas + stubs only — no live binary has run them yet. The first
   downstream `--report` run is the real integration test. Tool-version pins are recorded in
   `EXPECTED_TOOL_VERSIONS` and were current 2026-07-02; they will rot over time. Recovery loop:
-  bump the pin, then re-run baseline triage (brief D9).
+  bump the pin, then re-run baseline triage (brief D9). Since `checks-facts-split` (2026-07-03) this
+  first run also exercises **preflight** for real (today only simulated against a tmp repo with
+  missing-on-purpose binaries) — the true multi-tool-missing report and the coverage-loss guidance
+  wording have never been seen against actual installed/absent tools.
 - **`data_lint.py` live-DB validation pending:** no Postgres exists in this repo; the first
   psc-monitor adoption run is what actually validates it. Downstream convention to set: check SQL
   should `LIMIT` its violating-row `SELECT` (the runner caps the recorded sample but still fetches
@@ -24,6 +27,10 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
 - **Deferred structure refactor (follow-on SMALL):** single-writer artifact refactor (kills a
   double/triple write), `_mode_multi` decomposition (radon rates it rank E — the layer's own
   finding), status-string constants, test-helper dedup. Details in the archived `review-log.md`.
+  Two more instances surfaced by `checks-facts-split` (2026-07-03) belong in the same pass: the
+  install-or-disable INFRA-FAIL message is now built in three places inside `_mode_multi`, and
+  `facts.py`'s `kind == "custom"` branch is dead code (customs are always check-family) — see
+  `knowledge/questions/checks-facts-split-follow-ons.md`.
 - **Vulture whitelist campaign seeds (D5):** `conftest.py`'s `collect_ignore` (pytest magic) and
   one unused unpacked test variable — deliberately left as seed material for the future campaign.
 - **`--floor` writes artifacts to CWD** (recorded apply deviation) — fine for agent use today, but
