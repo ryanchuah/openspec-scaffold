@@ -141,6 +141,12 @@ _AUDIT_LOG_ANCHOR_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\*")
 _AUDIT_LOG_FULL_RE = re.compile(
     r"^- \*\*\d{4}-\d{2}-\d{2}\*\* · audit/\d{4}-\d{2}-\d{2} · [0-9a-f]{7,40} · \S.*$"
 )
+# Matches date/period placeholders like `YYYY` or `YYYY-Www` (3-4 uppercase
+# letters, optionally followed by -Uppercase+lowercase).  Must anchor on the
+# whole stem so a longer real word (e.g. "README") does not accidentally match.
+_DATE_FORMAT_PLACEHOLDER_RE = re.compile(r"^[A-Z]{3,4}(?:-[A-Z][a-z]{1,3})?$")
+# Matches a trailing `:N-M` line-range suffix (e.g. `:10-20`, `:490-524`).
+_LINE_RANGE_RE = re.compile(r":(\d+)-(\d+)$")
 
 
 class Finding(NamedTuple):
@@ -199,13 +205,28 @@ def _is_absolute_system_path(token: str) -> bool:
 def _is_template_placeholder(token: str) -> bool:
     # Format-doc examples show the *shape* of a citation using angle-bracket
     # variables (`<dir>`, `<repo>`, `<change>`, ...) — never a real path.
-    return "<" in token or ">" in token
+    if "<" in token or ">" in token:
+        return True
+    # Date/period placeholders like `YYYY-Www` — a path component whose
+    # alphabetic stem is a sequence of 3-4 uppercase letters (ISO week / date
+    # placeholder notation), optionally followed by a hyphen and mixed-case.
+    for part in token.split("/"):
+        stem = part.rsplit(".", 1)[0] if "." in part else part
+        if _DATE_FORMAT_PLACEHOLDER_RE.match(stem):
+            return True
+    return False
 
 
 def _is_glob_pattern(token: str) -> bool:
     # A glob (`checks/*.sql`, `.claude/skills/**`) names a pattern, not a
     # single resolvable path.
     return "*" in token
+
+
+def _is_brace_pattern(token: str) -> bool:
+    """Brace-expansion patterns like ``{a,b}`` or ``{a..b}`` — a deliberate
+    notation, not a broken path."""
+    return "{" in token and "}" in token
 
 
 def _has_whitespace(token: str) -> bool:
@@ -371,7 +392,11 @@ def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
                     continue  # command/prose fragment, not a single path
                 if _is_url(token) or _is_absolute_system_path(token):
                     continue
-                if _is_template_placeholder(token) or _is_glob_pattern(token):
+                if (
+                    _is_template_placeholder(token)
+                    or _is_glob_pattern(token)
+                    or _is_brace_pattern(token)
+                ):
                     continue
                 if not _is_path_like(token):
                     continue
@@ -382,9 +407,23 @@ def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
                     # non-path slashy token, not a citation (D2 check 3
                     # first-segment gate).
                     continue
+                if first_segment == "output":
+                    # `output/` is ephemeral (generated/gitignored) —
+                    # treat like EPHEMERAL_PATHS.
+                    continue
                 if token in EPHEMERAL_PATHS:
                     continue
-                if not (root / token).exists():
+                # Strip trailing `::symbol` node-id (pytest/symbol
+                # reference), then `:N-M` line range, before the
+                # existence check.  If the underlying file does not
+                # exist, it still flags — drift is not blinded.
+                check_token = token
+                if "::" in check_token:
+                    check_token = check_token.split("::", 1)[0]
+                line_range_m = _LINE_RANGE_RE.search(check_token)
+                if line_range_m:
+                    check_token = check_token[: line_range_m.start()]
+                if not (root / check_token).exists():
                     findings.append(
                         Finding(
                             "broken-prose-path-citation",
@@ -449,6 +488,39 @@ def _check_audit_log(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Check 6 — root-level handoff files
+# ---------------------------------------------------------------------------
+
+
+def _check_root_handoff_files(root: Path) -> list[Finding]:
+    """Flag any ``HANDOFF*`` / ``HANDOVER*`` file at the repository root,
+    exempting the sanctioned ``knowledge/HANDOFF.md`` (which is inside the
+    knowledge tree, not at the root, so it is never returned by ``iterdir()``
+    — the exemption is for clarity / defensive programming)."""
+    findings: list[Finding] = []
+    try:
+        for entry in root.iterdir():
+            if not entry.is_file():
+                continue
+            if not entry.name.startswith(("HANDOFF", "HANDOVER")):
+                continue
+            rel = _relpath(root, entry)
+            if rel == "knowledge/HANDOFF.md":
+                continue  # sanctioned in-tree handoff (defensive)
+            findings.append(
+                Finding(
+                    "root-handoff-file",
+                    rel,
+                    None,
+                    f"root-level handoff file {entry.name}; use knowledge/HANDOFF.md instead",
+                )
+            )
+    except OSError:
+        pass
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -466,6 +538,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_broken_citations(root, content_check_md))
     findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
     findings.extend(_check_audit_log(root))
+    findings.extend(_check_root_handoff_files(root))
     return findings
 
 

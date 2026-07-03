@@ -476,6 +476,182 @@ def test_git_unavailable_or_no_repo_skips_nothing(tmp_path):
 
 
 # ===================================================================
+# 6.1 — Citation skip-ladder hardening: brace, placeholder, ::symbol,
+# :N-M, output/ prefix — each skips cleanly, and genuinely-missing
+# files still flag.
+# ===================================================================
+
+
+def test_brace_pattern_not_flagged(tmp_path):
+    """Brace-expansion ``{a,b}`` and ``{a..b}`` are deliberate notation,
+    not broken paths."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `plans/labels/2026-W2{3,4,5}.yaml` for weekly variants.\n"
+                "Also see `plans/notability-eval.{md,json}`.\n"
+            ),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "broken-prose-path-citation" for f in findings)
+
+
+def test_date_placeholder_not_flagged(tmp_path):
+    """``YYYY-Www`` style date/period placeholders are not real paths."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `plans/labels/YYYY-Www.yaml` for weekly data.\n"),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "broken-prose-path-citation" for f in findings)
+
+
+def test_symbol_node_id_on_existing_file_not_flagged(tmp_path):
+    """``file.py::symbol`` strips the ``::symbol`` suffix and checks the
+    file — if the file exists, no finding."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `plans/keep.md::_normalize_tokens` for the impl.\n"
+            ),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "broken-prose-path-citation" for f in findings)
+
+
+def test_line_range_on_existing_file_not_flagged(tmp_path):
+    """``file.py:N-M`` strips the ``:N-M`` range and checks the file —
+    if the file exists, no finding."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `plans/keep.md:10-20` for the relevant lines.\n"),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "broken-prose-path-citation" for f in findings)
+
+
+def test_output_ephemeral_not_flagged(tmp_path):
+    """``output/``-rooted paths are ephemeral (generated artifacts)."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `output/digest-2026-W25.md` for results.\n"),
+            "output/dummy.md": "# output artifact\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "broken-prose-path-citation" for f in findings)
+
+
+def test_missing_file_still_flagged(tmp_path):
+    """A genuinely-missing file under a real top-level dir still flags —
+    hardening does not blind the check to real drift."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `src/x/gone.py` for the implementation.\n"),
+            "src/exists.md": "# exists\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "src/x/gone.py" in citation_findings[0].message
+
+
+def test_symbol_node_id_on_missing_file_still_flagged(tmp_path):
+    """``file.py::symbol`` where the underlying file does NOT exist still
+    flags — drift is not blinded by the ``::symbol`` strip."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `plans/nope.md::SomeMethod` for the impl.\n"),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "plans/nope.md" in citation_findings[0].message
+
+
+def test_line_range_on_missing_file_still_flagged(tmp_path):
+    """``file.py:N-M`` where the underlying file does NOT exist still flags
+    — drift is not blinded by the ``:N-M`` strip."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": ("See `plans/nope.md:10-20` for the relevant lines.\n"),
+            "plans/keep.md": "# Kept plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert len(citation_findings) == 1
+    assert "plans/nope.md" in citation_findings[0].message
+
+
+# ===================================================================
+# 7.1 — Root-handoff file check: files matching HANDOFF* / HANDOVER*
+# at the repo root are flagged; knowledge/HANDOFF.md is exempt.
+# ===================================================================
+
+
+def test_root_handoff_file_flagged(tmp_path):
+    """Root-level ``HANDOFF-x.md`` and ``HANDOVER.md`` are flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "HANDOFF-x.md": "# Temp handoff\n",
+            "HANDOVER.md": "# Temp handover\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    handoff_findings = [f for f in findings if f.check == "root-handoff-file"]
+    assert len(handoff_findings) == 2
+    assert any("HANDOFF-x.md" in f.path for f in handoff_findings)
+    assert any("HANDOVER.md" in f.path for f in handoff_findings)
+
+
+def test_knowledge_handoff_not_flagged(tmp_path):
+    """The sanctioned ``knowledge/HANDOFF.md`` (inside the knowledge tree,
+    not at the root) is NOT flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/HANDOFF.md": "# Session handoff\n",
+            "knowledge/STATUS.md": "# Status\nAll good.\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "root-handoff-file" for f in findings)
+
+
+def test_root_handoff_clean_tree_no_findings(tmp_path):
+    """A clean tree with no handoff files produces no findings."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/STATUS.md": "# Status\nAll good.\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "root-handoff-file" for f in findings)
+
+
+# ===================================================================
 # Detect-only enforcement — no write-mode calls anywhere in the module
 # ===================================================================
 

@@ -86,7 +86,7 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
 
 ## 6. knowledge_lint citation-matcher hardening
 
-- [ ] 6.1 In `scripts/knowledge_lint.py` `_check_broken_citations`, extend the skip-ladder so these
+- [x] 6.1 In `scripts/knowledge_lint.py` `_check_broken_citations`, extend the skip-ladder so these
       resolve as non-findings (keep each narrow so genuinely-missing files still flag): (a)
       brace-expansion `{a,b}` and `{a..b}` — add detection (extend `_is_glob_pattern` or a new
       `_is_brace_pattern`); (b) `YYYY-Www`-style literal period placeholders — extend
@@ -94,7 +94,7 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
       the existing `(root / token).exists()` check on the file; (d) trailing `:N-M` line range —
       strip the `:N-M` suffix, then existence-check the file; (e) `output/` ephemeral prefix — treat
       any citation whose first segment is `output/` as ephemeral (like `EPHEMERAL_PATHS`).
-- [ ] 6.2 Add unit tests to `scripts/test_knowledge_lint.py` for each skip class (brace, placeholder,
+- [x] 6.2 Add unit tests to `scripts/test_knowledge_lint.py` for each skip class (brace, placeholder,
       `::symbol` on an existing file, `:N-M` on an existing file, `output/` path) asserting NO
       finding, AND a companion test that a genuinely-missing `src/…/gone.py` (real top-level dir,
       matches no skip form) STILL flags. Also assert `::symbol`/`:N-M` on a NON-existent file still
@@ -102,20 +102,20 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
 
 ## 7. knowledge_lint root-handoff check
 
-- [ ] 7.1 Add a new finding to `scripts/knowledge_lint.py`: flag any `HANDOFF*` / `HANDOVER*` file at
+- [x] 7.1 Add a new finding to `scripts/knowledge_lint.py`: flag any `HANDOFF*` / `HANDOVER*` file at
       the repository ROOT (glob the root only), exempting `knowledge/HANDOFF.md`. Wire it into
       `collect_findings` so it rides the same exit/report path as the other checks.
-- [ ] 7.2 Add unit tests: a root `HANDOFF-x.md` fixture → flagged; a root `HANDOVER.md` → flagged;
+- [x] 7.2 Add unit tests: a root `HANDOFF-x.md` fixture → flagged; a root `HANDOVER.md` → flagged;
       `knowledge/HANDOFF.md` present → NOT flagged; clean tree → no finding.
 
 ## 8. Doc-lints enforced on the live tree
 
-- [ ] 8.1 Add a live-tree test (new `scripts/test_doc_lint_gate.py` or into an existing suite file)
+- [x] 8.1 Add a live-tree test (new `scripts/test_doc_lint_gate.py` or into an existing suite file)
       that asserts the REAL repo is clean: `knowledge_lint.collect_findings(REPO_ROOT) == []` and
       `status_lint.main([...]) == 0` (status_lint has no `collect_findings`; optionally add one for
       symmetry per notes.md, else assert its `main` exit code). Mirror the real-root pattern from
       `scripts/test_scaffold_lint.py`.
-- [ ] 8.2 Confirm the scaffold's own tree passes both after tasks 6–7 (it currently passes
+- [x] 8.2 Confirm the scaffold's own tree passes both after tasks 6–7 (it currently passes
       knowledge_lint; the hardening only relaxes false-positives and the root-handoff check finds no
       root handoff files). Resolve any genuine finding the new checks surface in the scaffold's own
       `knowledge/` before proceeding.
