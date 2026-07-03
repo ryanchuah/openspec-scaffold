@@ -48,23 +48,28 @@ fixed). No downstream propagation — joins the frozen pending-sync queue. Decis
 `openspec/changes/archive/2026-07-02-mechanize-invariants`.
 
 ## Immediate next action
-The succession-hardening portfolio is now **fully shipped** — all four changes (`mechanize-invariants`,
-`repair-instruction-surface`, `delegated-agent-safety`, `prune-knowledge`) have landed; the
-proactive-build queue is empty. In-repo close-out is complete — portfolio bookkeeping reconciled,
-parked trackers swept, and small hygiene items closed.
-The only remaining horizon is downstream propagation to **extrends** and **psc-monitor**, which stays
-**explicitly frozen pending operator go-ahead** — do not run `scripts/sync_scaffold.py` against a
-downstream repo until authorized. The frozen queue: `premise-review-gate` (`AGENTS.md` + four
-skill/agent files); `pro-agent-flash-delegation` (SMALL, 2026-06-26 — new
-`.opencode/agents/explore-flash.md`, `task`-whitelist + nudge edits, a `scaffold_manifest.txt` line);
-`deterministic-tooling-layer` (MEDIUM, 2026-07-02); `knowledge-lint` (2026-07-02);
-`mechanize-invariants` (MEDIUM, 2026-07-02); `repair-instruction-surface` (SMALL, 2026-07-03 —
-verify-skill `SKILL.md` restructure only; its AGENTS.md/config.yaml/knowledge fills are per-repo and do
-NOT propagate); `delegated-agent-safety` (MEDIUM, 2026-07-03 — `.opencode/agents/openspec-verifier.md`,
-the `AGENTS.md` Roles shared span, `knowledge/README.md`, `scripts/sync_scaffold.py`,
-`scripts/knowledge_lint.py`, `.claude/skills/openspec-verify-change/SKILL.md`); and `prune-knowledge`
-(SMALL, 2026-07-03 — `scripts/knowledge_lint.py` edits plus the `openspec-onboard` deletion, which
-needs a manual per-repo tombstone deletion downstream once synced). Once the freeze lifts: sync per
-repo → verify each re-sync against `knowledge/reference/resync-verification.md` → per-repo wiring
-(`audit.toml`, checks, task-runner targets, dev-extras pins; a first `lint-knowledge` pass) → the
-onboard tombstone deletion → pushes only when separately authorized.
+The succession-hardening portfolio is **fully shipped** and the proactive-build queue is empty.
+
+**Downstream propagation — extrends DONE, psc-monitor still frozen.** On 2026-07-03 the operator
+authorized propagation to **extrends** only. The full pending-sync batch (`premise-review-gate`,
+`pro-agent-flash-delegation`, `deterministic-tooling-layer`, `knowledge-lint`, `mechanize-invariants`,
+`repair-instruction-surface`, `delegated-agent-safety`, `prune-knowledge`) was synced in one pass via
+`scripts/sync_scaffold.py`, the `openspec-onboard` tombstone deleted by hand, and committed to extrends
+`main` — **local, unpushed** (push still needs separate authorization). Verified against
+`knowledge/reference/resync-verification.md`: `--check` converged (all IDENTICAL), extrends suite green,
+provenance beacon advanced. **psc-monitor stays explicitly frozen pending operator go-ahead** — do not
+run `scripts/sync_scaffold.py` against it until authorized; it still needs the same batch, and the same
+re-sync verification + onboard-tombstone deletion apply.
+
+**Per-repo follow-ons owed in extrends** (parked, not blockers): a first `knowledge_lint` /
+`lint-knowledge` pass (pre-existing citation drift in extrends' own knowledge tree, newly surfaced now
+the linter is present) and the audit-layer wiring (`audit.toml`, `checks/`, task-runner `audit-*`
+targets, dev-extras pins, an `audit-log.md` seed on first audit).
+
+**Scaffold-tooling fix SHIPPED 2026-07-03** — `fix-propagation-tooling-drift` (SMALL, archived at
+`openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`): found during the extrends
+propagation. `sync_scaffold.py` `--check-refs` `_EPHEMERAL_PATHS` was realigned with
+`knowledge_lint.EPHEMERAL_PATHS` (adds `knowledge/audit-log.md`, so the scaffold's own `--check-refs`
+is green again), and `scaffold_lint.py`'s oneoff exclude glob was broadened `_*_oneoff.py`→`_*_oneoff.*`
+(no longer false-positives on `.sh` oneoffs downstream). Both files are authoring-side
+(manifest-excluded) — the fix does **not** propagate. Premise AGREE, flash verifier READY.
