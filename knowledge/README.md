@@ -9,6 +9,7 @@
 | Type | Question it answers | Home | Load |
 |---|---|---|---|
 | State | Where are we right now? | `knowledge/STATUS.md` + `knowledge/questions/INDEX.md` (Active) | boot |
+| Mid-session handoff | What in-flight work must I resume? | `knowledge/HANDOFF.md` (ephemeral; deleted on absorption) | boot-if-present |
 | Decisions | What did we choose, and why? | `knowledge/decisions/INDEX.md` (one line per decision → archive; rationale inline when no archive exists) | on-demand |
 | Questions | What is open / parked? | `knowledge/questions/` (Active = boot; Parked + per-item files = on-demand) | split |
 | Lessons | What did we learn about how to work? | `knowledge/lessons.md` (single file) | on-demand |
@@ -23,6 +24,7 @@
 
 ## Usage Notes
 
-- **Boot reads:** `AGENTS.md`, `knowledge/STATUS.md`, and the Active section of `knowledge/questions/INDEX.md` only. All other types load on demand.
+- **Boot reads:** `AGENTS.md`, `knowledge/STATUS.md`, and the Active section of `knowledge/questions/INDEX.md` — plus `knowledge/HANDOFF.md` when it is present (see Mid-session handoff above; ephemeral, so normally absent). All other types load on demand.
+- **Mid-session handoff write side:** a session writes `knowledge/HANDOFF.md` when it must hand off before archive (e.g. context exhausted mid-change). `knowledge/STATUS.md` is the wrong home because it is reconciled only at archive. The next session absorbs the handoff and deletes it. There is exactly one such file — this supersedes ad-hoc multiple root-level HANDOFF files.
 - **History is search-only:** Never load the full archive at boot. Search `openspec/changes/archive/` when you need to look something up.
 - **`knowledge/README.md` is scaffold-managed** (synced byte-identical to every repo). All other files under `knowledge/` are per-repo and are never synced.

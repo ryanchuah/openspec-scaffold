@@ -343,6 +343,28 @@ def test_negative_citation_cases_extended_exclusions_not_flagged(tmp_path):
     assert not any(f.check == "broken-prose-path-citation" for f in findings)
 
 
+def test_ephemeral_handoff_citation_not_flagged(tmp_path):
+    """`knowledge/HANDOFF.md` is a known-ephemeral path (written mid-change,
+    deleted on absorption) — citing it is NOT a broken citation even when the
+    file is absent. A citation to a genuinely-missing, non-ephemeral path
+    must still be flagged (guards against over-broad suppression)."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": (
+                "See `knowledge/HANDOFF.md` for the in-flight session handoff.\n"
+                "\n"
+                "See `knowledge/does-not-exist.md` for details.\n"
+            )
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert not any("HANDOFF.md" in f.message for f in citation_findings)
+    assert any("does-not-exist.md" in f.message for f in citation_findings)
+
+
 def test_dangling_archive_pointer_placeholder_not_flagged(tmp_path):
     """A literal format-doc example (`openspec/changes/archive/<dir>/`) is
     NOT a real dangling pointer — only a genuine, non-placeholder `<dir>/`

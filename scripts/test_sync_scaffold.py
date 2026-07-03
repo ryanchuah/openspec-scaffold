@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -463,6 +464,88 @@ class SyncIntegrationTest(unittest.TestCase):
             target_original,
         )
 
+    # -- provenance beacon: content + idempotence (task 3.4b) --
+    #
+    # This class's setUp patches _scaffold_root to a fixture dir with no real
+    # .git repo, so _scaffold_version() would return "unknown" here unless
+    # also monkeypatched — do that explicitly so the assertion is against a
+    # KNOWN value, not the accidental "unknown".
+
+    FAKE_VERSION = "abc1234 2026-01-01T00:00:00+00:00 fake subject"
+
+    def test_beacon_content_and_idempotent(self):
+        """Beacon content is deterministic; two syncs write it byte-identical."""
+        with patch.object(
+            sync_scaffold, "_scaffold_version", return_value=self.FAKE_VERSION
+        ):
+            sync_scaffold.sync(str(self.fixture_target))
+            first = (self.fixture_target / ".scaffold-version").read_text()
+            sync_scaffold.sync(str(self.fixture_target))
+            second = (self.fixture_target / ".scaffold-version").read_text()
+        self.assertEqual(first, second)
+        self.assertEqual(first, f"scaffold-sync: {self.FAKE_VERSION}\n")
+
+    # -- provenance beacon: non-manifest / check unaffected (task 3.4c) --
+
+    def test_beacon_is_not_manifest_and_check_unaffected(self):
+        """--check's stdout never mentions the beacon and its exit code is
+        identical to a check run where no beacon was written (beacon is
+        non-manifest, so check — which iterates manifest lines only — is
+        structurally blind to it)."""
+        sync_scaffold.sync(str(self.fixture_target))
+        self.assertTrue((self.fixture_target / ".scaffold-version").exists())
+
+        buf_with_beacon = io.StringIO()
+        with redirect_stdout(buf_with_beacon):
+            rc_with_beacon = sync_scaffold.check(str(self.fixture_target))
+
+        (self.fixture_target / ".scaffold-version").unlink()
+        buf_without_beacon = io.StringIO()
+        with redirect_stdout(buf_without_beacon):
+            rc_without_beacon = sync_scaffold.check(str(self.fixture_target))
+
+        self.assertNotIn(".scaffold-version", buf_with_beacon.getvalue())
+        self.assertEqual(rc_with_beacon, rc_without_beacon)
+
+    # -- provenance beacon: best-effort / unknown (task 3.4d) --
+
+    def test_beacon_unknown_marker_content(self):
+        """When the scaffold HEAD is unresolvable, the beacon still writes
+        with the literal 'unknown' marker."""
+        with patch.object(sync_scaffold, "_scaffold_version", return_value="unknown"):
+            sync_scaffold._write_provenance_beacon(self.fixture_target)
+        content = (self.fixture_target / ".scaffold-version").read_text()
+        self.assertEqual(content, "scaffold-sync: unknown\n")
+
+    def test_beacon_write_swallows_oserror(self):
+        """Best-effort: an OSError while writing the beacon is swallowed so a
+        beacon failure never aborts the sync (exercises the except-OSError branch)."""
+        with patch("pathlib.Path.write_text", side_effect=OSError("disk full")):
+            # Must return normally, not propagate the OSError.
+            sync_scaffold._write_provenance_beacon(self.fixture_target)
+
+
+class ScaffoldVersionRealHeadTest(unittest.TestCase):
+    """Tests for _scaffold_version() against the REAL scaffold git HEAD (task
+    3.4a). No _scaffold_root patch here — this validates the helper against
+    the actual repo the tests run in, not a fixture."""
+
+    def test_real_head_sha_and_shape(self):
+        """_scaffold_version() starts with the real short-SHA and contains a
+        space (SHA + committer-date + subject)."""
+        root = sync_scaffold._scaffold_root()
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, check=True,
+        )
+        expected_sha = result.stdout.strip()
+        version = sync_scaffold._scaffold_version()
+        self.assertTrue(
+            version.startswith(expected_sha),
+            f"expected {version!r} to start with real short-SHA {expected_sha!r}",
+        )
+        self.assertIn(" ", version)
+
 
 class ScaffoldCheckGuardTest(unittest.TestCase):
     """Tests for scaffold_check.py guard (task 4.6)."""
@@ -552,6 +635,25 @@ class TestCheckReferences(unittest.TestCase):
 
     def test_dangling_when_cited_aidoc_file_missing(self):
         self._write("AGENTS.md", "## Roles\nSee `knowledge/parked-follow-ons.md`.\n")
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
+        self.assertEqual(rc, 1)
+
+    def test_ephemeral_handoff_citation_not_flagged(self):
+        # knowledge/HANDOFF.md is a known-ephemeral path (written mid-change,
+        # deleted on absorption) — citing it must not be flagged as dangling,
+        # even when the file is absent.
+        self._write(
+            "AGENTS.md",
+            "## Roles\nSee `knowledge/HANDOFF.md` for the in-flight session handoff.\n",
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
+        self.assertEqual(rc, 0)
+
+        # A citation to a genuinely-missing knowledge/ path is still flagged.
+        self._write(
+            "AGENTS.md",
+            "## Roles\nSee `knowledge/HANDOFF.md` and `knowledge/does-not-exist.md`.\n",
+        )
         rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md"])
         self.assertEqual(rc, 1)
 

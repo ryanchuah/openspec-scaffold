@@ -43,7 +43,7 @@ The pass sequence depends on which platform you are running on:
 - **Claude Code orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-pro` verifier pass → `deepseek/deepseek-v4-flash` verifier pass. Three independent views — a Claude (Anthropic) model gains maximum diversity from both deepseek tiers.
 - **OpenCode orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-flash` verifier pass only. An OpenCode orchestrator already runs on deepseek-v4-pro, so a second pro pass adds little model diversity; the cheaper flash tier provides the independent second pair of eyes.
 
-The verifier agent is defined in `.opencode/agents/openspec-verifier.md` (default `model: deepseek/deepseek-v4-flash`; `bash: allow`, `edit: deny`). It runs the same behavioral review you performed in the self-review (read diffs, re-run the full suite, eyeball real output, run live smoke for external-API changes), but it **never modifies files** — it reports defects and emits a machine-discriminable verdict block of this form:
+The verifier agent is defined in `.opencode/agents/openspec-verifier.md` (default `model: deepseek/deepseek-v4-flash`; `bash: a destructive-command denylist (catch-all allow)`, `edit: deny`). It runs the same behavioral review you performed in the self-review (read diffs, re-run the full suite, eyeball real output, run live smoke for external-API changes), but it **never modifies files** — it reports defects and emits a machine-discriminable verdict block of this form:
 
 ```
 ## Verify Pass — <model-id>

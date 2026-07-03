@@ -193,6 +193,39 @@ def _check_sources_exist(manifest_lines: list[str]) -> None:
         sys.exit(1)
 
 
+def _scaffold_version() -> str:
+    """One-line provenance string from the scaffold's git HEAD.
+
+    Returns ``"<short-sha> <committer-date-ISO8601> <subject>"``, deterministic
+    per commit (uses the commit's own committer date, NOT wall-clock time), or
+    the literal string ``"unknown"`` on any git failure or empty output.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(_scaffold_root()), "show", "-s",
+             "--format=%h %cI %s", "HEAD"],
+            capture_output=True, text=True, check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return "unknown"
+    return result.stdout.strip() or "unknown"
+
+
+def _write_provenance_beacon(target_path: Path) -> None:
+    """Best-effort write of ``<target_path>/.scaffold-version``.
+
+    Never raises — an ``OSError`` while writing is swallowed so a beacon
+    failure never aborts the sync.
+    """
+    try:
+        beacon_path = target_path / ".scaffold-version"
+        beacon_path.write_text(
+            f"scaffold-sync: {_scaffold_version()}\n", encoding="utf-8"
+        )
+    except OSError:
+        pass
+
+
 def _warn_if_hook_unwired(target_path: Path) -> None:
     """Print a stderr-only warning if *target_path* does not wire the
     downstream commit-test-gate edit-guard (``scripts/scaffold_check.py`` as
@@ -257,6 +290,7 @@ def sync(target_path_str: str) -> None:
         _sync_file(line, target_path, scaffold_root)
 
     _warn_if_hook_unwired(target_path)
+    _write_provenance_beacon(target_path)
 
 
 # ── Check mode ─────────────────────────────────────────────────────────────
@@ -321,6 +355,10 @@ def check(target_path_str: str) -> int:
 # knowledge/research/ holds period-correct historical analyses; its citations must
 # NOT be ref-checked (they may cite pre-restructure paths that no longer exist).
 _REF_SCAN_EXCLUDE = ("openspec/changes/", "knowledge/research/")
+# Known-ephemeral knowledge paths — legitimately absent in the steady state, so a
+# citation to one is NOT dangling. knowledge/HANDOFF.md is the sanctioned mid-session
+# handoff file (written mid-change, deleted on absorption).
+_EPHEMERAL_PATHS = ("knowledge/HANDOFF.md",)
 # `knowledge/....md` path citations (e.g. in synced rules).
 _KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")
 # `<file>.md § "Section"` citations (any file; we only resolve canonical docs).
@@ -406,6 +444,8 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
         text = _FENCED_RE.sub("", p.read_text(encoding="utf-8", errors="replace"))
         for m in _KNOWLEDGE_PATH_RE.finditer(text):
             cited = m.group(0)
+            if cited in _EPHEMERAL_PATHS:
+                continue
             if not (target / cited).exists():
                 print(f"DANGLING  {rel}: missing file '{cited}'")
                 dangling += 1
@@ -420,6 +460,8 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
         for m in _SECTION_RE.finditer(text):
             cited_file, section = m.group(1), m.group(2)
             if cited_file != "AGENTS.md" and not cited_file.startswith("knowledge/"):
+                continue
+            if cited_file in _EPHEMERAL_PATHS:
                 continue
             if not (target / cited_file).exists():
                 print(f"DANGLING  {rel}: missing file '{cited_file}' (§ '{section}')")

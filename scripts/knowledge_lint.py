@@ -114,6 +114,12 @@ DEFAULT_RETIRED_PATHS: tuple[str, ...] = (
     "/home/me/",
 )
 
+# Known-ephemeral knowledge paths: legitimately absent in the steady state, so a
+# citation to one is NOT a broken citation. knowledge/HANDOFF.md is the sanctioned
+# mid-session handoff file (written mid-change, deleted on absorption) — see the
+# knowledge taxonomy (knowledge/README.md).
+EPHEMERAL_PATHS: tuple[str, ...] = ("knowledge/HANDOFF.md",)
+
 # Content checks (retired-path token, broken citation) exclude this dir —
 # period-correct historical analyses legitimately cite pre-restructure
 # paths. Mirrors sync_scaffold.py's _REF_SCAN_EXCLUDE treatment of the same
@@ -379,6 +385,8 @@ def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
                     # filename, cross-repo name, GitHub shorthand, or
                     # non-path slashy token, not a citation (D2 check 3
                     # first-segment gate).
+                    continue
+                if token in EPHEMERAL_PATHS:
                     continue
                 if not (root / token).exists():
                     findings.append(

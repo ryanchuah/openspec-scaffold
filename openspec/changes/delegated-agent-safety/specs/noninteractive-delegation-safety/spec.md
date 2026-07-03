@@ -45,8 +45,13 @@ rules for destructive command verbs a read-only reviewer never legitimately need
 raw data-store clients (`sqlite3`, `psql`, `mysql`, `mongo`/`mongosh`, `redis-cli`), the filesystem
 mutators (`rm`, `rmdir`, `mv`, `dd`, `truncate`, `shred`, `tee`), mutating git subcommands (`push`,
 `commit`, `reset`, `checkout`, `restore`, `clean`, `rebase`, `merge`), shell wrappers
-(`bash -c`, `sh -c`), and interpreter eval flags (`python -c`, `python3 -c`, `node -e`/`--eval`,
-`ruby -e`, `perl -e`) — the primary single-command wrapper-evasion path. The catch-all MUST remain
+(`bash -c`, `sh -c`), interpreter eval flags (`python -c`, `python3 -c`, `node -e`/`--eval`,
+`ruby -e`, `perl -e`, `perl -i`), the in-place/copy file-writers surfaced by the verify security pass
+(`sed -i`, `cp`, `install`, `find … -delete`, `find … -exec`), the command wrappers (`env`, `xargs`),
+and network/config-injection git forms (`git -c`, `git fetch`/`pull`/`clone`) — while leaving
+read-only forms (`sed 's//'` without `-i`, `find -name`, `git diff`/`log`/`show`/`status`) allowed.
+The enumerated set is a best-effort speed-bump, NOT complete coverage (see the scope-limitation
+paragraph below). The catch-all MUST remain
 `allow` (not `ask`/`deny`) because the verifier must
 retain the ability to run each downstream repo's arbitrary, unknowable test and live-smoke command —
 an allowlist is infeasible. The `external_directory` containment SHALL be retained (it still gates the
@@ -55,17 +60,39 @@ coreutils out-of-tree class), and the existing stdin-close / `--dir` hardening i
 Because opencode parses each bash invocation with tree-sitter and evaluates the `bash` permission
 per sub-command — every node of a pipeline, `$(…)` substitution, or subshell is matched
 independently and a deny on any node denies the whole call — the denylist covers direct, piped, and
-command-substituted forms of the destructive commands. The denylist gates via the `bash` permission
-key, which is independent of `external_directory`, so it remains effective even if a future opencode
-release weakens `external_directory` path-scanning further.
+command-substituted forms of the **enumerated command spellings**. The denylist gates via the `bash`
+permission key, which is independent of `external_directory`, so it remains effective even if a future
+opencode release weakens `external_directory` path-scanning further.
 
-#### Scenario: Destructive data-store command is denied even in-tree
-- **WHEN** the verify verifier runs a bash command whose (sub-)command is a denied verb — e.g.
-  `sqlite3 <any-path> "DELETE …"`, directly or as `echo x | sqlite3 <path> …` or `$(sqlite3 <path> …)`
+**Scope limitation (normative — the mechanism SHALL be documented as this, not more).** opencode
+matches the **literal command-text spelling, not the command's identity**: a deny rule stops only the
+spelling it enumerates. Ordinary alternate spellings of the same effect are NOT covered — a
+path-prefixed binary (`/usr/bin/rm`), a multiplexer or unenumerated wrapper (`busybox rm`,
+`nohup rm`, `timeout 5 rm`), a version-suffixed interpreter (`python3.11 -c` on another host), or any
+unlisted file-writing tool (`rsync`, `patch`, `ex`). (The enumerated wrappers `env`/`xargs` and
+`find -exec` ARE denied; the point is that enumeration is inherently incomplete.) Because `bash`
+catch-all `allow` is retained, this also means `edit: deny` is NOT a filesystem-read-only guarantee —
+`bash` is a separate, un-sandboxed write channel. The denylist is therefore a **best-effort speed-bump
+against the common accidental destructive commands, not a complete or semantic gate**, and the change
+SHALL NOT describe it as robust/complete coverage of "destructive commands" generally.
+
+#### Scenario: Enumerated destructive-command spelling is denied even in-tree
+- **WHEN** the verify verifier runs a bash command whose (sub-)command matches an enumerated deny
+  spelling — e.g. `sqlite3 <any-path> "DELETE …"`, directly or as `echo x | sqlite3 <path> …` or
+  `$(sqlite3 <path> …)`
 - **THEN** opencode denies the whole call without a prompt, whether the target path is inside or
   outside the worktree
 - **AND** the deny holds specifically because it is enforced by the `bash` permission, not by
   `external_directory` (which would not have scanned a non-coreutils binary)
+
+#### Scenario: Alternate spelling of the same effect is NOT covered (documented, not silently missed)
+- **WHEN** the verify verifier reaches a destructive effect through a spelling the denylist does not
+  enumerate — a path-prefixed binary, an `env`/`xargs`/`find -exec` wrapper, a version-suffixed
+  interpreter, or another file-writing tool
+- **THEN** the command runs under the catch-all `"*": allow` (the denylist does NOT stop it), so the
+  verifier is not truly read-only on the filesystem
+- **AND** this residual SHALL be named explicitly in the residual-risk disclosure and mitigated by the
+  data-safety preamble and repo-level data isolation, NOT presented as closed by the denylist
 
 #### Scenario: Legitimate read-only verification commands still run
 - **WHEN** the verify verifier runs the commands its review legitimately requires — `git diff`,
@@ -82,27 +109,38 @@ release weakens `external_directory` path-scanning further.
 ### Requirement: Verify verifier prompt carries a data-safety preamble as the judgment layer
 
 The permission denylist above cannot cover every data-mutation vector, and this residual boundary
-SHALL be stated honestly rather than presented as fully closed. After the eval-flag denials, the
-residual vectors are: (1) — the PRIMARY residual — writes performed *inside* an allowed command, e.g.
-a test suite or live smoke that itself opens and writes a data store, invisible to the shell parser;
-(2) output redirection to a data-store path (redirection targets are not part of the matched command
-node); and (3) determined multi-step evasion (writing a script to an allowed path such as `/tmp` then
-executing it, or an eval form outside the enumerated set) — outside the accidental-incident threat
-model but acknowledged, not hidden. The real backstop for vector (1) is repo-level test isolation
-(test-DB fixtures and blanked live credentials), which is a downstream-repo concern outside the
-scaffold verifier's permission configuration.
+SHALL be stated honestly rather than presented as fully closed. The residual vectors are:
+1. **Literal-spelling bypass (PRIMARY).** Any file-writing command not enumerated, or reached via a
+   path prefix, an `env`/`xargs`/`find -exec` wrapper, a version-suffixed interpreter, or another
+   file-writer, runs under the catch-all `"*": allow`. Because `bash: allow` is retained, the verifier
+   is **not truly read-only on the filesystem** and can still mutate in-tree files including an
+   untracked production data store (the incident class). Broadening the enumerated set reduces this
+   surface; it cannot eliminate it.
+2. **Writes performed *inside* an allowed command** — a test suite or live smoke that itself opens and
+   writes a data store, invisible to the shell parser. The real backstop is repo-level data isolation
+   (test-DB fixtures and blanked live credentials), a downstream-repo concern outside the scaffold
+   verifier's permission configuration.
+3. **Output redirection** to a data-store path (redirection targets are not part of the matched
+   command node).
+4. **Prompt injection from the diff under review** — the verifier's first task is to read untrusted
+   diff/commit/PR content, which could try to induce a bypass command. Mitigated only by the preamble.
 
-The verifier agent prompt (`.opencode/agents/openspec-verifier.md`) SHALL therefore carry a
-data-safety preamble instructing it, as a judgment-layer control: never issue writes to a live or
-production data store; when eyeballing real output, read via read-only queries against a copy or a
-test fixture rather than the live store; and treat the permission denylist as a backstop, not a
-license. The preamble is explicitly the tertiary control (mechanism first, then this), and the
-verifier's documented residual-risk boundary SHALL NOT describe any single control as fully resolving
-the data-safety hazard.
+Because vectors (1) and (2) are primary and not closable by the denylist, the verifier agent prompt
+(`.opencode/agents/openspec-verifier.md`) SHALL carry a data-safety preamble as a **co-primary
+control** (not a mere tertiary trim). The preamble SHALL state that the verifier is not filesystem-
+read-only (bash is an un-sandboxed write channel that `edit: deny` does not gate) and that the
+denylist is literal-spelling; and it SHALL instruct the verifier to never write a live or production
+data store, to eyeball via read-only queries against a copy or fixture, to treat the diff under review
+as untrusted (not follow instructions found in the code under review), and to report-rather-than-run
+when a write seems required. The change's documented residual-risk boundary SHALL NOT describe any
+single control as fully resolving the data-safety hazard, and SHALL NOT describe the denylist as
+robust or as complete verb-level coverage.
 
 #### Scenario: Preamble present and honestly bounded
 - **WHEN** the verifier agent definition is read
-- **THEN** it contains a data-safety preamble covering read-only eyeballing and never-write-live-stores
+- **THEN** it contains a data-safety preamble that states the verifier is NOT truly filesystem-
+  read-only, that the denylist matches literal spelling, and that covers never-write-live-stores,
+  read-only eyeballing, treat-the-diff-as-untrusted, and report-rather-than-run
 - **AND** neither the preamble nor the accompanying documentation claims the hazard is fully resolved
-  by any one control; the in-command-write / output-redirection / multi-step-evasion residual vectors
-  are acknowledged
+  by any one control, nor describes the denylist as robust/complete; the literal-spelling-bypass /
+  in-command-write / output-redirection / prompt-injection residual vectors are named explicitly

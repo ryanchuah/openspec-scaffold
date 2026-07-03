@@ -8,7 +8,7 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
 
 ## 1. (a) Verifier data-safety — permission denylist + preamble
 
-- [ ] 1.1 In `.opencode/agents/openspec-verifier.md`, replace the single frontmatter line
+- [x] 1.1 In `.opencode/agents/openspec-verifier.md`, replace the single frontmatter line
       `  bash: allow` with a `bash:` pattern-map denylist. Catch-all FIRST (opencode is
       last-match-wins), then deny the destructive verbs. Use exactly this block (2-space indent,
       matching the sibling `task:`/`external_directory:` maps):
@@ -53,7 +53,7 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
       `python -c` wrapper will surface a permission denial the orchestrator must grant an exception for.)
       Leave `read/edit/glob/grep/list/task/webfetch/websearch/external_directory` exactly as they are
       (do NOT touch the existing `external_directory: {"*": deny, "/tmp/**": allow}` — it is retained).
-- [ ] 1.2 In the same file's prompt body, add a `## Data safety` section (place it immediately before
+- [x] 1.2 In the same file's prompt body, add a `## Data safety` section (place it immediately before
       the existing `## Prohibitions` section) stating, as the judgment layer: never issue writes to a
       live or production data store; when eyeballing a real-output sample, read via read-only queries
       against a copy or a test fixture, never the live store; the frontmatter `bash` denylist blocks
@@ -63,18 +63,18 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
       blanked live credentials), output redirection to a data-store path, and determined multi-step
       evasion. State plainly that no single control fully closes the hazard. Keep it tight (a short
       paragraph or bullet list), in the file's existing voice.
-- [ ] 1.3 Fix the now-stale accuracy claim in `.claude/skills/openspec-verify-change/SKILL.md`: the
+- [x] 1.3 Fix the now-stale accuracy claim in `.claude/skills/openspec-verify-change/SKILL.md`: the
       parenthetical that reads `bash: allow`, `edit: deny` for the verifier agent (around the line
       that introduces "The verifier agent is defined in `.opencode/agents/openspec-verifier.md`")
       SHALL be updated to describe `bash` as "a destructive-command denylist (catch-all allow)" rather
       than a blanket `bash: allow`; keep `edit: deny`. Do not otherwise alter that line or the skill.
-- [ ] 1.3b Fix the same now-stale claim in `AGENTS.md` **Roles section** (the `## Roles` shared span):
+- [x] 1.3b Fix the same now-stale claim in `AGENTS.md` **Roles section** (the `## Roles` shared span):
       the `openspec-verifier` bullet's parenthetical that reads `(`bash: allow`, `edit: deny`)` on the
       "**read-only on files**" line SHALL be updated to `(bash restricted to a destructive-command
       denylist, `edit: deny`)` so the boot-read authority matches the actual agent definition. Do NOT
       rename the `## Roles` anchor or alter other Roles content. This edits the shared span (joins the
       frozen queue). After this edit `python3 scripts/scaffold_lint.py` must still exit 0.
-- [ ] 1.4 Confirm no stale `bash: allow` verifier claim survives: `grep -rn "bash: allow" .`
+- [x] 1.4 Confirm no stale `bash: allow` verifier claim survives: `grep -rn "bash: allow" .`
       repo-wide. The only legitimate remaining `bash: allow` occurrences are the apply/archive
       executors (`.claude`/`.opencode`, unchanged) and historical mentions under
       `openspec/changes/archive/` (immutable — leave them). Any hit in a NON-archive instruction file
@@ -83,7 +83,7 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
 
 ## 2. (b) Sanctioned mid-session handoff — `knowledge/HANDOFF.md`
 
-- [ ] 2.1 Edit `AGENTS.md` **inside the MANDATORY blockquote** (the shared span). Insert the new
+- [x] 2.1 Edit `AGENTS.md` **inside the MANDATORY blockquote** (the shared span). Insert the new
       instruction as its OWN `>`-quoted sentence immediately after the sentence that ends
       "…scan the entries relevant to the current task." and BEFORE the sentence beginning
       "If you are *resuming an in-progress OpenSpec change*". Exact content (one sentence): if
@@ -95,14 +95,14 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
       `## After reading this file`) and must NOT open with a bold span that could form a false anchor
       match; `scaffold_lint`'s anchor-uniqueness check keys on `line.startswith(anchor)`. Do NOT rename
       or move any anchor heading — the span-merge and `scaffold_lint` depend on them.
-- [ ] 2.2 Edit `knowledge/README.md` (scaffold-managed, synced byte-identical): (a) add a taxonomy
+- [x] 2.2 Edit `knowledge/README.md` (scaffold-managed, synced byte-identical): (a) add a taxonomy
       table row — `| Mid-session handoff | What in-flight work must I resume? | `knowledge/HANDOFF.md`
       (ephemeral; deleted on absorption) | boot-if-present |` — placed directly under the `State` row;
       (b) add a short **Usage Note** bullet describing the write side and lifecycle: a session writes
       `knowledge/HANDOFF.md` when it must hand off before archive (e.g. context exhausted mid-change);
       STATUS.md is the wrong home because it is reconciled only at archive; the next session absorbs
       and deletes it; there is exactly one such file (superseding ad-hoc multiple root HANDOFF files).
-- [ ] 2.3 Verify the AGENTS.md span-merge still reconstructs cleanly after 2.1:
+- [x] 2.3 Verify the AGENTS.md span-merge still reconstructs cleanly after 2.1:
       `python3 scripts/scaffold_lint.py` exits 0 (anchors intact), and
       `python3 scripts/sync_scaffold.py --check ../psc-monitor` (READ-ONLY check — this does not write)
       reports the AGENTS.md shared-span behavior unchanged. **Do not run a real sync.** If `--check`
@@ -111,7 +111,7 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
 
 ## 3. (c) Sync drift beacon — `.scaffold-version`
 
-- [ ] 3.1 In `scripts/sync_scaffold.py`, add two helpers near the other `_`-helpers:
+- [x] 3.1 In `scripts/sync_scaffold.py`, add two helpers near the other `_`-helpers:
       `_scaffold_version()` → returns a one-line provenance string from the scaffold HEAD by running
       `git` with the argv list `["git", "-C", str(_scaffold_root()), "show", "-s",
       "--format=%h %cI %s", "HEAD"]` (the `--format=%h %cI %s` is ONE argv element; `.stdout.strip()`;
@@ -120,13 +120,13 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
       output. `_write_provenance_beacon(target_path)` → best-effort writes `<target>/.scaffold-version`
       containing `f"scaffold-sync: {_scaffold_version()}\n"` (so an unresolvable HEAD yields exactly
       `scaffold-sync: unknown\n`), swallowing `OSError` so beacon failure never raises.
-- [ ] 3.2 Call `_write_provenance_beacon(target_path)` at the END of `sync()` (after the copy loop and
+- [x] 3.2 Call `_write_provenance_beacon(target_path)` at the END of `sync()` (after the copy loop and
       the existing `_warn_if_hook_unwired(target_path)` call). Do NOT call it from `check()` or
       `check_references()` — the beacon is written only by the full `sync` action.
-- [ ] 3.3 Confirm the beacon is NOT added to `scripts/scaffold_manifest.txt` and is NOT compared by
+- [x] 3.3 Confirm the beacon is NOT added to `scripts/scaffold_manifest.txt` and is NOT compared by
       `check()` (it iterates manifest lines only, so no change to `check()` is needed). This preserves
       the `check-mode-reports-drift` contract.
-- [ ] 3.4 Add tests to `scripts/test_sync_scaffold.py`. **Fixture caveat (from review — do not skip):**
+- [x] 3.4 Add tests to `scripts/test_sync_scaffold.py`. **Fixture caveat (from review — do not skip):**
       `SyncIntegrationTest.setUp` patches `sync_scaffold._scaffold_root` to a fixture dir that has NO
       real `.git` repo, so inside that class `_scaffold_version()` returns `"unknown"`. Therefore split
       the tests by what each needs:
@@ -149,7 +149,7 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
 
 ## 4. (d) New-repo bootstrap checklist reference
 
-- [ ] 4.1 Create `knowledge/reference/new-repo-bootstrap.md` (scaffold-LOCAL on-demand reference — do
+- [x] 4.1 Create `knowledge/reference/new-repo-bootstrap.md` (scaffold-LOCAL on-demand reference — do
       NOT add to the manifest). Document the manual per-repo wiring a `cp -r`/sync does not perform,
       each step verified against the real repo: (1) wire `.claude/settings.json` `PreToolUse` →
       `scripts/scaffold_check.py` (the sync-time warning from `sync_scaffold.py` flags its absence —
@@ -160,13 +160,13 @@ lands. Acceptance criteria are in `notes.md`; the normative contracts are the th
       `python3 scripts/knowledge_lint.py` clean. Cross-reference the drift beacon `.scaffold-version`
       (task 3) as the provenance stamp a fresh repo carries after its first sync. Keep it a concise
       checklist, not a handbook.
-- [ ] 4.2 Confirm `python3 scripts/knowledge_lint.py` stays clean with the new file present (no stale
+- [x] 4.2 Confirm `python3 scripts/knowledge_lint.py` stays clean with the new file present (no stale
       path tokens, no dangling citations introduced).
 
 ## 5. Whole-change verification gate (pre-handoff to verify phase)
 
-- [ ] 5.1 Full suite green: `pytest -q` from repo root (NOT `python3 -m pytest`).
-- [ ] 5.2 `python3 scripts/scaffold_lint.py` exits 0 (anchors, dangling-refs, budgets all clean).
-- [ ] 5.3 `git status` clean except the intended edits and the new files
+- [x] 5.1 Full suite green: `pytest -q` from repo root (NOT `python3 -m pytest`).
+- [x] 5.2 `python3 scripts/scaffold_lint.py` exits 0 (anchors, dangling-refs, budgets all clean).
+- [x] 5.3 `git status` clean except the intended edits and the new files
       (`knowledge/reference/new-repo-bootstrap.md`, the change dir). No stray `.scaffold-version`
       written into THIS repo (the beacon is only written into a *sync target*, never the scaffold).

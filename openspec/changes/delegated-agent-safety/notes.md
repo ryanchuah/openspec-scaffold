@@ -50,43 +50,58 @@ data-store clients `sqlite3/psql/mysql/mongo/mongosh/redis-cli`, mutating git
 (`git push/commit/reset/checkout/restore/clean/rebase/merge`), and shell-wrappers `bash -c*`/`sh -c*`
 (a cheap, rarely-needed evasion path to close).
 
-**Why this is genuinely robust, not prose-in-disguise (source-verified):** opencode parses each
-command with tree-sitter and evaluates the `bash` permission **per sub-command** — every node in a
-pipeline, `$(…)` substitution, or subshell is matched separately, and **deny short-circuits the whole
-call**. So `echo x | sqlite3 prod.db` and `$(sqlite3 …)` are both caught by `sqlite3 *: deny`. This
-is a real permission gate on the direct/piped/substituted destructive-command vector, not a request
-the model may ignore.
+**What the mechanism actually is — a speed-bump, not a semantic wall (corrected after the verify
+security pass live-probed it).** opencode parses each command with tree-sitter and evaluates the
+`bash` permission **per sub-command** (each node of a pipeline, `$(…)` substitution, or subshell is
+matched separately, and **deny short-circuits the whole call**), so `echo x | sqlite3 prod.db` and
+`$(sqlite3 …)` are both caught by `sqlite3 *: deny`. BUT — and this is the load-bearing honest point
+— the pattern matches the **literal command-text spelling, not the command's identity**. The verify
+security pass confirmed live (ground-truth file mutations against the running agent) that ordinary,
+non-adversarial spellings slip straight through: `find … -delete`, `sed -i <file>`, in-tree `cp`,
+`/usr/bin/rm` (absolute path), `env rm` (wrapper), and `python3.13 -c …` (version-suffixed — and
+python3.13 is *this machine's* interpreter). Several of these (`sed -i`, `cp`) mutate files, which
+means **`edit: deny` is not a real filesystem-read-only guarantee** — `bash` is a separate channel
+opencode does not sandbox. So the denylist stops the *exact literal replay* of the 2026-06-28
+incident and the most obvious destructive commands; it does **not** provide verb-level/semantic
+coverage and, by opencode's design, cannot.
 
-The denylist also denies the common interpreter **eval flags** (`python -c`, `python3 -c`, `node -e`/
-`--eval`, `ruby -e`, `perl -e`) and shell wrappers (`bash -c`, `sh -c`) — the primary single-command
-wrapper-evasion path for a destructive command. The verifier never needs these for legitimate work
-(it runs the suite via `pytest`/`scripts/test-cmd`/`python -m pytest`). Trade-off, recorded: a
-downstream repo whose canonical test or eyeball command is itself such a wrapper will surface a
-permission *denial* (fail-loud, recoverable) the orchestrator must grant an exception for — never a
-silent data loss.
+The change responds two ways, both honest: (1) **broaden the enumerated set** toward the demonstrated
+accidental footguns — the denylist now also denies `sed -i`, `cp`, `install`, `find … -delete/-exec`,
+`env`/`xargs` wrappers, `perl -i`, and `git -c`/`fetch`/`pull`/`clone` — raising the speed-bump for
+the cases a careless verifier would actually type, while leaving read-only forms (`sed 's//'` without
+`-i`, `find -name`, `git diff/log/show/status`, `pytest`) allowed. (2) **State the limitation plainly**
+rather than let "denies destructive verbs" language imply completeness it does not have.
 
-**Honest residual risk (recorded, not hidden — the 🟡's explicit ask).** The denylist still cannot
-cover, because covering them would break the verifier's core job or exceeds the accidental-incident
-threat model:
-1. **Writes *inside* an allowed command (the PRIMARY residual)** — the test suite (`pytest`) or a
-   live smoke that itself opens and writes a data store. The shell parser cannot see inside `pytest`.
-   The real backstop is **repo-level test isolation** (test-DB fixtures + blanked live credentials —
-   already an AGENTS.md testing rule), a *downstream-repo* concern not expressible in the scaffold
-   verifier's permissions.
-2. **Output redirection** (`: > prod.db`) — redirection targets are not part of the matched command
-   node, so a truncating redirect on an allowed base command is not caught by a `bash` pattern.
-3. **Determined multi-step evasion** — e.g. writing a script to `/tmp` (allowed) then executing it,
-   or an interpreter/eval form outside the enumerated set. This is outside the threat model (the
-   incident class is an *accidental* destructive command by a well-intentioned verifier, not an
-   adversary), but it is acknowledged rather than hidden.
+**Honest residual risk (corrected and expanded after the security pass).** The denylist cannot be a
+complete gate; these vectors remain, and the mechanism is NOT presented as closing them:
+1. **Literal-spelling bypass (a PRIMARY residual, newly disclosed).** Any file-writing command not in
+   the enumerated set, or reached via a path prefix (`/usr/bin/rm`), a wrapper (`env`/`xargs`/`find
+   -exec`), a version-suffixed interpreter (`python3.11 -c` on another host), or another file-writer
+   (`patch`, `ex`, `awk` with in-place, etc.) executes under the catch-all `"*": allow`. Because
+   `bash: allow` is retained (the verifier must run each repo's arbitrary test command), the verifier
+   is **not truly read-only on the filesystem** — it can still mutate in-tree files, including an
+   untracked/git-ignored production data store (the exact incident class). Broadening reduces this
+   surface; it cannot eliminate it.
+2. **Writes *inside* an allowed command.** A test suite or live smoke that itself opens and writes a
+   data store — invisible to the shell parser. Backstop: **repo-level data isolation** (test-DB
+   fixtures + blanked live credentials + a backup of any irreplaceable store), a downstream-repo
+   concern not expressible in the scaffold verifier's permissions.
+3. **Output redirection** (`: > prod.db`) — redirection targets are not part of the matched command
+   node.
+4. **Prompt injection from the diff under review.** The verifier's first job is to read the (untrusted)
+   diff/commit/PR text; a crafted payload could try to induce it to run a bypass command. Not a
+   "careless typo" and not a "human adversary at the keyboard" — a distinct third case the framing now
+   names. Mitigated only by the preamble's "treat the diff as untrusted / report don't run" guidance.
 
-Because of (1)–(3), a **data-safety preamble** in the verifier prompt is retained as the *judgment
-layer* (snapshot/never-write-live-stores, eyeball via read-only paths or fixtures) — belt-and-
-suspenders over the mechanism, explicitly the tertiary control, not the primary one. `external_directory`
-containment is kept (it still catches the coreutils out-of-tree class) but is documented as
-insufficient for the incident class. **Net posture: a real permission mechanism for the sharp edges +
-honest documentation of what only repo-level test hygiene can close.** No control is presented as
-"resolved" that isn't.
+Given (1)–(4), the **data-safety preamble** in the verifier prompt is not belt-and-suspenders trim but
+a **co-primary control**: it now states outright that the verifier is not filesystem-read-only, that
+the denylist is literal-spelling, and that it must never write a live store, must treat the diff as
+untrusted, and must report-rather-than-run when a write seems needed. `external_directory` containment
+is retained (it still catches the coreutils out-of-tree class) but is documented as insufficient.
+**Net posture: a broadened best-effort speed-bump against accidental destructive commands + a judgment
+preamble + repo-level data isolation, with the residual literal-spelling/read-only-bypass class named
+explicitly.** No control is presented as "resolved," and the mechanism is no longer described as
+"robust" — it is a speed-bump, stated as one.
 
 The spec delta for (a) (`noninteractive-delegation-safety`, ADDED requirement) encodes this and its
 residual-risk boundary as a reviewed contract.
@@ -130,8 +145,10 @@ residual-risk boundary as a reviewed contract.
    confirm it is DENIED/auto-rejected, and (ii) runs an allowed read command (`git diff`, `pytest`)
    and confirm it proceeds. Confirms the pattern map parses in the installed opencode and that deny
    actually fires. A skipped/未-run probe is NOT a pass.
-3. **(a) residual-risk honesty:** the delta spec + the verifier preamble state the three
-   uncovered vectors plainly; no control is described as fully closing the hole. Reviewer/security
+3. **(a) residual-risk honesty:** the delta spec + the verifier preamble state the four residual
+   vectors plainly (literal-spelling bypass [primary], writes-inside-an-allowed-command, output
+   redirection, prompt-injection-from-the-diff); the mechanism is described as a speed-bump, not
+   robust, and no control is described as fully closing the hole. Reviewer/security
    pass confirms no overclaim.
 4. **(b) handoff convention:** with a `knowledge/HANDOFF.md` present, the AGENTS.md boot instruction
    directs reading+absorbing+deleting it; `knowledge/README.md` lists the home; the
@@ -163,6 +180,68 @@ residual-risk boundary as a reviewed contract.
   that is per-repo test-config work, recorded as a follow-on, not done here.
 - Parser-based external_directory detection (opencode has an upstream TODO for it) — not ours to fix.
 - Portfolio change `prune-knowledge` (the closer) — separate change.
+
+## Verify checkpoint (2026-07-03)
+
+**1. Verdict:** READY for archive.
+
+**2. Process (multi-model passes NOT waived, per standing operator instruction; apply/archive on
+Sonnet per this session's operator directive).** Orchestrator self-review → `deepseek-v4-pro` +
+`deepseek-v4-flash` verifier passes (both READY, zero defects) → simplicity/quality gate → **security
+pass** (conditional gate, data-safety surface — ran, and it was decisive). Apply was a Sonnet
+subagent; a second Sonnet fix-executor handled the ephemeral-citation coherence fix.
+
+**3. Live behavioral proof (not just tests).** The (a) permission mechanism was live-probed against
+the real installed opencode (1.17.11) three+ times: the initial probe (`sqlite3 --version` DENIED,
+`git --version` ran), both verifier passes independently hit their own denials (`python3 -c` /
+`sqlite3`), and a post-broadening re-probe confirmed `sed -i`/`cp`/`find -delete`/`git fetch` DENIED
+while read-only `sed s//` and `git diff` still RAN. No fallback in any run → the denylist frontmatter
+parses. Beacon eyeballed: real `.scaffold-version` content `f64620f 2026-07-03T… <subject>`.
+
+**4. The security pass found the load-bearing defect — and it mattered.** All three pro-reviewer
+propose rounds + both verifier passes reasoned from the *declared pattern list* and green-lit the
+"honest residual-risk" framing. The security pass instead **live-probed the running permission engine
+with ground-truth file mutations** and proved the denylist matches **literal command spelling, not
+command identity**: `find -delete`, `sed -i`, in-tree `cp`, `/usr/bin/rm`, `env rm`, `python3.13 -c`
+all bypassed it — several defeating `edit: deny` outright (bash is an un-sandboxed write channel).
+The change's own thesis (honest residual risk) was therefore NOT honest as first written: it
+overclaimed ("genuinely robust", a verb-level "denied even in-tree" scenario) and omitted the whole
+literal-spelling bypass class. **Fix (both halves the security pass asked for):** (i) broadened the
+denylist toward the demonstrated accidental footguns — `sed -i`, `cp`, `install`, `find -delete/-exec`,
+`env`, `xargs`, `perl -i`, `git -c/fetch/pull/clone` (re-probe confirms they now deny; read-only
+forms still allowed); (ii) rewrote the framing across the verifier preamble, `notes.md`, and the
+delta spec to state plainly that the denylist is a literal-spelling **speed-bump, not a semantic
+wall**, that the verifier is **not truly read-only on the filesystem** via bash, and to name four
+residual vectors (literal-spelling bypass [primary], writes-inside-an-allowed-command, output
+redirection, prompt-injection-from-the-diff). The preamble was elevated to a co-primary control and
+now instructs treat-the-diff-as-untrusted + report-rather-than-run. A focused security
+re-confirmation verified the honesty gap is genuinely closed (6/6 checks PASS); a flash re-pass came
+back READY. Three prose-consistency nits the re-passes flagged (stale "not-covered" examples, a
+"three→four" miscount, "read-only on files"→"read-only by role") were corrected.
+
+**5. Simplicity gate:** clean, no must-fix; two nice-to-haves applied (`_scaffold_version` `strip() or`
+idiom; the beacon best-effort test now actually injects an `OSError` to exercise the swallow branch,
+plus a rename). The per-linter `EPHEMERAL_PATHS` duplication was confirmed a deliberate,
+precedented "mirror not import" pattern (independent linters), not a reuse defect.
+
+**6. Coherence fix found in self-review:** the new `knowledge/HANDOFF.md` citation (a by-design-absent
+ephemeral file) tripped BOTH `knowledge_lint.py` and `sync_scaffold.py --check-refs` as broken/dangling.
+Fixed by an `EPHEMERAL_PATHS` exemption in each (with a guard test proving a genuinely-missing
+non-ephemeral path is still flagged) + a `knowledge-organization` delta scenario. Net: this change
+adds **zero** new lint findings (the 17 pre-existing `knowledge_lint` / 2 pre-existing `--check-refs`
+items are `prune-knowledge`'s, untouched).
+
+**7. Accepted residual (recorded, not fixed here):** the denylist cannot be complete (literal-spelling);
+`/usr/bin/rm`, version-suffixed interpreters on other hosts, `nohup/busybox/rsync/patch`, and
+writes-inside-an-allowed-command remain — the real backstop is repo-level data isolation (downstream
+concern) + the judgment preamble. The `knowledge/HANDOFF.md` boot-read shares STATUS.md's trust model
+(git-tracked, reviewable), so it is not a new injection surface beyond existing boot files. All
+routed to `knowledge/questions/` at archive.
+
+**8. As-built vs frozen tasks.md:** tasks 1.1's denylist was BROADENED post-freeze (security fix) and
+tasks 1.2's preamble REWRITTEN honestly — both recorded above; the delta spec + notes now match the
+as-built agent. The ephemeral-citation exemption (linters + tests + one spec scenario) was added
+during verify and is not in the frozen tasks.md — recorded here as the authoritative as-built note.
 
 ## Reserved for archive (archive-executor)
 

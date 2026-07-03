@@ -23,6 +23,11 @@ The mid-session handoff is distinct from state: `knowledge/STATUS.md` is reconci
 - **THEN** it SHALL write that handoff to the single file `knowledge/HANDOFF.md` — not to `knowledge/STATUS.md` (which is reconciled only at archive) and not to ad-hoc root-level HANDOFF/HANDOVER files
 - **AND** the next session SHALL absorb the handoff and delete the file, so `knowledge/HANDOFF.md` is absent in the steady state
 
+#### Scenario: ephemeral-handoff-citation-exempt-from-citation-integrity-tooling
+- **WHEN** deterministic citation-integrity tooling that resolves knowledge path citations against disk — specifically `scripts/knowledge_lint.py` (its broken-prose-path-citation check) and `scripts/sync_scaffold.py --check-refs` (its dangling-reference check) — scans a file that cites `knowledge/HANDOFF.md` (e.g. `knowledge/README.md` and `AGENTS.md` name it in the taxonomy and boot instruction)
+- **THEN** that tooling SHALL treat `knowledge/HANDOFF.md` as a known-ephemeral path and SHALL NOT report the citation as broken/dangling merely because the file is absent, since absence is its designed steady state
+- **AND** citations to other non-existent knowledge paths SHALL still be flagged (the exemption is scoped to the known-ephemeral handoff path, not a blanket suppression)
+
 ### Requirement: boot-files-each-answer-one-question
 
 Each boot-read file SHALL answer exactly one question, and procedural rules that apply only within a phase SHALL NOT be boot reads. `AGENTS.md` answers "what is this project and where does everything live"; `knowledge/STATUS.md` answers "where are we right now"; `knowledge/questions/INDEX.md` (Active section) answers "what is blocking us". Additionally, when — and only when — `knowledge/HANDOFF.md` exists, it is a boot read answering "what mid-flight work must I resume", read immediately after `knowledge/STATUS.md`; because it is ephemeral (deleted on absorption) it adds nothing to the steady-state boot load. All knowledge types not designated as boot reads SHALL be loaded on demand — with history search-only and rules loaded on phase entry — never at boot.

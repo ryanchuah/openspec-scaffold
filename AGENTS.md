@@ -4,8 +4,11 @@
 >
 > You are reading this file. Before taking any action, also read **`knowledge/STATUS.md`** and
 > the Active section of **`knowledge/questions/INDEX.md`** (stays bounded — active blockers only);
-> for **`knowledge/decisions/INDEX.md`** scan the entries relevant to the current task. If you are
-> *resuming an in-progress OpenSpec change*, also read that change's
+> for **`knowledge/decisions/INDEX.md`** scan the entries relevant to the current task.
+> If `knowledge/HANDOFF.md` exists, read it right after `knowledge/STATUS.md` — it is an ephemeral,
+> mid-session, pre-archive handoff from a session that ran out of context; absorb it, continue the
+> work it describes, and delete it once absorbed (its normal state is absent).
+> If you are *resuming an in-progress OpenSpec change*, also read that change's
 > `openspec/changes/<name>/` directory (`proposal.md`, `design.md`, `tasks.md`,
 > `notes.md`). Otherwise skip `openspec/changes/` and `openspec/changes/archive/` — load a
 > specific file there only when re-examining the closed decision it covers.
@@ -124,8 +127,9 @@ propagation" and "Working process" below — do not weaken it.
   a single flash pass outside the verify skill; MEDIUM and COMPLEX changes run pro + flash via
   the verify skill (layered after the orchestrator's self-review and before the artifact/spec
   mapping checklist). It runs the same behavioral review (read diffs, re-run the full suite,
-  eyeball real output, run live smoke) but is **read-only on files** (`bash: allow`, `edit: deny`)
-  — it reports defects, never fixes them. It emits a machine-discriminable verdict the orchestrator
+  eyeball real output, run live smoke) but is **read-only by role** (bash restricted to a
+  destructive-command denylist, `edit: deny` — a best-effort guard, not a hard filesystem sandbox) —
+  it reports defects, never fixes them. It emits a machine-discriminable verdict the orchestrator
   judges from disk. The pass chain is identical on both platforms: **Claude Code** orchestrator →
   self → pro → flash; **OpenCode** orchestrator → self → pro → flash. Both platforms invoke the
   verifier via hardened `opencode run --agent openspec-verifier` (two invocations:
