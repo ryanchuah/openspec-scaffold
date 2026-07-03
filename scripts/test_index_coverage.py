@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import index_coverage  # noqa: E402
 
-
 _SCHEMA_SQL = """\
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
@@ -101,9 +100,12 @@ class IndexCoverageTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(self.schema_file),
-                "--queries", str(self.queries_dir / "*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(self.schema_file),
+                "--queries",
+                str(self.queries_dir / "*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)  # leads present -> still exit 0
@@ -136,9 +138,12 @@ class IndexCoverageTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(self.schema_file),
-                "--queries", str(self.queries_dir / "*.py"),
-                "--json", str(json_path),
+                "--schema",
+                str(self.schema_file),
+                "--queries",
+                str(self.queries_dir / "*.py"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -153,8 +158,10 @@ class IndexCoverageTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(self.schema_file),
-                "--json", str(json_path),
+                "--schema",
+                str(self.schema_file),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -166,8 +173,10 @@ class IndexCoverageTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(self.tmpdir / "does-not-exist-*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(self.tmpdir / "does-not-exist-*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 3)
@@ -176,9 +185,12 @@ class IndexCoverageTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(self.schema_file),
-                "--queries", str(self.queries_dir / "*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(self.schema_file),
+                "--queries",
+                str(self.queries_dir / "*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -233,9 +245,12 @@ class AliasResolutionTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(schema_file),
-                "--queries", str(self.queries_dir / "*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(schema_file),
+                "--queries",
+                str(self.queries_dir / "*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -332,9 +347,7 @@ class AnalyzeStatementUnitTest(unittest.TestCase):
     def test_where_qualified_column_not_duplicated(self):
         # "o.id" is captured by BOTH the left-hand `_WHERE_COL_RE` pass and
         # the additional qualified-column pass — must appear only once.
-        touched, usages = index_coverage._analyze_statement(
-            "SELECT * FROM orders o WHERE o.id = 5"
-        )
+        touched, usages = index_coverage._analyze_statement("SELECT * FROM orders o WHERE o.id = 5")
         self.assertEqual(usages.count(("orders", "id", "where")), 1)
 
 
@@ -359,19 +372,19 @@ class UpdateStatementEndToEndTest(unittest.TestCase):
     def test_update_where_column_unindexed_produces_lead(self):
         schema_file = self.tmpdir / "schema.sql"
         schema_file.write_text(
-            "CREATE TABLE users (\n"
-            "    id SERIAL PRIMARY KEY,\n"
-            "    email TEXT\n"
-            ");\n"
+            "CREATE TABLE users (\n    id SERIAL PRIMARY KEY,\n    email TEXT\n);\n"
         )
         query_file = self.queries_dir / "q.sql"
         query_file.write_text("UPDATE users SET email = 'x' WHERE user_id = 5;\n")
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(schema_file),
-                "--queries", str(self.queries_dir / "*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(schema_file),
+                "--queries",
+                str(self.queries_dir / "*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -421,9 +434,12 @@ class ExpressionIndexTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--schema", str(schema_file),
-                "--queries", str(self.queries_dir / "*.sql"),
-                "--json", str(json_path),
+                "--schema",
+                str(schema_file),
+                "--queries",
+                str(self.queries_dir / "*.sql"),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)

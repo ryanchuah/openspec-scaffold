@@ -31,32 +31,34 @@ import re
 import sys
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-EXEMPT_HEADINGS = frozenset({
-    "current state",
-    "immediate next action",
-    "done",
-    "pointers",
-})
+EXEMPT_HEADINGS = frozenset(
+    {
+        "current state",
+        "immediate next action",
+        "done",
+        "pointers",
+    }
+)
 
 # Anchor: a dash-list item opening with a bolded ISO date.
 # Matches lines like: - **2026-06-16** · slug · text
-_DATE_ANCHOR_RE = re.compile(r'^- \*\*(\d{4}-\d{2}-\d{2})\*\*')
+_DATE_ANCHOR_RE = re.compile(r"^- \*\*(\d{4}-\d{2}-\d{2})\*\*")
 
 # Separator used in registry lines (space + U+00B7 MIDDLE DOT + space)
 _REGISTRY_SEP = " · "
 
 # Pointer suffix pattern: → `openspec/changes/archive/<dir>/`
-_POINTER_RE = re.compile(r'→ `(openspec/changes/archive/[^`]+/)`$')
+_POINTER_RE = re.compile(r"→ `(openspec/changes/archive/[^`]+/)`$")
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _normalize_heading(heading: str) -> str:
     """Lowercase the heading text, strip '## ' prefix, collapse whitespace."""
@@ -103,9 +105,7 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
         if line.startswith("## "):
             in_preamble = False
             if current_heading is not None:
-                sections.append(
-                    (current_heading, "\n".join(current_body).strip())
-                )
+                sections.append((current_heading, "\n".join(current_body).strip()))
             current_heading = line
             current_body = []
         elif in_preamble:
@@ -114,9 +114,7 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
             current_body.append(line)
 
     if current_heading is not None:
-        sections.append(
-            (current_heading, "\n".join(current_body).strip())
-        )
+        sections.append((current_heading, "\n".join(current_body).strip()))
 
     return ("\n".join(preamble_lines).strip(), sections)
 
@@ -124,6 +122,7 @@ def _split_sections(text: str) -> tuple[str, list[tuple[str, str]]]:
 # ---------------------------------------------------------------------------
 # Checkers
 # ---------------------------------------------------------------------------
+
 
 def _check_status_md(repo_root: Path) -> list[str]:
     """Check knowledge/STATUS.md invariants.  Returns list of violation strings."""
@@ -158,9 +157,7 @@ def _check_status_md(repo_root: Path) -> list[str]:
         body_clean = _remove_fenced_code_blocks(body)
         wc = _word_count(body_clean)
         if wc > 150:
-            violations.append(
-                f"  knowledge/STATUS.md: {heading} body has {wc} words (max 150)"
-            )
+            violations.append(f"  knowledge/STATUS.md: {heading} body has {wc} words (max 150)")
 
     return violations
 
@@ -232,6 +229,7 @@ def _check_decisions_index(repo_root: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(

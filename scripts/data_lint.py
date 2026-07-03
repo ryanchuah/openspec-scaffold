@@ -95,9 +95,7 @@ def _run_check(
     cmd = ["psql", db_url, "-v", "ON_ERROR_STOP=1", "--csv", "-f", str(sql_file)]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, env=env, timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
     except subprocess.TimeoutExpired:
         return False, 0, None, f"check timed out after {timeout}s"
     except OSError as exc:
@@ -107,19 +105,31 @@ def _run_check(
         return False, 0, None, result.stderr.strip() or "psql exited nonzero"
 
     header, data_rows = _parse_csv_output(result.stdout)
-    sample = [dict(zip(header, row)) for row in data_rows]
+    sample = [dict(zip(header, row, strict=False)) for row in data_rows]
     return True, len(data_rows), sample, ""
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Run plain-SQL data-invariant checks (D4)."
+    parser = argparse.ArgumentParser(description="Run plain-SQL data-invariant checks (D4).")
+    parser.add_argument(
+        "--checks-dir", default="checks", help="Directory of *.sql checks (flat, no recursion)."
     )
-    parser.add_argument("--checks-dir", default="checks", help="Directory of *.sql checks (flat, no recursion).")
-    parser.add_argument("--db-url", default=None, help=f"Postgres connection URL (default: env {DB_URL_ENV_VAR}).")
+    parser.add_argument(
+        "--db-url", default=None, help=f"Postgres connection URL (default: env {DB_URL_ENV_VAR})."
+    )
     parser.add_argument("--json", default="data_lint.json", help="Output JSON path.")
-    parser.add_argument("--max-sample", type=int, default=DEFAULT_MAX_SAMPLE, help="Max violating rows to sample per check.")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Subprocess timeout per check, seconds.")
+    parser.add_argument(
+        "--max-sample",
+        type=int,
+        default=DEFAULT_MAX_SAMPLE,
+        help="Max violating rows to sample per check.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT,
+        help="Subprocess timeout per check, seconds.",
+    )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
     checks_dir = Path(args.checks_dir)

@@ -96,6 +96,7 @@ def _write_json_atomic(path: Path, payload) -> None:
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
+
 # The well-known SHA of git's empty-tree object — a content-addressed
 # constant, not something that needs to pre-exist in any particular repo.
 # Diffing against it makes every tracked file show up as pure insertions,
@@ -213,19 +214,15 @@ def _radon_complexity_batch(paths: list[str]) -> dict[str, int]:
     existing = [p for p in paths if Path(p).exists()]
     for i in range(0, len(existing), _RADON_BATCH_SIZE):
         chunk = existing[i : i + _RADON_BATCH_SIZE]
-        proc = subprocess.run(
-            ["radon", "cc", "-j", *chunk], capture_output=True, text=True
-        )
+        proc = subprocess.run(["radon", "cc", "-j", *chunk], capture_output=True, text=True)
         if proc.returncode != 0:
-            raise RadonError(
-                f"radon cc -j {' '.join(chunk)} failed: {proc.stderr.strip()}"
-            )
+            raise RadonError(f"radon cc -j {' '.join(chunk)} failed: {proc.stderr.strip()}")
         try:
             data = json.loads(proc.stdout)
         except json.JSONDecodeError as exc:
             raise RadonError(
                 f"radon cc -j {' '.join(chunk)} produced unparsable JSON: {exc}"
-            )
+            ) from exc
         for path in chunk:
             blocks = data.get(path, [])
             result[path] = max((b.get("complexity", 0) for b in blocks), default=0)
@@ -248,9 +245,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
         else:
             scope = "delta"
             anchor_commit = _git_or_raise(["rev-parse", f"{tag}^{{commit}}"]).strip()
-            commits_since = int(
-                _git_or_raise(["rev-list", "--count", f"{tag}..HEAD"]).strip()
-            )
+            commits_since = int(_git_or_raise(["rev-list", "--count", f"{tag}..HEAD"]).strip())
             churn_map = _numstat(f"{tag}..HEAD")
     except GitError as exc:
         print(f"audit_scope: INFRA-FAIL — {exc}", file=sys.stderr)
@@ -316,15 +311,24 @@ def cmd_tag(args: argparse.Namespace) -> int:
 
     existing = _run_git(["tag", "--list", tag_name])
     if existing.returncode != 0:
-        print(f"audit_scope: INFRA-FAIL — git tag --list failed: {existing.stderr.strip()}", file=sys.stderr)
+        print(
+            f"audit_scope: INFRA-FAIL — git tag --list failed: {existing.stderr.strip()}",
+            file=sys.stderr,
+        )
         return 3
     if existing.stdout.strip():
-        print(f"audit_scope: tag {tag_name} already exists — refusing to create a duplicate anchor", file=sys.stderr)
+        print(
+            f"audit_scope: tag {tag_name} already exists — refusing to create a duplicate anchor",
+            file=sys.stderr,
+        )
         return 3
 
     result = _run_git(["tag", "-a", tag_name, "-m", f"audit anchor {args.date}"])
     if result.returncode != 0:
-        print(f"audit_scope: INFRA-FAIL — failed to create tag {tag_name}: {result.stderr.strip()}", file=sys.stderr)
+        print(
+            f"audit_scope: INFRA-FAIL — failed to create tag {tag_name}: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
         return 3
 
     print(f"audit_scope: created annotated tag {tag_name}")
@@ -339,7 +343,10 @@ def cmd_tag(args: argparse.Namespace) -> int:
 def cmd_log_line(args: argparse.Namespace) -> int:
     result = _run_git(["rev-parse", "--short", "HEAD"])
     if result.returncode != 0:
-        print(f"audit_scope: INFRA-FAIL — git rev-parse failed: {result.stderr.strip()}", file=sys.stderr)
+        print(
+            f"audit_scope: INFRA-FAIL — git rev-parse failed: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
         return 3
     short_sha = result.stdout.strip()
     # Hint on stderr when knowledge/audit-log.md does not exist (first audit).
@@ -389,9 +396,7 @@ def main(argv: list[str] | None = None) -> int:
     tag_p.add_argument("--date", required=True, help="Anchor date, YYYY-MM-DD.")
     tag_p.set_defaults(func=cmd_tag)
 
-    log_p = sub.add_parser(
-        "log-line", help="Print (never write) the audit-log registry line."
-    )
+    log_p = sub.add_parser("log-line", help="Print (never write) the audit-log registry line.")
     log_p.add_argument("--date", required=True, help="Audit date, YYYY-MM-DD.")
     log_p.add_argument("--essence", required=True, help="One-line free-text essence.")
     log_p.set_defaults(func=cmd_log_line)

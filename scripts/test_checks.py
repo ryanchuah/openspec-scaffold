@@ -169,7 +169,9 @@ class AuditBundleTestBase(unittest.TestCase):
         p.write_text(body)
         p.chmod(0o755)
 
-    def _write_generic_stub(self, name: str, env_prefix: str, default_version: str = "1.0.0") -> None:
+    def _write_generic_stub(
+        self, name: str, env_prefix: str, default_version: str = "1.0.0"
+    ) -> None:
         body = (
             "#!/bin/sh\n"
             'if [ "$1" = "--version" ] || [ "$1" = "version" ]; then\n'
@@ -177,7 +179,7 @@ class AuditBundleTestBase(unittest.TestCase):
             "  exit 0\n"
             "fi\n"
             f'echo "{name} invoked: $@" >> "$STUB_INVOKE_LOG"\n'
-            f'printf \'%s\' "${env_prefix}_FIXTURE"\n'
+            f"printf '%s' \"${env_prefix}_FIXTURE\"\n"
             "exit 0\n"
         )
         self._write_stub(name, body)
@@ -198,8 +200,17 @@ class ListModeTest(AuditBundleTestBase):
         self.assertEqual(rc, 0)
         lines = {line.split()[0]: line for line in out.splitlines()}
         expected_names = {
-            "scope", "ruff", "gitleaks", "osv-scanner", "deptry", "data-lint",
-            "radon", "jscpd", "vulture", "index-coverage", "inventory",
+            "scope",
+            "ruff",
+            "gitleaks",
+            "osv-scanner",
+            "deptry",
+            "data-lint",
+            "radon",
+            "jscpd",
+            "vulture",
+            "index-coverage",
+            "inventory",
         }
         self.assertEqual(set(lines), expected_names)
         # correct tiers
@@ -248,10 +259,10 @@ class AutodetectTest(AuditBundleTestBase):
 class CustomCheckTest(AuditBundleTestBase):
     def test_custom_check_command_captured_to_txt(self):
         (self.repo / "checks.toml").write_text(
-            '[checks.custom.mycheck]\n'
+            "[checks.custom.mycheck]\n"
             'command = ["sh", "-c", "echo hello-custom"]\n'
             'tier = "floor"\n'
-            'gate = true\n'
+            "gate = true\n"
         )
         out_dir = self.tmpdir / "out1"
         rc, out = self._capture(["--check", "mycheck", "--out", str(out_dir)])
@@ -263,10 +274,10 @@ class CustomCheckTest(AuditBundleTestBase):
 
     def test_custom_check_gate_false_never_findings(self):
         (self.repo / "checks.toml").write_text(
-            '[checks.custom.failer]\n'
+            "[checks.custom.failer]\n"
             'command = ["sh", "-c", "exit 1"]\n'
             'tier = "heavy"\n'
-            'gate = false\n'
+            "gate = false\n"
         )
         out_dir = self.tmpdir / "out2"
         rc, out = self._capture(["--check", "failer", "--out", str(out_dir)])
@@ -274,10 +285,10 @@ class CustomCheckTest(AuditBundleTestBase):
 
     def test_custom_check_gate_true_nonzero_is_findings(self):
         (self.repo / "checks.toml").write_text(
-            '[checks.custom.failer]\n'
+            "[checks.custom.failer]\n"
             'command = ["sh", "-c", "exit 1"]\n'
             'tier = "heavy"\n'
-            'gate = true\n'
+            "gate = true\n"
         )
         out_dir = self.tmpdir / "out3"
         rc, out = self._capture(["--check", "failer", "--out", str(out_dir)])
@@ -445,14 +456,23 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         return data[0]
 
     def test_ruff(self):
-        os.environ["RUFF_FIXTURE"] = json.dumps([
-            {
-                "cell": None, "code": "F401", "name": "unused-import", "severity": "error",
-                "end_location": {"column": 10, "row": 3}, "filename": "pkg/mod.py", "fix": None,
-                "location": {"column": 1, "row": 3}, "message": "`os` imported but unused",
-                "noqa_row": None, "url": "https://docs.astral.sh/ruff/rules/unused-import",
-            }
-        ])
+        os.environ["RUFF_FIXTURE"] = json.dumps(
+            [
+                {
+                    "cell": None,
+                    "code": "F401",
+                    "name": "unused-import",
+                    "severity": "error",
+                    "end_location": {"column": 10, "row": 3},
+                    "filename": "pkg/mod.py",
+                    "fix": None,
+                    "location": {"column": 1, "row": 3},
+                    "message": "`os` imported but unused",
+                    "noqa_row": None,
+                    "url": "https://docs.astral.sh/ruff/rules/unused-import",
+                }
+            ]
+        )
         finding = self._run_single_check("ruff")
         self.assertEqual(finding["check"], "ruff")
         self.assertEqual(finding["rule"], "F401")
@@ -461,15 +481,30 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertEqual(finding["message"], "`os` imported but unused")
 
     def test_gitleaks(self):
-        os.environ["GITLEAKS_FIXTURE"] = json.dumps([
-            {
-                "RuleID": "generic-api-key", "Description": "Generic API Key",
-                "StartLine": 5, "EndLine": 5, "StartColumn": 1, "EndColumn": 20,
-                "Match": "abc", "Secret": "abc", "File": "config.py", "SymlinkFile": "",
-                "Commit": "", "Entropy": 3.5, "Author": "", "Email": "", "Date": "",
-                "Message": "", "Tags": [], "Fingerprint": "config.py:generic-api-key:1",
-            }
-        ])
+        os.environ["GITLEAKS_FIXTURE"] = json.dumps(
+            [
+                {
+                    "RuleID": "generic-api-key",
+                    "Description": "Generic API Key",
+                    "StartLine": 5,
+                    "EndLine": 5,
+                    "StartColumn": 1,
+                    "EndColumn": 20,
+                    "Match": "abc",
+                    "Secret": "abc",
+                    "File": "config.py",
+                    "SymlinkFile": "",
+                    "Commit": "",
+                    "Entropy": 3.5,
+                    "Author": "",
+                    "Email": "",
+                    "Date": "",
+                    "Message": "",
+                    "Tags": [],
+                    "Fingerprint": "config.py:generic-api-key:1",
+                }
+            ]
+        )
         finding = self._run_single_check("gitleaks")
         self.assertEqual(finding["check"], "gitleaks")
         self.assertEqual(finding["rule"], "generic-api-key")
@@ -478,21 +513,27 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertEqual(finding["message"], "Generic API Key")
 
     def test_osv_scanner(self):
-        os.environ["OSV_SCANNER_FIXTURE"] = json.dumps({
-            "results": [
-                {
-                    "source": {"path": "requirements.txt", "type": "lockfile"},
-                    "packages": [
-                        {
-                            "package": {"name": "flask", "version": "1.0", "ecosystem": "PyPI"},
-                            "vulnerabilities": [
-                                {"id": "GHSA-xxxx-yyyy-zzzz", "summary": "Flask vulnerable to XSS", "details": "..."}
-                            ],
-                        }
-                    ],
-                }
-            ]
-        })
+        os.environ["OSV_SCANNER_FIXTURE"] = json.dumps(
+            {
+                "results": [
+                    {
+                        "source": {"path": "requirements.txt", "type": "lockfile"},
+                        "packages": [
+                            {
+                                "package": {"name": "flask", "version": "1.0", "ecosystem": "PyPI"},
+                                "vulnerabilities": [
+                                    {
+                                        "id": "GHSA-xxxx-yyyy-zzzz",
+                                        "summary": "Flask vulnerable to XSS",
+                                        "details": "...",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
         finding = self._run_single_check("osv-scanner")
         self.assertEqual(finding["check"], "osv-scanner")
         self.assertEqual(finding["rule"], "GHSA-xxxx-yyyy-zzzz")
@@ -501,13 +542,18 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertEqual(finding["message"], "Flask vulnerable to XSS")
 
     def test_deptry(self):
-        os.environ["DEPTRY_FIXTURE"] = json.dumps([
-            {
-                "error": {"code": "DEP002", "message": "'requests' defined as a dependency but not used"},
-                "module": "requests",
-                "location": {"file": "pkg/mod.py", "line": 1, "column": 1},
-            }
-        ])
+        os.environ["DEPTRY_FIXTURE"] = json.dumps(
+            [
+                {
+                    "error": {
+                        "code": "DEP002",
+                        "message": "'requests' defined as a dependency but not used",
+                    },
+                    "module": "requests",
+                    "location": {"file": "pkg/mod.py", "line": 1, "column": 1},
+                }
+            ]
+        )
         finding = self._run_single_check("deptry")
         self.assertEqual(finding["check"], "deptry")
         self.assertEqual(finding["rule"], "DEP002")
@@ -516,11 +562,19 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertEqual(finding["message"], "'requests' defined as a dependency but not used")
 
     def test_radon(self):
-        os.environ["RADON_FIXTURE"] = json.dumps({
-            "pkg/mod.py": [
-                {"type": "function", "name": "complex_fn", "complexity": 25, "rank": "D", "lineno": 10}
-            ]
-        })
+        os.environ["RADON_FIXTURE"] = json.dumps(
+            {
+                "pkg/mod.py": [
+                    {
+                        "type": "function",
+                        "name": "complex_fn",
+                        "complexity": 25,
+                        "rank": "D",
+                        "lineno": 10,
+                    }
+                ]
+            }
+        )
         finding = self._run_single_check("radon")
         self.assertEqual(finding["check"], "radon")
         self.assertEqual(finding["rule"], "complexity-D")
@@ -530,15 +584,20 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertIn("25", finding["message"])
 
     def test_jscpd(self):
-        os.environ["JSCPD_FIXTURE"] = json.dumps({
-            "duplicates": [
-                {
-                    "format": "python", "lines": 8, "tokens": 40, "fragment": "...",
-                    "firstFile": {"name": "pkg/a.py", "start": 5, "end": 12},
-                    "secondFile": {"name": "pkg/b.py", "start": 20, "end": 27},
-                }
-            ]
-        })
+        os.environ["JSCPD_FIXTURE"] = json.dumps(
+            {
+                "duplicates": [
+                    {
+                        "format": "python",
+                        "lines": 8,
+                        "tokens": 40,
+                        "fragment": "...",
+                        "firstFile": {"name": "pkg/a.py", "start": 5, "end": 12},
+                        "secondFile": {"name": "pkg/b.py", "start": 20, "end": 27},
+                    }
+                ]
+            }
+        )
         finding = self._run_single_check("jscpd")
         self.assertEqual(finding["check"], "jscpd")
         self.assertEqual(finding["path"], "pkg/a.py")
@@ -564,12 +623,16 @@ class PathNormalizationTest(AuditBundleTestBase):
 
     def test_absolute_path_under_repo_root_normalized_in_per_check_artifact(self):
         abs_path = str(self.repo / "pkg" / "mod.py")
-        os.environ["RUFF_FIXTURE"] = json.dumps([
-            {
-                "code": "F401", "filename": abs_path,
-                "location": {"row": 3, "column": 1}, "message": "unused import",
-            }
-        ])
+        os.environ["RUFF_FIXTURE"] = json.dumps(
+            [
+                {
+                    "code": "F401",
+                    "filename": abs_path,
+                    "location": {"row": 3, "column": 1},
+                    "message": "unused import",
+                }
+            ]
+        )
         out_dir = self.tmpdir / "out-abs-in-repo"
         rc, out = self._capture(["--check", "ruff", "--out", str(out_dir)])
         self.assertEqual(rc, 2)
@@ -579,12 +642,16 @@ class PathNormalizationTest(AuditBundleTestBase):
 
     def test_absolute_path_outside_repo_root_left_unchanged(self):
         outside_path = str(self.tmpdir / "outside" / "mod.py")  # sibling of repo, not under it
-        os.environ["RUFF_FIXTURE"] = json.dumps([
-            {
-                "code": "F401", "filename": outside_path,
-                "location": {"row": 3, "column": 1}, "message": "unused import",
-            }
-        ])
+        os.environ["RUFF_FIXTURE"] = json.dumps(
+            [
+                {
+                    "code": "F401",
+                    "filename": outside_path,
+                    "location": {"row": 3, "column": 1},
+                    "message": "unused import",
+                }
+            ]
+        )
         out_dir = self.tmpdir / "out-abs-outside"
         rc, out = self._capture(["--check", "ruff", "--out", str(out_dir)])
         self.assertEqual(rc, 2)
@@ -594,12 +661,16 @@ class PathNormalizationTest(AuditBundleTestBase):
 
     def test_findings_json_also_gets_repo_relative_path(self):
         abs_path = str(self.repo / "pkg" / "mod.py")
-        os.environ["RUFF_FIXTURE"] = json.dumps([
-            {
-                "code": "F401", "filename": abs_path,
-                "location": {"row": 3, "column": 1}, "message": "unused import",
-            }
-        ])
+        os.environ["RUFF_FIXTURE"] = json.dumps(
+            [
+                {
+                    "code": "F401",
+                    "filename": abs_path,
+                    "location": {"row": 3, "column": 1},
+                    "message": "unused import",
+                }
+            ]
+        )
         out_dir = self.tmpdir / "out-report"
         rc, out = self._capture(["--report", "--out", str(out_dir)])
         self.assertEqual(rc, 2)
@@ -718,7 +789,9 @@ class ResumeOrderProofTest(AuditBundleTestBase):
         self.assertEqual(len(osv_calls), 2)
 
         manifest = json.loads((out_dir / "run-manifest.json").read_text())
-        completed = {r["check"] for r in manifest if not r.get("meta") and r["status"] != "INFRA-FAIL"}
+        completed = {
+            r["check"] for r in manifest if not r.get("meta") and r["status"] != "INFRA-FAIL"
+        }
         self.assertIn("deptry", completed)
         self.assertIn("data-lint", completed)
         self.assertIn("inventory", completed)
@@ -787,10 +860,26 @@ class SummaryLineFormatTest(AuditBundleTestBase):
         rc, out = self._capture(["--report", "--out", str(out_dir)])
         self.assertEqual(rc, 0)
         lines = out.splitlines()
-        per_check_lines = [line for line in lines if line.startswith(("scope:", "ruff:", "gitleaks:", "osv-scanner:", "deptry:", "data-lint:", "inventory:"))]
+        per_check_lines = [
+            line
+            for line in lines
+            if line.startswith(
+                (
+                    "scope:",
+                    "ruff:",
+                    "gitleaks:",
+                    "osv-scanner:",
+                    "deptry:",
+                    "data-lint:",
+                    "inventory:",
+                )
+            )
+        ]
         self.assertTrue(len(per_check_lines) >= 7)
         for line in per_check_lines:
-            self.assertRegex(line, r"^\S+: (ok|FINDINGS|INFRA-FAIL|skipped) — (\d+|\?) findings -> .+$")
+            self.assertRegex(
+                line, r"^\S+: (ok|FINDINGS|INFRA-FAIL|skipped) — (\d+|\?) findings -> .+$"
+            )
         final_lines = [line for line in lines if line.startswith("checks: ")]
         self.assertEqual(len(final_lines), 1)
         self.assertRegex(final_lines[0], r"^checks: \d+ findings across \d+ checks -> .+$")
@@ -798,15 +887,43 @@ class SummaryLineFormatTest(AuditBundleTestBase):
 
 class BaselineDiffTest(AuditBundleTestBase):
     def test_baseline_diff_new_resolved_unchanged_line_insensitive(self):
-        os.environ["RUFF_FIXTURE"] = json.dumps([
-            {"code": "E501", "filename": "a.py", "location": {"row": 10, "column": 1}, "message": "line too long"},
-            {"code": "F401", "filename": "b.py", "location": {"row": 5, "column": 1}, "message": "unused import"},
-        ])
+        os.environ["RUFF_FIXTURE"] = json.dumps(
+            [
+                {
+                    "code": "E501",
+                    "filename": "a.py",
+                    "location": {"row": 10, "column": 1},
+                    "message": "line too long",
+                },
+                {
+                    "code": "F401",
+                    "filename": "b.py",
+                    "location": {"row": 5, "column": 1},
+                    "message": "unused import",
+                },
+            ]
+        )
         baseline_path = self.tmpdir / "baseline.json"
-        baseline_path.write_text(json.dumps([
-            {"check": "ruff", "rule": "E501", "path": "a.py", "line": 99, "message": "line too long"},
-            {"check": "ruff", "rule": "W605", "path": "c.py", "line": 3, "message": "old finding"},
-        ]))
+        baseline_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "check": "ruff",
+                        "rule": "E501",
+                        "path": "a.py",
+                        "line": 99,
+                        "message": "line too long",
+                    },
+                    {
+                        "check": "ruff",
+                        "rule": "W605",
+                        "path": "c.py",
+                        "line": 3,
+                        "message": "old finding",
+                    },
+                ]
+            )
+        )
 
         out_dir = self.tmpdir / "out"
         rc, out = self._capture(
@@ -880,9 +997,7 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_floor_no_checks_enabled_exits_0(self):
-        (self.repo / "checks.toml").write_text(
-            '[checks.scope]\nenabled = false\n'
-        )
+        (self.repo / "checks.toml").write_text("[checks.scope]\nenabled = false\n")
         buf = io.StringIO()
         with redirect_stdout(buf):
             rc = checks.main(["--floor"])

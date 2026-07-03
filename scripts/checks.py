@@ -149,11 +149,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import tomllib
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import date
 from io import StringIO
 from pathlib import Path
+
+import tomllib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -176,34 +177,52 @@ EXPECTED_TOOL_VERSIONS: dict[str, str] = {
 _REGISTRY: list[dict] = [
     {"name": "scope", "tier": "floor", "kind": "delegate", "family": "fact"},
     {
-        "name": "ruff", "tier": "floor", "kind": "builtin", "family": "check",
+        "name": "ruff",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
         "trigger": "pyproject.toml present",
         "coverage_note": "disabling drops lint checking",
     },
     {
-        "name": "gitleaks", "tier": "floor", "kind": "builtin", "family": "check",
+        "name": "gitleaks",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
         "trigger": ".git present",
         "coverage_note": "disabling drops secret scanning",
     },
     {
-        "name": "osv-scanner", "tier": "floor", "kind": "builtin", "family": "check",
+        "name": "osv-scanner",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
         "trigger": "lockfile present",
         "coverage_note": "drops known-vulnerability scanning",
     },
     {
-        "name": "deptry", "tier": "floor", "kind": "builtin", "family": "check",
+        "name": "deptry",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
         "trigger": "pyproject.toml present",
         "coverage_note": "drops dependency-hygiene checking",
     },
     {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "radon", "tier": "heavy", "kind": "builtin", "family": "fact"},
     {
-        "name": "jscpd", "tier": "heavy", "kind": "builtin", "family": "check",
+        "name": "jscpd",
+        "tier": "heavy",
+        "kind": "builtin",
+        "family": "check",
         "trigger": "always (enabled explicitly)",
         "coverage_note": "disabling drops duplication detection",
     },
     {
-        "name": "vulture", "tier": "heavy", "kind": "builtin", "family": "check",
+        "name": "vulture",
+        "tier": "heavy",
+        "kind": "builtin",
+        "family": "check",
         "trigger": "always (enabled explicitly)",
         "coverage_note": "disabling drops dead-code detection",
     },
@@ -259,9 +278,7 @@ def _load_config(repo_root: Path) -> tuple[dict, str]:
 def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
     has_pyproject = (repo_root / "pyproject.toml").is_file()
     has_git = (repo_root / ".git").exists()
-    has_lockfile = any(
-        glob_module.glob(str(repo_root / pattern)) for pattern in _LOCKFILE_PATTERNS
-    )
+    has_lockfile = any(glob_module.glob(str(repo_root / pattern)) for pattern in _LOCKFILE_PATTERNS)
     checks_dir = repo_root / "checks"
     has_checks = checks_dir.is_dir() and any(checks_dir.glob("*.sql"))
 
@@ -331,9 +348,7 @@ def _probe_raw_version(tool: str) -> str | None:
     or the binary is absent)."""
     for probe_args in (["--version"], ["version"]):
         try:
-            result = subprocess.run(
-                [tool, *probe_args], capture_output=True, text=True, timeout=15
-            )
+            result = subprocess.run([tool, *probe_args], capture_output=True, text=True, timeout=15)
         except (OSError, subprocess.TimeoutExpired):
             continue
         if result.returncode == 0:
@@ -560,9 +575,7 @@ _ENV_ENVIRON_RE = re.compile(
     r"\bos\.environ(?:\.get)?\s*[\[\(]\s*[\"']([A-Za-z_][A-Za-z0-9_]*)[\"']"
 )
 _ENV_PROCESS_ATTR_RE = re.compile(r"\bprocess\.env\.([A-Za-z_][A-Za-z0-9_]*)")
-_ENV_PROCESS_BRACKET_RE = re.compile(
-    r"\bprocess\.env\[\s*[\"']([A-Za-z_][A-Za-z0-9_]*)[\"']"
-)
+_ENV_PROCESS_BRACKET_RE = re.compile(r"\bprocess\.env\[\s*[\"']([A-Za-z_][A-Za-z0-9_]*)[\"']")
 
 
 def _detect_env_vars(repo_root: Path, tracked: list[str]) -> set[str]:
@@ -635,14 +648,18 @@ def _run_inventory(repo_root: Path) -> dict:
     try:
         tag_result = subprocess.run(
             ["git", "-C", str(repo_root), "tag", "--list", "audit/*", "--sort=-creatordate"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         lines = [ln for ln in tag_result.stdout.splitlines() if ln.strip()]
         if lines:
             tag = lines[0]
             count_result = subprocess.run(
                 ["git", "-C", str(repo_root), "rev-list", "--count", f"{tag}..HEAD"],
-                capture_output=True, text=True, timeout=15,
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
             if count_result.returncode == 0:
                 commits_since = int(count_result.stdout.strip())
@@ -692,9 +709,7 @@ def _normalize_finding_paths(findings: list[dict], repo_root: Path) -> None:
         finding["path"] = str(rel)
 
 
-def _run_builtin_tool_json(
-    name: str, cmd: list[str], out_path: Path, timeout: int = 300
-) -> dict:
+def _run_builtin_tool_json(name: str, cmd: list[str], out_path: Path, timeout: int = 300) -> dict:
     """Run a tool that prints JSON to stdout; parse -> normalized findings."""
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -928,7 +943,11 @@ def _run_delegate(check: dict, config: dict, out_path: Path) -> dict:
         raw_schema = idx_cfg.get("schema")
         raw_queries = idx_cfg.get("queries", [])
         if not raw_schema:
-            return {"status": "skipped", "count": None, "note": "no [checks.index-coverage].schema configured"}
+            return {
+                "status": "skipped",
+                "count": None,
+                "note": "no [checks.index-coverage].schema configured",
+            }
 
         schema_list, err = _coerce_config_str_list(raw_schema)
         if err is not None:
@@ -1204,12 +1223,7 @@ def _mode_multi(
 
     # The non-empty---out refusal is a --report-only guarantee (task 4.4) —
     # --floor writes into the CWD by default, which is always non-empty.
-    if (
-        enforce_empty_out_dir
-        and out_dir.exists()
-        and any(out_dir.iterdir())
-        and not resume
-    ):
+    if enforce_empty_out_dir and out_dir.exists() and any(out_dir.iterdir()) and not resume:
         print(
             f"checks: INFRA-FAIL — --out {out_dir} already exists and is non-empty "
             "(use --resume or a different --out)",
@@ -1219,7 +1233,7 @@ def _mode_multi(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_path = out_dir / "run-manifest.json"
-    _prior_meta, _raw_prior_records = (_read_manifest(manifest_path) if resume else ({}, []))
+    _prior_meta, _raw_prior_records = _read_manifest(manifest_path) if resume else ({}, [])
     # A prior INFRA-FAIL record is the abort point, not a completion — retry
     # it on resume rather than skipping it forever. Only genuinely finished
     # checks (ok/FINDINGS/skipped) count as "completed" for --resume.
@@ -1263,7 +1277,9 @@ def _mode_multi(
                 reason = "not on PATH"
                 install_part = f"Install {name}"
             else:
-                reason = f"version mismatch (expected {avail['expected']}, found {avail['version']})"
+                reason = (
+                    f"version mismatch (expected {avail['expected']}, found {avail['version']})"
+                )
                 install_part = f"Install {name} {avail['expected']}"
             print(
                 f"checks: INFRA-FAIL — {name}: {reason}"
@@ -1274,11 +1290,15 @@ def _mode_multi(
                 file=sys.stderr,
             )
             error_msg = (
-                "unavailable" if avail["status"] == "unavailable"
+                "unavailable"
+                if avail["status"] == "unavailable"
                 else f"version mismatch: expected {avail['expected']}, found {avail['version']}"
             )
             record = {
-                "check": name, "status": "INFRA-FAIL", "count": None, "artifact": "",
+                "check": name,
+                "status": "INFRA-FAIL",
+                "count": None,
+                "artifact": "",
                 "error": error_msg,
             }
             records.append(record)
@@ -1301,8 +1321,12 @@ def _mode_multi(
                 reason = "not on PATH" if not is_fact else "unavailable (graceful degradation)"
                 error_detail = "unavailable"
             else:
-                reason = f"version mismatch (expected {avail['expected']}, found {avail['version']})"
-                error_detail = f"version mismatch: expected {avail['expected']}, found {avail['version']}"
+                reason = (
+                    f"version mismatch (expected {avail['expected']}, found {avail['version']})"
+                )
+                error_detail = (
+                    f"version mismatch: expected {avail['expected']}, found {avail['version']}"
+                )
             if is_fact:
                 # Fact-family: degrade gracefully — record as skipped and continue.
                 record = {"check": name, "status": "skipped", "count": None, "artifact": ""}
@@ -1319,7 +1343,13 @@ def _mode_multi(
                     f" — {check.get('coverage_note', '')}.",
                     file=sys.stderr,
                 )
-                record = {"check": name, "status": "INFRA-FAIL", "count": None, "artifact": "", "error": error_detail}
+                record = {
+                    "check": name,
+                    "status": "INFRA-FAIL",
+                    "count": None,
+                    "artifact": "",
+                    "error": error_detail,
+                }
                 records.append(record)
                 _write_manifest(manifest_path, meta, records)
                 aborted = True
@@ -1383,12 +1413,18 @@ def main(argv: list[str] | None = None) -> int:
     mode_group.add_argument("--list", action="store_true", help="Enumerate registered checks.")
     mode_group.add_argument("--check", metavar="NAME", help="Run exactly one check.")
     mode_group.add_argument("--floor", action="store_true", help="Run all enabled floor checks.")
-    mode_group.add_argument("--report", action="store_true", help="Run floor+heavy+snapshot checks.")
+    mode_group.add_argument(
+        "--report", action="store_true", help="Run floor+heavy+snapshot checks."
+    )
 
     parser.add_argument("--out", default=None, help="Output directory.")
     parser.add_argument("--date", default=None, help="Audit date, YYYY-MM-DD (default: today).")
-    parser.add_argument("--resume", action="store_true", help="Resume a --report run (skip completed checks).")
-    parser.add_argument("--baseline", default=None, help="Prior findings.json to diff against (--report only).")
+    parser.add_argument(
+        "--resume", action="store_true", help="Resume a --report run (skip completed checks)."
+    )
+    parser.add_argument(
+        "--baseline", default=None, help="Prior findings.json to diff against (--report only)."
+    )
 
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
@@ -1416,8 +1452,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.floor:
         out_dir = Path(args.out) if args.out else Path(".")
         return _mode_multi(
-            {"floor"}, config, defaults, pins, repo_root, out_dir,
-            resume=False, baseline_path=None, date_str=date_str, config_source=config_source,
+            {"floor"},
+            config,
+            defaults,
+            pins,
+            repo_root,
+            out_dir,
+            resume=False,
+            baseline_path=None,
+            date_str=date_str,
+            config_source=config_source,
         )
 
     # --report
@@ -1426,8 +1470,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         out_dir = Path("output") / "checks" / date_str
     return _mode_multi(
-        {"floor", "heavy", "snapshot"}, config, defaults, pins, repo_root, out_dir,
-        resume=args.resume, baseline_path=args.baseline, date_str=date_str, config_source=config_source,
+        {"floor", "heavy", "snapshot"},
+        config,
+        defaults,
+        pins,
+        repo_root,
+        out_dir,
+        resume=args.resume,
+        baseline_path=args.baseline,
+        date_str=date_str,
+        config_source=config_source,
         enforce_empty_out_dir=True,
     )
 

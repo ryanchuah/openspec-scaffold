@@ -2,3 +2,4 @@ requests
 trafilatura
 beautifulsoup4
 lxml
+ruff==0.15.16

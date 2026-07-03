@@ -4,15 +4,15 @@
 from __future__ import annotations
 
 import os
-import tempfile
-import unittest
-from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # Import the module under test (sibling in scripts/)
 # ---------------------------------------------------------------------------
-
 import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import _convergence  # noqa: E402 — import after sys.path fix
@@ -46,8 +46,8 @@ class NormalizeSignatureTest(unittest.TestCase):
 
     def test_absolute_paths_normalize(self):
         """Outputs with different absolute paths normalize to same signature."""
-        a = "  File \"/home/user/project/foo.py\", line 10, in bar"
-        b = "  File \"/home/other/project/foo.py\", line 20, in bar"
+        a = '  File "/home/user/project/foo.py", line 10, in bar'
+        b = '  File "/home/other/project/foo.py", line 20, in bar'
         self.assertEqual(
             _convergence._normalize_signature(a),
             _convergence._normalize_signature(b),
@@ -292,22 +292,31 @@ class NormalizeSignatureTest(unittest.TestCase):
 
         # Attempt 1: S1 → CONTINUE
         v1 = _convergence._verdict(
-            test_id="test_foo.py::test_bar", signature=sig1,
-            editing_file=None, change_slug=change_slug, task_id="T1",
+            test_id="test_foo.py::test_bar",
+            signature=sig1,
+            editing_file=None,
+            change_slug=change_slug,
+            task_id="T1",
         )
         self.assertTrue(v1.startswith("CONTINUE"))
 
         # Attempt 2: S2 → CONTINUE (different signature, progress)
         v2 = _convergence._verdict(
-            test_id="test_foo.py::test_bar", signature=sig2,
-            editing_file=None, change_slug=change_slug, task_id="T1",
+            test_id="test_foo.py::test_bar",
+            signature=sig2,
+            editing_file=None,
+            change_slug=change_slug,
+            task_id="T1",
         )
         self.assertTrue(v2.startswith("CONTINUE"))
 
         # Attempt 3: S1 → S(n) == S(n-2) oscillating → STOP:a
         v3 = _convergence._verdict(
-            test_id="test_foo.py::test_bar", signature=sig1,
-            editing_file=None, change_slug=change_slug, task_id="T1",
+            test_id="test_foo.py::test_bar",
+            signature=sig1,
+            editing_file=None,
+            change_slug=change_slug,
+            task_id="T1",
         )
         self.assertTrue(v3.startswith("STOP:a"), f"Expected STOP:a, got: {v3}")
         self.assertIn("oscillating", v3)
@@ -322,18 +331,23 @@ class NormalizeSignatureTest(unittest.TestCase):
             raw = f"FAILED test_foo.py::test_bar - AssertionError: attempt {i}"
             sig = _convergence._normalize_signature(raw)
             v = _convergence._verdict(
-                test_id="test_foo.py::test_bar", signature=sig,
-                editing_file=None, change_slug=change_slug, task_id="T1",
+                test_id="test_foo.py::test_bar",
+                signature=sig,
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
             )
-            self.assertTrue(v.startswith("CONTINUE"),
-                            f"Attempt {i} should CONTINUE, got: {v}")
+            self.assertTrue(v.startswith("CONTINUE"), f"Attempt {i} should CONTINUE, got: {v}")
 
         # Final attempt (20th) → ceiling reached
         raw_last = "FAILED test_foo.py::test_bar - AssertionError: final"
         sig_last = _convergence._normalize_signature(raw_last)
         v_last = _convergence._verdict(
-            test_id="test_foo.py::test_bar", signature=sig_last,
-            editing_file=None, change_slug=change_slug, task_id="T1",
+            test_id="test_foo.py::test_bar",
+            signature=sig_last,
+            editing_file=None,
+            change_slug=change_slug,
+            task_id="T1",
         )
         self.assertTrue(v_last.startswith("STOP:a"), f"Expected STOP:a, got: {v_last}")
         self.assertIn("20 attempts", v_last)
@@ -350,27 +364,36 @@ class NormalizeSignatureTest(unittest.TestCase):
 
             # 1st delta attempt → CONTINUE
             v1 = _convergence._verdict(
-                test_id="test_a.py::test_a1", signature="SIG_A",
-                editing_file=None, change_slug=change_slug,
-                task_id="T1", repo_root="/fake",
+                test_id="test_a.py::test_a1",
+                signature="SIG_A",
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
+                repo_root="/fake",
             )
             self.assertTrue(v1.startswith("CONTINUE"))
 
             # 2nd delta attempt with different git fingerprint → CONTINUE
             mock_delta.return_value = (["foo.py"], {"foo.py": "def"}, True)
             v2 = _convergence._verdict(
-                test_id="test_a.py::test_a1", signature="SIG_B",
-                editing_file=None, change_slug=change_slug,
-                task_id="T1", repo_root="/fake",
+                test_id="test_a.py::test_a1",
+                signature="SIG_B",
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
+                repo_root="/fake",
             )
             self.assertTrue(v2.startswith("CONTINUE"))
 
             # 3rd delta attempt → STOP:b
             mock_delta.return_value = (["foo.py"], {"foo.py": "ghi"}, True)
             v3 = _convergence._verdict(
-                test_id="test_a.py::test_a1", signature="SIG_C",
-                editing_file=None, change_slug=change_slug,
-                task_id="T1", repo_root="/fake",
+                test_id="test_a.py::test_a1",
+                signature="SIG_C",
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
+                repo_root="/fake",
             )
             self.assertTrue(v3.startswith("STOP:b"), f"Expected STOP:b, got: {v3}")
 
@@ -382,18 +405,24 @@ class NormalizeSignatureTest(unittest.TestCase):
             # First call: foo.py edited
             mock_delta.return_value = (["foo.py"], {"foo.py": "abc"}, True)
             v1 = _convergence._verdict(
-                test_id="test_a.py::test_a1", signature="SIG_A",
-                editing_file=None, change_slug=change_slug,
-                task_id="T1", repo_root="/fake",
+                test_id="test_a.py::test_a1",
+                signature="SIG_A",
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
+                repo_root="/fake",
             )
             self.assertTrue(v1.startswith("CONTINUE"))
 
             # Second call: bar.py edited (different file)
             mock_delta.return_value = (["bar.py"], {"bar.py": "xyz"}, True)
             v2 = _convergence._verdict(
-                test_id="test_a.py::test_a1", signature="SIG_B",
-                editing_file=None, change_slug=change_slug,
-                task_id="T1", repo_root="/fake",
+                test_id="test_a.py::test_a1",
+                signature="SIG_B",
+                editing_file=None,
+                change_slug=change_slug,
+                task_id="T1",
+                repo_root="/fake",
             )
             self.assertTrue(v2.startswith("CONTINUE"))
 
@@ -492,8 +521,9 @@ class NormalizeSignatureTest(unittest.TestCase):
             change_slug=change_slug,
             task_id="T1",
         )
-        self.assertTrue(v_a2.startswith("STOP:a"),
-                        f"test_a should STOP:a after 2 same, got: {v_a2}")
+        self.assertTrue(
+            v_a2.startswith("STOP:a"), f"test_a should STOP:a after 2 same, got: {v_a2}"
+        )
 
         # test_b with same signature should have its own independent state
         raw_b = "FAILED test_b.py::test_b1 - TypeError: b"
@@ -505,8 +535,9 @@ class NormalizeSignatureTest(unittest.TestCase):
             change_slug=change_slug,
             task_id="T1",
         )
-        self.assertTrue(v_b1.startswith("CONTINUE"),
-                        f"test_b should CONTINUE on first attempt, got: {v_b1}")
+        self.assertTrue(
+            v_b1.startswith("CONTINUE"), f"test_b should CONTINUE on first attempt, got: {v_b1}"
+        )
 
 
 if __name__ == "__main__":

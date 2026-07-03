@@ -18,13 +18,13 @@ import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import facts  # noqa: E402
 import checks  # noqa: E402
+import facts  # noqa: E402
 
 _BASE_PATH = "/usr/bin:/bin"
 
@@ -169,7 +169,9 @@ class FactsTestBase(unittest.TestCase):
         p.write_text(body)
         p.chmod(0o755)
 
-    def _write_generic_stub(self, name: str, env_prefix: str, default_version: str = "1.0.0") -> None:
+    def _write_generic_stub(
+        self, name: str, env_prefix: str, default_version: str = "1.0.0"
+    ) -> None:
         body = (
             "#!/bin/sh\n"
             'if [ "$1" = "--version" ] || [ "$1" = "version" ]; then\n'
@@ -177,7 +179,7 @@ class FactsTestBase(unittest.TestCase):
             "  exit 0\n"
             "fi\n"
             f'echo "{name} invoked: $@" >> "$STUB_INVOKE_LOG"\n'
-            f'printf \'%s\' "${{{env_prefix}_FIXTURE}}"\n'
+            f"printf '%s' \"${{{env_prefix}_FIXTURE}}\"\n"
             "exit 0\n"
         )
         self._write_stub(name, body)

@@ -22,18 +22,18 @@ Do not commit — the orchestrator reviews and commits. Work sequentially, check
 
 ## 1. ruff config + scaffold baseline (land green before wiring the gate)
 
-- [ ] 1.1 Create root `ruff.toml` (standalone; the scaffold has no pyproject). Lint: `select = ["E",
+- [x] 1.1 Create root `ruff.toml` (standalone; the scaffold has no pyproject). Lint: `select = ["E",
       "F", "I", "B"]`, `ignore = ["E501"]` (the formatter owns width — see notes.md line-length
       decision). Formatter enabled with `line-length = 100`. Keep any per-file-ignores in this one
       file (none needed initially).
-- [ ] 1.2 Add `ruff` (pinned to a current stable version) to `scripts/dev-requirements.txt`, and
+- [x] 1.2 Add `ruff` (pinned to a current stable version) to `scripts/dev-requirements.txt`, and
       install it into the repo `.venv` so `check.sh` and the baseline can run
       (`.venv/bin/python -m pip install ruff==<pin>`; if the repo uses user-global ruff, still add
       the pin to dev-requirements so envs converge).
-- [ ] 1.3 Run the one-time baseline over the whole scaffold: `ruff check --fix .` then
+- [x] 1.3 Run the one-time baseline over the whole scaffold: `ruff check --fix .` then
       `ruff format .`. This is a large but purely-mechanical diff (behavior-preserving). Do NOT
       hand-edit logic. After it, `ruff check .` and `ruff format --check .` MUST both exit 0.
-- [ ] 1.4 Re-run the full test suite (`scripts/test-cmd`) after the reformat and confirm it is still
+- [x] 1.4 Re-run the full test suite (`scripts/test-cmd`) after the reformat and confirm it is still
       green (formatting must not change behavior). Fix any test that the reformat legitimately broke
       (should be none).
 

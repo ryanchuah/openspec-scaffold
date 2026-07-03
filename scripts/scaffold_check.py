@@ -41,22 +41,14 @@ def main() -> int:
     with open(manifest) as f:
         managed = {ln.strip() for ln in f if ln.strip() and not ln.startswith("#")}
 
-    staged = (
-        subprocess.check_output(["git", "diff", "--cached", "--name-only"])
-        .decode()
-        .split()
-    )
+    staged = subprocess.check_output(["git", "diff", "--cached", "--name-only"]).decode().split()
     hits = sorted(managed & set(staged))
     if hits:
         print("BLOCKED: scaffold-managed files staged for direct commit:")
         print("\n".join(f"  {f}" for f in hits))
+        print("Edit these in openspec-scaffold, then run scripts/sync_scaffold.py for each repo.")
         print(
-            "Edit these in openspec-scaffold, "
-            "then run scripts/sync_scaffold.py for each repo."
-        )
-        print(
-            "Deliberate scaffold-managed change (e.g. applying a new sync, "
-            "or reverse-promoting an"
+            "Deliberate scaffold-managed change (e.g. applying a new sync, or reverse-promoting an"
         )
         print("improvement back to scaffold): git commit --no-verify.")
         return 2

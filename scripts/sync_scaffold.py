@@ -24,7 +24,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 # The three required AGENTS.md section anchors, shared with scaffold_lint.py's
 # agents-md-structure(a) uniqueness check so the anchor set is single-sourced.
 AGENTS_ANCHORS: tuple[str, ...] = (
@@ -35,6 +34,7 @@ AGENTS_ANCHORS: tuple[str, ...] = (
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
+
 
 def _scaffold_root() -> Path:
     """The scaffold repo root (parent of the scripts/ directory)."""
@@ -80,6 +80,7 @@ def _read_removed_manifest() -> list[str]:
 
 # ── D3: AGENTS.md span-replace (header-free) ──────────────────────────────
 
+
 def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     """Merge shared spans from *scaffold_text* into *target_text*.
 
@@ -89,58 +90,56 @@ def sync_agents_md(scaffold_text: str, target_text: str) -> str:
     (signalling an undetected project tail).
     """
     # --- Scaffold anchors ---
-    s_mandatory = re.search(r'^' + re.escape(AGENTS_ANCHORS[0]), scaffold_text, re.M)
-    s_roles = re.search(r'^' + re.escape(AGENTS_ANCHORS[1]) + r'\b', scaffold_text, re.M)
-    s_after = re.search(r'^' + re.escape(AGENTS_ANCHORS[2]), scaffold_text, re.M)
+    s_mandatory = re.search(r"^" + re.escape(AGENTS_ANCHORS[0]), scaffold_text, re.M)
+    s_roles = re.search(r"^" + re.escape(AGENTS_ANCHORS[1]) + r"\b", scaffold_text, re.M)
+    s_after = re.search(r"^" + re.escape(AGENTS_ANCHORS[2]), scaffold_text, re.M)
     if not all([s_mandatory, s_roles, s_after]):
         raise ValueError("scaffold AGENTS.md missing required section anchor")
 
     # Invariant: scaffold must not carry a tail after '## After reading this file'
-    if re.search(r'\n(---\s*\n|^# )', scaffold_text[s_after.start():], re.M):
-        raise ValueError(
-            "scaffold AGENTS.md has unexpected tail — update sync_scaffold.py"
-        )
+    if re.search(r"\n(---\s*\n|^# )", scaffold_text[s_after.start() :], re.M):
+        raise ValueError("scaffold AGENTS.md has unexpected tail — update sync_scaffold.py")
 
-    s_proj_ctx = re.search(r'^## Project context', scaffold_text, re.M)
+    s_proj_ctx = re.search(r"^## Project context", scaffold_text, re.M)
     span1_end = (s_proj_ctx or s_roles).start()
-    span1 = scaffold_text[s_mandatory.start():span1_end]
-    span2 = re.sub(r'\s+$', '\n', scaffold_text[s_roles.start():])
+    span1 = scaffold_text[s_mandatory.start() : span1_end]
+    span2 = re.sub(r"\s+$", "\n", scaffold_text[s_roles.start() :])
 
     # --- Target anchors ---
-    t_mandatory = re.search(r'^' + re.escape(AGENTS_ANCHORS[0]), target_text, re.M)
-    t_proj_ctx = re.search(r'^## Project context', target_text, re.M)
-    t_roles = re.search(r'^' + re.escape(AGENTS_ANCHORS[1]) + r'\b', target_text, re.M)
-    t_after = re.search(r'^' + re.escape(AGENTS_ANCHORS[2]), target_text, re.M)
+    t_mandatory = re.search(r"^" + re.escape(AGENTS_ANCHORS[0]), target_text, re.M)
+    t_proj_ctx = re.search(r"^## Project context", target_text, re.M)
+    t_roles = re.search(r"^" + re.escape(AGENTS_ANCHORS[1]) + r"\b", target_text, re.M)
+    t_after = re.search(r"^" + re.escape(AGENTS_ANCHORS[2]), target_text, re.M)
     if not all([t_mandatory, t_roles, t_after]):
         raise ValueError("target AGENTS.md missing required section anchor")
 
-    t_title = target_text[:t_mandatory.start()]   # preserved verbatim — NO header
-    proj_ctx = (target_text[t_proj_ctx.start():t_roles.start()]
-                if t_proj_ctx else '')
+    t_title = target_text[: t_mandatory.start()]  # preserved verbatim — NO header
+    proj_ctx = target_text[t_proj_ctx.start() : t_roles.start()] if t_proj_ctx else ""
 
     after_start = t_after.start()
-    tail_match = re.search(r'\n(---\s*\n|# \w)', target_text[after_start:], re.M)
+    tail_match = re.search(r"\n(---\s*\n|# \w)", target_text[after_start:], re.M)
     if tail_match:
-        tail = target_text[after_start + tail_match.start():]
+        tail = target_text[after_start + tail_match.start() :]
     else:
         # No separator → no project tail by convention. Backstop: if the
         # target's after-section carries MORE content than the scaffold's,
         # the anchors are likely wrong and we'd be dropping a project tail —
         # abort. (An absolute line cap misfires once the shared span alone
         # crosses it, which it now does for any tail-less downstream repo.)
-        s_after_lines = len(scaffold_text[s_after.start():].rstrip().splitlines())
+        s_after_lines = len(scaffold_text[s_after.start() :].rstrip().splitlines())
         t_after_lines = len(target_text[after_start:].rstrip().splitlines())
         if t_after_lines > s_after_lines:
             raise ValueError(
                 "target AGENTS.md after-section longer than scaffold's but "
                 "no tail-separator found — check anchors"
             )
-        tail = ''
+        tail = ""
 
     return t_title + span1 + proj_ctx + span2 + tail
 
 
 # ── D-C: openspec/config.yaml rules-block replace ─────────────────────────
+
 
 def _extract_rules_block(text: str) -> str | None:
     """Return the ``rules:`` block from a config.yaml, or ``None`` if absent.
@@ -148,10 +147,10 @@ def _extract_rules_block(text: str) -> str | None:
     The returned string starts at ``rules:`` and runs to EOF, with trailing
     whitespace stripped and a single trailing newline appended.
     """
-    m = re.search(r'^rules:', text, re.M)
+    m = re.search(r"^rules:", text, re.M)
     if not m:
         return None
-    return text[m.start():].rstrip() + "\n"
+    return text[m.start() :].rstrip() + "\n"
 
 
 def sync_config_yaml(scaffold_text: str, target_text: str) -> str:
@@ -169,29 +168,30 @@ def sync_config_yaml(scaffold_text: str, target_text: str) -> str:
     if scaffold_rules is None:
         raise ValueError("scaffold openspec/config.yaml has no rules: block")
 
-    t_rules = re.search(r'^rules:', target_text, re.M)
+    t_rules = re.search(r"^rules:", target_text, re.M)
 
     if t_rules:
         # Validate: no non-comment top-level key follows rules: in target
-        after_rules = target_text[t_rules.end():]
+        after_rules = target_text[t_rules.end() :]
         for line in after_rules.splitlines():
             stripped = line.lstrip()
-            if not stripped or stripped.startswith('#'):
+            if not stripped or stripped.startswith("#"):
                 continue
-            if re.match(r'^[A-Za-z][\w-]*\s*:', line):
-                key = line.split(':')[0].strip()
+            if re.match(r"^[A-Za-z][\w-]*\s*:", line):
+                key = line.split(":")[0].strip()
                 raise ValueError(
                     f"openspec/config.yaml: non-comment top-level key "
                     f"'{key}:' follows rules: — move it before rules: or "
                     f"remove it; rules: must be the last top-level block"
                 )
-        return target_text[:t_rules.start()] + scaffold_rules
+        return target_text[: t_rules.start()] + scaffold_rules
     else:
         # Append scaffold's rules: block at EOF
-        return target_text.rstrip('\n') + "\n\n" + scaffold_rules
+        return target_text.rstrip("\n") + "\n\n" + scaffold_rules
 
 
 # ── Validate-first helpers ─────────────────────────────────────────────────
+
 
 def _check_target_has_git(target_path: Path) -> None:
     """Raise SystemExit if *target_path* does not contain a .git entry."""
@@ -225,9 +225,10 @@ def _scaffold_version() -> str:
     """
     try:
         result = subprocess.run(
-            ["git", "-C", str(_scaffold_root()), "show", "-s",
-             "--format=%h %cI %s", "HEAD"],
-            capture_output=True, text=True, check=True,
+            ["git", "-C", str(_scaffold_root()), "show", "-s", "--format=%h %cI %s", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
         )
     except (FileNotFoundError, subprocess.CalledProcessError):
         return "unknown"
@@ -242,9 +243,7 @@ def _write_provenance_beacon(target_path: Path) -> None:
     """
     try:
         beacon_path = target_path / ".scaffold-version"
-        beacon_path.write_text(
-            f"scaffold-sync: {_scaffold_version()}\n", encoding="utf-8"
-        )
+        beacon_path.write_text(f"scaffold-sync: {_scaffold_version()}\n", encoding="utf-8")
     except OSError:
         pass
 
@@ -275,6 +274,7 @@ def _warn_if_hook_unwired(target_path: Path) -> None:
 
 
 # ── Copy pass ──────────────────────────────────────────────────────────────
+
 
 def _sync_file(manifest_line: str, target_root: Path, scaffold_root: Path) -> None:
     """Copy one manifest entry from scaffold to *target_root*.
@@ -389,13 +389,11 @@ def _delete_removed_entries(
             dst_is_dir = dst.is_dir()
             if is_dir and not dst_is_dir:
                 errors.append(
-                    f"ERROR: removed-list entry marked as dir but is a "
-                    f"file in target: {line}",
+                    f"ERROR: removed-list entry marked as dir but is a file in target: {line}",
                 )
             if not is_dir and dst_is_dir:
                 errors.append(
-                    f"ERROR: removed-list entry marked as file but is a "
-                    f"dir in target: {line}",
+                    f"ERROR: removed-list entry marked as file but is a dir in target: {line}",
                 )
 
         entry_info.append((line, dst, is_dir))
@@ -416,6 +414,7 @@ def _delete_removed_entries(
 
 
 # ── Check mode ─────────────────────────────────────────────────────────────
+
 
 def check(target_path_str: str) -> int:
     """Compare target files against scaffold; return 0 if all IDENTICAL else 1."""
@@ -516,7 +515,9 @@ def _tracked_markdown(repo: Path) -> list[str]:
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), "ls-files", "*.md"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout
         rels = [ln for ln in out.splitlines() if ln]
     except (FileNotFoundError, subprocess.CalledProcessError):
@@ -547,7 +548,8 @@ def _section_anchors(path: Path) -> list[str]:
 def _synced_files() -> list[str]:
     """Manifest entries that carry inline citations: AGENTS.md + synced knowledge/*.md."""
     return [
-        line for line in _read_manifest()
+        line
+        for line in _read_manifest()
         if line == "AGENTS.md" or (line.startswith("knowledge/") and line.endswith(".md"))
     ]
 
@@ -615,6 +617,7 @@ def check_references(target_path_str: str, md_files: list[str] | None = None) ->
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────
+
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(

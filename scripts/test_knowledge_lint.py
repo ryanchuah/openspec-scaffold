@@ -22,7 +22,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import knowledge_lint  # noqa: E402
 
-
 # ===================================================================
 # Helpers
 # ===================================================================
@@ -76,11 +75,7 @@ _DRIFT_TREE = {
         "Follow-up tracked in openspec/changes/archive/2026-01-01-ghost-change/design.md.\n"
     ),
     # 5. audit-log registry format — malformed entry line.
-    "knowledge/audit-log.md": (
-        "# Audit Log\n"
-        "\n"
-        "- **2026-01-01** · missing fields\n"
-    ),
+    "knowledge/audit-log.md": ("# Audit Log\n\n- **2026-01-01** · missing fields\n"),
 }
 
 
@@ -490,8 +485,20 @@ def test_module_source_has_no_write_calls():
     a file for writing, and never calls mkdir/unlink/rename/move-style
     filesystem mutators."""
     source = Path(knowledge_lint.__file__).read_text(encoding="utf-8")
-    forbidden = ["\"w\")", "'w')", "\"wb\")", "'wb')", "os.remove(", "os.unlink(",
-                 "os.mkdir(", "os.makedirs(", "shutil.move(", "shutil.rmtree(",
-                 "Path.mkdir(", ".unlink(", ".rmdir("]
+    forbidden = [
+        '"w")',
+        "'w')",
+        '"wb")',
+        "'wb')",
+        "os.remove(",
+        "os.unlink(",
+        "os.mkdir(",
+        "os.makedirs(",
+        "shutil.move(",
+        "shutil.rmtree(",
+        "Path.mkdir(",
+        ".unlink(",
+        ".rmdir(",
+    ]
     for token in forbidden:
         assert token not in source, f"potential write call found: {token!r}"

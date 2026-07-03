@@ -166,9 +166,7 @@ class AuditScopeTest(unittest.TestCase):
         self.assertEqual(paths[0], "b.py")
         by_path = {f["path"]: f for f in data["files"]}
         self.assertGreater(by_path["b.py"]["churn"], by_path["a.py"]["churn"])
-        self.assertGreater(
-            by_path["b.py"]["hotspot_score"], by_path["a.py"]["hotspot_score"]
-        )
+        self.assertGreater(by_path["b.py"]["hotspot_score"], by_path["a.py"]["hotspot_score"])
 
     # ------------------------------------------------------------------
     # radon absent => complexity_available false, hotspot ranking produced
@@ -266,9 +264,7 @@ class AuditScopeTest(unittest.TestCase):
         # Sanity: confirm git itself still reports this as a rename (arrow
         # form), not a straight delete+add — otherwise this fixture would
         # not actually be exercising the rename-parsing code path.
-        raw_numstat = _run(
-            ["git", "diff", "--numstat", "audit/2026-06-11..HEAD"], self.repo
-        )
+        raw_numstat = _run(["git", "diff", "--numstat", "audit/2026-06-11..HEAD"], self.repo)
         self.assertIn("=>", raw_numstat)
 
         stub_bin = self._stub_radon()
@@ -323,9 +319,7 @@ class AuditScopeTest(unittest.TestCase):
         rc = audit_scope.main(["tag", "--date", "2026-06-02"])
         self.assertEqual(rc, 0)
 
-        tag_type = _run(
-            ["git", "cat-file", "-t", "audit/2026-06-02"], self.repo
-        ).strip()
+        tag_type = _run(["git", "cat-file", "-t", "audit/2026-06-02"], self.repo).strip()
         self.assertEqual(tag_type, "tag")
 
         rc2 = audit_scope.main(["tag", "--date", "2026-06-02"])
@@ -337,9 +331,7 @@ class AuditScopeTest(unittest.TestCase):
 
     def test_log_line_exact_format(self):
         short_sha = _run(["git", "rev-parse", "--short", "HEAD"], self.repo).strip()
-        rc, out = self._capture(
-            ["log-line", "--date", "2026-06-03", "--essence", "found 3 bugs"]
-        )
+        rc, out = self._capture(["log-line", "--date", "2026-06-03", "--essence", "found 3 bugs"])
         self.assertEqual(rc, 0)
         expected = f"- **2026-06-03** · audit/2026-06-03 · {short_sha} · found 3 bugs\n"
         self.assertEqual(out, expected)
@@ -349,13 +341,8 @@ class AuditScopeTest(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_log_line_first_run_hint(self):
-        short_sha = _run(
-            ["git", "rev-parse", "--short", "HEAD"], self.repo
-        ).strip()
-        expected_stdout = (
-            "- **2026-06-04** · audit/2026-06-04 ·"
-            f" {short_sha} · hint test\n"
-        )
+        short_sha = _run(["git", "rev-parse", "--short", "HEAD"], self.repo).strip()
+        expected_stdout = f"- **2026-06-04** · audit/2026-06-04 · {short_sha} · hint test\n"
 
         # Phase 1: knowledge/audit-log.md absent → hint on stderr
         rc1, out1, err1 = self._capture_both(
@@ -363,18 +350,12 @@ class AuditScopeTest(unittest.TestCase):
         )
         self.assertEqual(rc1, 0)
         self.assertEqual(out1, expected_stdout)
-        self.assertIn(
-            "knowledge/audit-log.md does not exist yet", err1
-        )
-        self.assertIn(
-            "create it with a '# Audit log' heading", err1
-        )
+        self.assertIn("knowledge/audit-log.md does not exist yet", err1)
+        self.assertIn("create it with a '# Audit log' heading", err1)
 
         # Phase 2: knowledge/audit-log.md exists → no hint on stderr
         (self.repo / "knowledge").mkdir(exist_ok=True)
-        (self.repo / "knowledge" / "audit-log.md").write_text(
-            "# Audit log\n"
-        )
+        (self.repo / "knowledge" / "audit-log.md").write_text("# Audit log\n")
 
         rc2, out2, err2 = self._capture_both(
             ["log-line", "--date", "2026-06-04", "--essence", "hint test"]
@@ -414,9 +395,7 @@ class NumstatRenamePathParsingTest(unittest.TestCase):
         )
 
     def test_braced_form_with_no_prefix_or_suffix(self):
-        self.assertEqual(
-            audit_scope._resolve_renamed_path("{old => new}"), "new"
-        )
+        self.assertEqual(audit_scope._resolve_renamed_path("{old => new}"), "new")
 
     def test_non_rename_path_passes_through_unchanged(self):
         self.assertEqual(audit_scope._resolve_renamed_path("a.py"), "a.py")

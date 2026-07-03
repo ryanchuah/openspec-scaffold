@@ -87,10 +87,11 @@ import os
 import re
 import subprocess
 import sys
-import tomllib
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, NamedTuple
+
+import tomllib
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -170,11 +171,7 @@ def _knowledge_markdown(root: Path, is_ignored: Callable[[str], bool]) -> list[P
         return []
     results: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(knowledge_dir):
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if not is_ignored(_relpath(root, Path(dirpath) / d))
-        ]
+        dirnames[:] = [d for d in dirnames if not is_ignored(_relpath(root, Path(dirpath) / d))]
         for filename in filenames:
             if not filename.endswith(".md"):
                 continue

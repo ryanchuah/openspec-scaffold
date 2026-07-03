@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import status_lint  # noqa: E402
 
-
 # ===================================================================
 # Helpers
 # ===================================================================
@@ -147,36 +146,21 @@ class StatusLintTest(unittest.TestCase):
 
     def test_word_budget_over_150_fails(self):
         """A change-entry with >150 body words => C2 violation."""
-        status = (
-            "# Status\n\n"
-            "## Latest change — big\n"
-            + _n_words(151)
-            + "\n"
-        )
+        status = "# Status\n\n## Latest change — big\n" + _n_words(151) + "\n"
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 2)
 
     def test_word_budget_under_150_passes(self):
         """A ~100-word change-entry => no violation."""
-        status = (
-            "# Status\n\n"
-            "## Latest change — small\n"
-            + _n_words(100)
-            + "\n"
-        )
+        status = "# Status\n\n## Latest change — small\n" + _n_words(100) + "\n"
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
 
     def test_word_budget_exactly_150_passes(self):
         """A 150-word change-entry => no violation (<=150)."""
-        status = (
-            "# Status\n\n"
-            "## Latest change — fence\n"
-            + _n_words(150)
-            + "\n"
-        )
+        status = "# Status\n\n## Latest change — fence\n" + _n_words(150) + "\n"
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
@@ -186,11 +170,7 @@ class StatusLintTest(unittest.TestCase):
         # 140 words outside fence + 200 words inside fence => 140 counted => pass
         status = (
             "# Status\n\n"
-            "## Latest change — coded\n"
-            + _n_words(140)
-            + "\n```\n"
-            + _n_words(200)
-            + "\n```\n"
+            "## Latest change — coded\n" + _n_words(140) + "\n```\n" + _n_words(200) + "\n```\n"
         )
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
@@ -199,12 +179,7 @@ class StatusLintTest(unittest.TestCase):
     def test_word_budget_heading_line_excluded(self):
         """The heading line is not part of the body word count."""
         # Heading is 20 words, body is 140 words => body count = 140 => pass
-        status = (
-            "# Status\n\n"
-            "## Latest change " + _n_words(20) + "\n"
-            + _n_words(140)
-            + "\n"
-        )
+        status = "# Status\n\n## Latest change " + _n_words(20) + "\n" + _n_words(140) + "\n"
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
@@ -236,9 +211,7 @@ class StatusLintTest(unittest.TestCase):
     def test_zero_change_entries(self):
         """Only preamble + exempt sections => passes C1 and C2."""
         status = (
-            "# Status\n\n"
-            "## Current state\nproject running\n"
-            "## Immediate next action\nnothing\n"
+            "# Status\n\n## Current state\nproject running\n## Immediate next action\nnothing\n"
         )
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
@@ -268,8 +241,7 @@ class StatusLintTest(unittest.TestCase):
     def test_registry_inline_passes(self):
         """An [inline] registry entry passes."""
         index = (
-            "# Decisions Registry\n\n"
-            "- **2026-06-13** · some-slug · [inline] short rationale here\n"
+            "# Decisions Registry\n\n- **2026-06-13** · some-slug · [inline] short rationale here\n"
         )
         repo = _make_repo(self.tmpdir, decisions_index=index)
         rc = status_lint.main([str(repo)])
@@ -302,10 +274,7 @@ class StatusLintTest(unittest.TestCase):
     def test_registry_malformed_line_fails(self):
         """A date-anchored line that is not a valid registry entry fails."""
         # Matches the anchor but has only 2 parts, not 3.
-        index = (
-            "# Decisions Registry\n\n"
-            "- **2026-06-16** · only-two-parts\n"
-        )
+        index = "# Decisions Registry\n\n- **2026-06-16** · only-two-parts\n"
         repo = _make_repo(self.tmpdir, decisions_index=index)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 2)

@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import scaffold_lint  # noqa: E402
 
-
 # ===================================================================
 # Helpers
 # ===================================================================
@@ -139,8 +138,7 @@ def _clean_tree() -> dict[str, str]:
             "scripts/foo.py\n"
         ),
         "scripts/scaffold_manifest_removed.txt": (
-            "# clean fixture — no paths overlap with manifest\n"
-            ".claude/skills/openspec-onboard/\n"
+            "# clean fixture — no paths overlap with manifest\n.claude/skills/openspec-onboard/\n"
         ),
         "scripts/foo.py": "# a scaffold-managed script\n",
         ".claude/skills/knowledge-drift-review/SKILL.md": _KNOWLEDGE_DRIFT_REVIEW_SKILL,
@@ -249,10 +247,7 @@ def test_manifest_no_conflict_clean_no_findings(tmp_path):
 def test_manifest_no_conflict_overlap_flagged(tmp_path):
     tree = _clean_tree()
     # Add a path to the removed list that also appears in the manifest
-    tree["scripts/scaffold_manifest_removed.txt"] = (
-        "# fixture — conflict\n"
-        "scripts/foo.py\n"
-    )
+    tree["scripts/scaffold_manifest_removed.txt"] = "# fixture — conflict\nscripts/foo.py\n"
     _write_tree(tmp_path, tree)
 
     findings = scaffold_lint.collect_findings(tmp_path)
@@ -270,8 +265,7 @@ def test_manifest_no_conflict_normalised_overlap_flagged(tmp_path):
     same normalised path in the manifest."""
     tree = _clean_tree()
     tree["scripts/scaffold_manifest_removed.txt"] = (
-        "# fixture — normalised conflict\n"
-        "scripts/foo.py/\n"
+        "# fixture — normalised conflict\nscripts/foo.py/\n"
     )
     _write_tree(tmp_path, tree)
 
@@ -374,7 +368,7 @@ def test_config_rules_last_clean_no_findings(tmp_path):
 
 def test_config_rules_last_extra_key_after_rules_flagged(tmp_path):
     tree = _clean_tree()
-    tree["openspec/config.yaml"] = _CONFIG_YAML_CLEAN + "\nextra_key: \"invalid here\"\n"
+    tree["openspec/config.yaml"] = _CONFIG_YAML_CLEAN + '\nextra_key: "invalid here"\n'
     _write_tree(tmp_path, tree)
 
     findings = scaffold_lint.collect_findings(tmp_path)
@@ -454,8 +448,7 @@ def test_dangling_skill_refs_non_openspec_skill_without_dir_flagged(tmp_path):
         ".claude/skills/run-audit/SKILL.md\n", ""
     )
     tree["AGENTS.md"] = _AGENTS_MD_CLEAN + (
-        "\nUse `knowledge-drift-review` for the LLM pass and "
-        "`run-audit` for the audit cycle.\n"
+        "\nUse `knowledge-drift-review` for the LLM pass and `run-audit` for the audit cycle.\n"
     )
     _write_tree(tmp_path, tree)
 
@@ -499,7 +492,9 @@ def test_budget_agreement_embedded_pair_not_sanctioned_flagged(tmp_path):
 
 def test_budget_agreement_table_not_found_flagged(tmp_path):
     tree = _clean_tree()
-    tree[".claude/skills/_shared/delegation-harness.md"] = "# Delegation harness\n\nNo §e section here.\n"
+    tree[".claude/skills/_shared/delegation-harness.md"] = (
+        "# Delegation harness\n\nNo §e section here.\n"
+    )
     _write_tree(tmp_path, tree)
 
     findings = scaffold_lint.collect_findings(tmp_path)

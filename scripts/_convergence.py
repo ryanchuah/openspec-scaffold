@@ -38,6 +38,7 @@ _MAX_ATTEMPTS = 20  # Absolute backstop ceiling — never interrupt healthy iter
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_failing_test(raw_output: str) -> Optional[str]:
     """Extract the failing test node id from raw test output.
 
@@ -51,22 +52,22 @@ def _extract_failing_test(raw_output: str) -> Optional[str]:
     lines = raw_output.splitlines()
     for line in lines:
         # pytest short format: FAILED path::test_name - error
-        m = re.search(r'FAILED\s+(\S+(?:::\S+)?)\s*-\s', line)
+        m = re.search(r"FAILED\s+(\S+(?:::\S+)?)\s*-\s", line)
         if m:
             return m.group(1)
 
         # pytest verbose short: "path::test_name FAILED"
-        m = re.search(r'(\S+::\S+)\s+FAILED', line)
+        m = re.search(r"(\S+::\S+)\s+FAILED", line)
         if m:
             return m.group(1)
 
         # unittest: FAIL: test_name (module.ClassName)
-        m = re.search(r'FAIL:\s+(\S+)', line)
+        m = re.search(r"FAIL:\s+(\S+)", line)
         if m:
             return m.group(1)
 
         # Generic: "ERROR: test_name"
-        m = re.search(r'ERROR(?:\s+collecting)?\s+(\S+)', line)
+        m = re.search(r"ERROR(?:\s+collecting)?\s+(\S+)", line)
         if m:
             return m.group(1)
 
@@ -104,49 +105,49 @@ def _normalize_signature(raw_output: str) -> str:
     # /-separated runs ending in name.ext, leaving non-path / content
     # (regex literals, URLs, math) intact.  Must run BEFORE line-number
     # stripping (ordering comment below is load-bearing).
-    text = re.sub(r'(?:/[\w.\-]+)*/[\w.\-]+\.\w+', ' <PATH> ', text)
+    text = re.sub(r"(?:/[\w.\-]+)*/[\w.\-]+\.\w+", " <PATH> ", text)
 
     # Strip ISO/epoch timestamps BEFORE line-number stripping because
     # timestamps contain ":digits" sequences that the line-number regex
     # would otherwise consume, leaving an unrecoverable partial stamp.
-    text = re.sub(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}', '<ISO>', text)
-    text = re.sub(r'(?<!\d)\d{4}-\d{2}-\d{2}(?!T)', '<DATE>', text)
-    text = re.sub(r'\b\d{8,10}(?:\.\d+)?\b', '<EPOCH>', text)
+    text = re.sub(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", "<ISO>", text)
+    text = re.sub(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!T)", "<DATE>", text)
+    text = re.sub(r"\b\d{8,10}(?:\.\d+)?\b", "<EPOCH>", text)
 
     # Strip elapsed-time numbers: 2.34s, 0.50s, 1234ms
-    text = re.sub(r'\b\d+\.\d+s\b', '<ELAPSED>', text)
-    text = re.sub(r'\b\d+ms\b', '<ELAPSED>', text)
+    text = re.sub(r"\b\d+\.\d+s\b", "<ELAPSED>", text)
+    text = re.sub(r"\b\d+ms\b", "<ELAPSED>", text)
 
     # Strip line:col references: :42, :42:5, line 42, col 7
-    text = re.sub(r'(?<!\w)(line\s+)\d+', r'\1<N>', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?<!\w)(col(?:umn)?\s+)\d+', r'\1<N>', text, flags=re.IGNORECASE)
-    text = re.sub(r'(?<!\d):\d+(?::\d+)?\b', ':<N>', text)
+    text = re.sub(r"(?<!\w)(line\s+)\d+", r"\1<N>", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<!\w)(col(?:umn)?\s+)\d+", r"\1<N>", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<!\d):\d+(?::\d+)?\b", ":<N>", text)
 
     # Strip hex addresses: 0x[0-9a-f]+
-    text = re.sub(r'0x[0-9a-fA-F]+', '0x<HEX>', text)
+    text = re.sub(r"0x[0-9a-fA-F]+", "0x<HEX>", text)
 
     # Strip "object at 0x..." phrases
-    text = re.sub(r'object\s+at\s+0x[0-9a-fA-F]+', 'object at 0x<HEX>', text)
+    text = re.sub(r"object\s+at\s+0x[0-9a-fA-F]+", "object at 0x<HEX>", text)
 
     # Normalize repeated whitespace within lines
-    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r"[ \t]+", " ", text)
 
     # Strip empty/whitespace-only lines, then strip each line
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 # ---- Section boundaries for A2 scoped signature ----
 
 _BOUNDARY_PATTERNS = [
     # Another test header: pytest FAILED ...
-    re.compile(r'FAILED\s+\S+(?:::\S+)?'),
+    re.compile(r"FAILED\s+\S+(?:::\S+)?"),
     # Another test header: unittest FAIL: or ERROR
-    re.compile(r'(?:FAIL|ERROR)(?:\s+collecting)?\s+\S+'),
+    re.compile(r"(?:FAIL|ERROR)(?:\s+collecting)?\s+\S+"),
     # pytest separator run: ===== ... ===== or _____ ... _____
-    re.compile(r'^[=_]+\s.*[=_]+\s*$'),
+    re.compile(r"^[=_]+\s.*[=_]+\s*$"),
     # Summary line: === ... passed/failed/error ... ===
-    re.compile(r'^=+.*(?:passed|failed|error).*=+$', re.IGNORECASE),
+    re.compile(r"^=+.*(?:passed|failed|error).*=+$", re.IGNORECASE),
 ]
 
 
@@ -181,7 +182,7 @@ def _extract_test_section(raw_output: str, test_id: str) -> str:
         # No boundary found — take up to 40 lines after start
         end_idx = min(start_idx + 40, len(lines))
 
-    return '\n'.join(lines[start_idx:end_idx])
+    return "\n".join(lines[start_idx:end_idx])
 
 
 def _normalize_test_key(test_id: str) -> str:
@@ -190,8 +191,8 @@ def _normalize_test_key(test_id: str) -> str:
     Splits on ``::``, replaces the file part with ``os.path.basename()``,
     so both absolute and relative paths map to the same key.
     """
-    if '::' in test_id:
-        parts = test_id.split('::', 1)
+    if "::" in test_id:
+        parts = test_id.split("::", 1)
         file_part = os.path.basename(parts[0])
         return f"{file_part}::{parts[1]}"
     # No :: separator — return as-is (probably a non-pytest format)
@@ -234,7 +235,9 @@ def _save_state(change_slug: str, state: dict[str, Any]) -> None:
 _FINGERPRINTS_KEY = "file_fingerprints"
 
 
-def _try_git_delta(repo_root: str, old_fingerprints: dict[str, str]) -> tuple[list[str], dict[str, str], bool]:
+def _try_git_delta(
+    repo_root: str, old_fingerprints: dict[str, str]
+) -> tuple[list[str], dict[str, str], bool]:
     """Try to determine which files were edited this attempt via git.
 
     Returns (delta_files, new_fingerprints, ok):
@@ -246,7 +249,9 @@ def _try_git_delta(repo_root: str, old_fingerprints: dict[str, str]) -> tuple[li
         # Get list of changed (unstaged + staged) files vs HEAD
         result = subprocess.run(
             ["git", "-C", repo_root, "diff", "--name-only", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode != 0:
             return [], {}, False
@@ -285,6 +290,7 @@ def _try_git_delta(repo_root: str, old_fingerprints: dict[str, str]) -> tuple[li
 # Core logic
 # ---------------------------------------------------------------------------
 
+
 def _verdict(
     test_id: str,
     signature: str,
@@ -310,12 +316,15 @@ def _verdict(
         state["failures"] = {}
 
     failure_key = _normalize_test_key(test_id)
-    now = state["failures"].get(failure_key, {
-        "attempts": 0,
-        "prev_signature": None,
-        "last_signature": None,
-        "files_edited": [],
-    })
+    now = state["failures"].get(
+        failure_key,
+        {
+            "attempts": 0,
+            "prev_signature": None,
+            "last_signature": None,
+            "files_edited": [],
+        },
+    )
 
     attempts = now["attempts"] + 1
     prev_sig = now.get("prev_signature")
@@ -345,7 +354,8 @@ def _verdict(
 
     if repo_root:
         delta_files, new_fingerprints, git_ok = _try_git_delta(
-            repo_root, state.get(_FINGERPRINTS_KEY, {}),
+            repo_root,
+            state.get(_FINGERPRINTS_KEY, {}),
         )
         if git_ok:
             state[_FINGERPRINTS_KEY] = new_fingerprints
@@ -359,8 +369,7 @@ def _verdict(
     # Warn if git was attempted but failed and no --editing coverage
     if not attempts_files and editing_file is None and repo_root and not git_ok:
         print(
-            "WARNING: git-diff failed and no --editing; "
-            "rule (b) has zero coverage",
+            "WARNING: git-diff failed and no --editing; rule (b) has zero coverage",
             file=sys.stderr,
         )
 
@@ -422,6 +431,7 @@ def _verdict(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(

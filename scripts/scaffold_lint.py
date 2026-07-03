@@ -165,9 +165,7 @@ _SCAN_BASE_DIRS: tuple[str, ...] = (
 _TOKEN_RE = re.compile(r"\bopenspec-[a-z][a-z-]*[a-z]\b")
 # Non-openspec skills have no shared prefix to pattern-match, so police them by
 # explicit name. Keep in step with actual .claude/skills/ non-openspec dirs.
-_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset(
-    {"knowledge-drift-review", "run-audit"}
-)
+_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset({"knowledge-drift-review", "run-audit"})
 _DANGLING_ALLOWLIST: frozenset[str] = frozenset({"openspec-scaffold"})
 
 # budget-agreement
@@ -249,9 +247,7 @@ def check_manifest_completeness(root: Path) -> list[str]:
 
     for rel in sorted(manifest_entries):
         if not (root / rel).exists():
-            findings.append(
-                f"manifest-completeness: manifest entry {rel} does not exist on disk"
-            )
+            findings.append(f"manifest-completeness: manifest entry {rel} does not exist on disk")
 
     return findings
 
@@ -286,9 +282,7 @@ def check_manifest_no_conflict(root: Path) -> list[str]:
         return findings  # manifest absent → nothing to conflict with
 
     # Reuse the existing helper but normalise
-    manifest_entries = {
-        p.rstrip("/") for p in _read_manifest_entries(root)
-    }
+    manifest_entries = {p.rstrip("/") for p in _read_manifest_entries(root)}
     removed_entries = _read_removed_manifest_entries(root)
     conflicts = manifest_entries & removed_entries
     for c in sorted(conflicts):
@@ -348,9 +342,7 @@ def check_config_rules_last(root: Path) -> list[str]:
 
     # (a) missing block — reuse sync_scaffold._extract_rules_block.
     if sync_scaffold._extract_rules_block(text) is None:
-        findings.append(
-            "config-rules-last: no rules: block found in openspec/config.yaml"
-        )
+        findings.append("config-rules-last: no rules: block found in openspec/config.yaml")
 
     # (b) trailing keys — reuse sync_scaffold.sync_config_yaml, source ==
     # target == this repo's own config.
@@ -384,9 +376,7 @@ def _agent_file_stems(root: Path) -> set[str]:
     return stems
 
 
-def check_dangling_skill_refs(
-    root: Path, scanned: list[tuple[Path, str]]
-) -> list[str]:
+def check_dangling_skill_refs(root: Path, scanned: list[tuple[Path, str]]) -> list[str]:
     findings: list[str] = []
     valid_tokens = _skill_dir_names(root) | _agent_file_stems(root) | _DANGLING_ALLOWLIST
 
@@ -400,9 +390,7 @@ def check_dangling_skill_refs(
 
         for token in sorted(tokens):
             if token not in valid_tokens:
-                findings.append(
-                    f"dangling-skill-refs: {rel}: unknown token {token!r}"
-                )
+                findings.append(f"dangling-skill-refs: {rel}: unknown token {token!r}")
 
     return findings
 
@@ -442,9 +430,7 @@ def _sanctioned_pairs(root: Path) -> tuple[set[tuple[str, str]], list[str]]:
     return pairs, findings
 
 
-def check_budget_agreement(
-    root: Path, scanned: list[tuple[Path, str]]
-) -> list[str]:
+def check_budget_agreement(root: Path, scanned: list[tuple[Path, str]]) -> list[str]:
     sanctioned, findings = _sanctioned_pairs(root)
 
     for path, text in scanned:
@@ -471,10 +457,7 @@ def check_budget_agreement(
 def collect_findings(root: Path) -> list[str]:
     """Run every check and return the combined finding list (unprefixed —
     each string already begins with its own check-id)."""
-    scanned = [
-        (p, p.read_text(encoding="utf-8", errors="replace"))
-        for p in _scan_file_set(root)
-    ]
+    scanned = [(p, p.read_text(encoding="utf-8", errors="replace")) for p in _scan_file_set(root)]
 
     findings: list[str] = []
     findings.extend(check_manifest_completeness(root))

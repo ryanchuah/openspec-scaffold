@@ -19,9 +19,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import sync_scaffold  # noqa: E402
 import scaffold_check  # noqa: E402
-
+import sync_scaffold  # noqa: E402
 
 # ===================================================================
 # Helper: construct fixture scaffold + target trees in a temp dir
@@ -147,8 +146,7 @@ TARGET_AGENTS_LONG_NO_TAIL = (
     "## Cross-agent\n\n"
     "## Roles\n\n"
     "## Project context\n\nHello\n\n"
-    "## After reading this file\n\n"
-    + "\n".join(f"Line {i}" for i in range(360))
+    "## After reading this file\n\n" + "\n".join(f"Line {i}" for i in range(360))
 )
 
 # Scaffold that violates the tail invariant (has # heading after ## After)
@@ -287,8 +285,7 @@ class SyncAgentsMdTest(unittest.TestCase):
         padded_body = "\n".join(f"> padding line {i}" for i in range(400))
         target = TARGET_AGENTS_NO_CTX.replace(
             "## Cross-agent compatibility (load-bearing — do not weaken)",
-            "## Cross-agent compatibility (load-bearing — do not weaken)\n\n"
-            + padded_body,
+            "## Cross-agent compatibility (load-bearing — do not weaken)\n\n" + padded_body,
         )
         result = sync_scaffold.sync_agents_md(SCAFFOLD_AGENTS, target)
         # Idempotent on its own output (the --check path).
@@ -432,9 +429,7 @@ class SyncIntegrationTest(unittest.TestCase):
     def test_sync_creates_parent_dirs(self):
         """sync creates parent dirs and writes at correct nested path."""
         # Add an entry with a deeper directory to the fixture manifest
-        manifest = (
-            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
-        )
+        manifest = self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
         original = manifest.read_text()
         manifest.write_text(original + "deep/nested/file.txt\n")
         deep_file = self.fixture_scaffold / "deep" / "nested" / "file.txt"
@@ -442,9 +437,7 @@ class SyncIntegrationTest(unittest.TestCase):
         deep_file.write_text("deep content\n")
 
         sync_scaffold.sync(str(self.fixture_target))
-        self.assertTrue(
-            (self.fixture_target / "deep" / "nested" / "file.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "deep" / "nested" / "file.txt").exists())
         self.assertEqual(
             (self.fixture_target / "deep" / "nested" / "file.txt").read_text(),
             "deep content\n",
@@ -475,9 +468,7 @@ class SyncIntegrationTest(unittest.TestCase):
 
     def test_beacon_content_and_idempotent(self):
         """Beacon content is deterministic; two syncs write it byte-identical."""
-        with patch.object(
-            sync_scaffold, "_scaffold_version", return_value=self.FAKE_VERSION
-        ):
+        with patch.object(sync_scaffold, "_scaffold_version", return_value=self.FAKE_VERSION):
             sync_scaffold.sync(str(self.fixture_target))
             first = (self.fixture_target / ".scaffold-version").read_text()
             sync_scaffold.sync(str(self.fixture_target))
@@ -536,7 +527,9 @@ class ScaffoldVersionRealHeadTest(unittest.TestCase):
         root = sync_scaffold._scaffold_root()
         result = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         expected_sha = result.stdout.strip()
         version = sync_scaffold._scaffold_version()
@@ -568,12 +561,8 @@ class ScaffoldCheckGuardTest(unittest.TestCase):
         """scaffold_check.main() returns 2 when a manifest path is staged."""
         with patch.object(scaffold_check, "Path") as mock_Path:
             mock_Path.return_value.resolve.return_value.parent = self.tmpdir
-            with patch.object(
-                scaffold_check.subprocess, "check_output"
-            ) as mock_git:
-                mock_git.return_value.decode.return_value = (
-                    "scripts/foo.py\nother.py\n"
-                )
+            with patch.object(scaffold_check.subprocess, "check_output") as mock_git:
+                mock_git.return_value.decode.return_value = "scripts/foo.py\nother.py\n"
                 rc = scaffold_check.main()
                 self.assertEqual(rc, 2)
 
@@ -581,9 +570,7 @@ class ScaffoldCheckGuardTest(unittest.TestCase):
         """scaffold_check.main() returns 0 when no manifest path is staged."""
         with patch.object(scaffold_check, "Path") as mock_Path:
             mock_Path.return_value.resolve.return_value.parent = self.tmpdir
-            with patch.object(
-                scaffold_check.subprocess, "check_output"
-            ) as mock_git:
+            with patch.object(scaffold_check.subprocess, "check_output") as mock_git:
                 mock_git.return_value.decode.return_value = "other.py\n"
                 rc = scaffold_check.main()
                 self.assertEqual(rc, 0)
@@ -592,9 +579,7 @@ class ScaffoldCheckGuardTest(unittest.TestCase):
         """Returns 0 when nothing is staged."""
         with patch.object(scaffold_check, "Path") as mock_Path:
             mock_Path.return_value.resolve.return_value.parent = self.tmpdir
-            with patch.object(
-                scaffold_check.subprocess, "check_output"
-            ) as mock_git:
+            with patch.object(scaffold_check.subprocess, "check_output") as mock_git:
                 mock_git.return_value.decode.return_value = ""
                 rc = scaffold_check.main()
                 self.assertEqual(rc, 0)
@@ -628,9 +613,7 @@ class TestCheckReferences(unittest.TestCase):
             "doc.md",
             'See AGENTS.md § "Roles" and `knowledge/decisions/INDEX.md` § "Bulk FK thing".\n',
         )
-        rc = sync_scaffold.check_references(
-            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
-        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md", "doc.md"])
         self.assertEqual(rc, 0)
 
     def test_dangling_when_cited_aidoc_file_missing(self):
@@ -682,9 +665,7 @@ class TestCheckReferences(unittest.TestCase):
     def test_dangling_when_section_missing(self):
         self._write("AGENTS.md", "## Roles\n")
         self._write("doc.md", 'See AGENTS.md § "Nonexistent Section".\n')
-        rc = sync_scaffold.check_references(
-            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
-        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md", "doc.md"])
         self.assertEqual(rc, 1)
 
     def test_parenthetical_prose_not_false_flagged(self):
@@ -692,18 +673,14 @@ class TestCheckReferences(unittest.TestCase):
         # on explanatory prose. Only the `§ "..."` standard form is checked.
         self._write("AGENTS.md", "## Roles\n")
         self._write("doc.md", "See `AGENTS.md` (the Roles section, optionally).\n")
-        rc = sync_scaffold.check_references(
-            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
-        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md", "doc.md"])
         self.assertEqual(rc, 0)
 
     def test_agents_bold_label_resolves(self):
         # AGENTS.md rules are often cited by a bold label, not a heading.
         self._write("AGENTS.md", "## State\n\n  **STATUS.md cap rule:** holds only ...\n")
         self._write("doc.md", 'See AGENTS.md § "STATUS.md cap rule".\n')
-        rc = sync_scaffold.check_references(
-            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
-        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md", "doc.md"])
         self.assertEqual(rc, 0)
 
     def test_knowledge_section_citation_checks_file_existence_only(self):
@@ -725,9 +702,7 @@ class TestCheckReferences(unittest.TestCase):
     def test_fenced_code_block_citations_ignored(self):
         self._write("AGENTS.md", "## Roles\n")
         self._write("doc.md", '```\nSee AGENTS.md § "Imaginary Example".\n```\n')
-        rc = sync_scaffold.check_references(
-            str(self.tmpdir), md_files=["AGENTS.md", "doc.md"]
-        )
+        rc = sync_scaffold.check_references(str(self.tmpdir), md_files=["AGENTS.md", "doc.md"])
         self.assertEqual(rc, 0)
 
     def test_tracked_markdown_excludes_frozen_dirs(self):
@@ -819,18 +794,14 @@ extra_key: "this follows rules: — invalid"
     def test_drift_detected_by_extract_rules_block(self):
         """rules: blocks from scaffold and a diverged target compare unequal."""
         scaffold_rules = sync_scaffold._extract_rules_block(self.SCAFFOLD_CONFIG)
-        target_rules = sync_scaffold._extract_rules_block(
-            self.TARGET_CONFIG_DIFFERENT_RULES
-        )
+        target_rules = sync_scaffold._extract_rules_block(self.TARGET_CONFIG_DIFFERENT_RULES)
         self.assertIsNotNone(scaffold_rules)
         self.assertIsNotNone(target_rules)
         self.assertNotEqual(scaffold_rules, target_rules)
 
     def test_append_if_absent(self):
         """scaffold rules: is appended at EOF when target has no rules: block."""
-        result = sync_scaffold.sync_config_yaml(
-            self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_NO_RULES
-        )
+        result = sync_scaffold.sync_config_yaml(self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_NO_RULES)
         self.assertIn("rules:", result)
         self.assertIn("tasks.md is for apply phase only", result)
         # per-repo context unchanged
@@ -841,9 +812,7 @@ extra_key: "this follows rules: — invalid"
     def test_abort_when_key_follows_rules(self):
         """ValueError raised when a non-comment top-level key follows rules: in target."""
         with self.assertRaises(ValueError):
-            sync_scaffold.sync_config_yaml(
-                self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_KEY_AFTER_RULES
-            )
+            sync_scaffold.sync_config_yaml(self.SCAFFOLD_CONFIG, self.TARGET_CONFIG_KEY_AFTER_RULES)
 
     # ── integration tests: full sync() + check() flow ───────────────────────
 
@@ -851,9 +820,7 @@ extra_key: "this follows rules: — invalid"
         self.tmpdir = Path(tempfile.mkdtemp())
         self.scaffold = self.tmpdir / "scaffold"
         (self.scaffold / "scripts").mkdir(parents=True)
-        (self.scaffold / "scripts" / "scaffold_manifest.txt").write_text(
-            "openspec/config.yaml\n"
-        )
+        (self.scaffold / "scripts" / "scaffold_manifest.txt").write_text("openspec/config.yaml\n")
         (self.scaffold / "openspec").mkdir(parents=True)
         (self.scaffold / "openspec" / "config.yaml").write_text(self.SCAFFOLD_CONFIG)
 
@@ -861,9 +828,7 @@ extra_key: "this follows rules: — invalid"
         self.target.mkdir()
         (self.target / ".git").mkdir()
         (self.target / "openspec").mkdir(parents=True)
-        (self.target / "openspec" / "config.yaml").write_text(
-            self.TARGET_CONFIG_DIFFERENT_RULES
-        )
+        (self.target / "openspec" / "config.yaml").write_text(self.TARGET_CONFIG_DIFFERENT_RULES)
 
         self._scaffold_root_patcher = patch.object(
             sync_scaffold, "_scaffold_root", return_value=self.scaffold
@@ -923,9 +888,7 @@ extra_key: "this follows rules: — invalid"
         target_no_rules.mkdir()
         (target_no_rules / ".git").mkdir()
         (target_no_rules / "openspec").mkdir(parents=True)
-        (target_no_rules / "openspec" / "config.yaml").write_text(
-            self.TARGET_CONFIG_NO_RULES
-        )
+        (target_no_rules / "openspec" / "config.yaml").write_text(self.TARGET_CONFIG_NO_RULES)
         sync_scaffold.sync(str(target_no_rules))
         result = (target_no_rules / "openspec" / "config.yaml").read_text()
         self.assertIn("rules:", result)
@@ -938,9 +901,7 @@ extra_key: "this follows rules: — invalid"
 
     def test_abort_when_key_follows_rules_integration(self):
         """sync() raises ValueError when a non-comment top-level key follows rules: in target."""
-        (self.target / "openspec" / "config.yaml").write_text(
-            self.TARGET_CONFIG_KEY_AFTER_RULES
-        )
+        (self.target / "openspec" / "config.yaml").write_text(self.TARGET_CONFIG_KEY_AFTER_RULES)
         with self.assertRaises(ValueError):
             sync_scaffold.sync(str(self.target))
 
@@ -1046,9 +1007,7 @@ class SyncRemovedManifestTest(unittest.TestCase):
         self.fixture_target = _make_fixture_target(self.tmpdir)
 
         # Write the removed manifest to fixture scaffold
-        self.removed_path = (
-            self.fixture_scaffold / "scripts" / "scaffold_manifest_removed.txt"
-        )
+        self.removed_path = self.fixture_scaffold / "scripts" / "scaffold_manifest_removed.txt"
 
         self._scaffold_root_patcher = patch.object(
             sync_scaffold, "_scaffold_root", return_value=self.fixture_scaffold
@@ -1144,13 +1103,9 @@ class SyncRemovedManifestTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             sync_scaffold.sync(str(self.fixture_target))
         # Manifest file must still exist (nothing deleted)
-        self.assertTrue(
-            (self.fixture_target / "test-regular.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "test-regular.txt").exists())
         # Valid deletable entry must NOT be deleted — no deletion happened
-        self.assertTrue(
-            (self.fixture_target / "valid-deletable.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "valid-deletable.txt").exists())
 
     # ── upstream-still-exists conflict ────────────────────────────────────
 
@@ -1161,17 +1116,13 @@ class SyncRemovedManifestTest(unittest.TestCase):
         self._create_target_file("valid-deletable.txt")
         self._write_removed("test-regular.txt\nvalid-deletable.txt\n")
         # Remove it from manifest so the both-lists guard doesn't fire
-        manifest = (
-            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
-        )
+        manifest = self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
         current = manifest.read_text()
         manifest.write_text(current.replace("test-regular.txt\n", ""))
         with self.assertRaises(SystemExit):
             sync_scaffold.sync(str(self.fixture_target))
         # Valid deletable entry must NOT be deleted — no deletion happened
-        self.assertTrue(
-            (self.fixture_target / "valid-deletable.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "valid-deletable.txt").exists())
 
     # ── path-escape rejection ─────────────────────────────────────────────
 
@@ -1183,9 +1134,7 @@ class SyncRemovedManifestTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             sync_scaffold.sync(str(self.fixture_target))
         # Valid deletable entry must NOT be deleted — no deletion happened
-        self.assertTrue(
-            (self.fixture_target / "valid-deletable.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "valid-deletable.txt").exists())
 
     # ── two violations both reported ──────────────────────────────────────
 
@@ -1193,14 +1142,10 @@ class SyncRemovedManifestTest(unittest.TestCase):
         """Two entries that both violate guard 2 (still-exists-in-scaffold)
         both get reported in a single run with no deletions."""
         # Remove both from manifest so the both-lists guard doesn't fire
-        manifest = (
-            self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
-        )
+        manifest = self.fixture_scaffold / "scripts" / "scaffold_manifest.txt"
         current = manifest.read_text()
         manifest.write_text(
-            current
-            .replace("test-regular.txt\n", "")
-            .replace("subdir/data.txt\n", "")
+            current.replace("test-regular.txt\n", "").replace("subdir/data.txt\n", "")
         )
         # Both still exist in the scaffold — add to removed list
         self._write_removed("test-regular.txt\nsubdir/data.txt\n")
@@ -1211,12 +1156,8 @@ class SyncRemovedManifestTest(unittest.TestCase):
         self.assertIn("test-regular.txt", stderr)
         self.assertIn("subdir/data.txt", stderr)
         # Neither file was deleted
-        self.assertTrue(
-            (self.fixture_target / "test-regular.txt").exists()
-        )
-        self.assertTrue(
-            (self.fixture_target / "subdir/data.txt").exists()
-        )
+        self.assertTrue((self.fixture_target / "test-regular.txt").exists())
+        self.assertTrue((self.fixture_target / "subdir/data.txt").exists())
 
     # ── missing removed-list file tolerated ───────────────────────────────
 

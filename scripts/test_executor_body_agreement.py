@@ -19,7 +19,6 @@ import re
 import unittest
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -42,9 +41,7 @@ EXECUTOR_PAIRS: list[tuple[str, Path, Path]] = [
 # Regex to strip "(the Claude Code counterpart of the OpenCode `@<role>`)" from the
 # .claude/ intro line. The clause spans one or two lines (a newline may appear
 # between "the" and "OpenCode"), so use `\s+` to handle the line break.
-_INTRO_CLAUSE_RE = re.compile(
-    r"\s*\(the Claude Code counterpart of the\s+OpenCode `@[\w-]+`\)"
-)
+_INTRO_CLAUSE_RE = re.compile(r"\s*\(the Claude Code counterpart of the\s+OpenCode `@[\w-]+`\)")
 
 
 def read_and_strip_frontmatter(path: Path) -> str:
@@ -70,7 +67,7 @@ def read_and_strip_frontmatter(path: Path) -> str:
         # Malformed frontmatter — return everything
         return content
 
-    return "".join(lines[end_idx + 1:])
+    return "".join(lines[end_idx + 1 :])
 
 
 def normalize_intro(body: str) -> str:

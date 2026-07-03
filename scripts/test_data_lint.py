@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import data_lint  # noqa: E402
 
-
 _PSQL_STUB = """\
 #!/bin/sh
 # args: <db-url> -v ON_ERROR_STOP=1 --csv -f <file>
@@ -127,9 +126,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -143,9 +145,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -159,9 +164,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -176,9 +184,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 2)
@@ -196,10 +207,14 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
-                "--max-sample", "2",
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
+                "--max-sample",
+                "2",
             ]
         )
         self.assertEqual(rc, 2)
@@ -215,9 +230,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 3)
@@ -233,8 +251,10 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 3)
@@ -246,8 +266,10 @@ class DataLintTest(unittest.TestCase):
         try:
             rc, out = self._capture(
                 [
-                    "--checks-dir", str(self.checks_dir),
-                    "--json", str(json_path),
+                    "--checks-dir",
+                    str(self.checks_dir),
+                    "--json",
+                    str(json_path),
                 ]
             )
         finally:
@@ -258,9 +280,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.tmpdir / "does-not-exist"),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.tmpdir / "does-not-exist"),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -270,9 +295,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -286,9 +314,12 @@ class DataLintTest(unittest.TestCase):
         json_path = self.tmpdir / "out.json"
         rc, out = self._capture(
             [
-                "--checks-dir", str(self.checks_dir),
-                "--db-url", "postgres://fake/db",
-                "--json", str(json_path),
+                "--checks-dir",
+                str(self.checks_dir),
+                "--db-url",
+                "postgres://fake/db",
+                "--json",
+                str(json_path),
             ]
         )
         self.assertEqual(rc, 0)
@@ -300,9 +331,7 @@ class DataLintTest(unittest.TestCase):
                     order.append(name)
         self.assertEqual(order, ["001_a.sql", "002_b.sql", "003_c.sql"])
         data = json.loads(json_path.read_text())
-        self.assertEqual(
-            [c["name"] for c in data["checks"]], ["001_a", "002_b", "003_c"]
-        )
+        self.assertEqual([c["name"] for c in data["checks"]], ["001_a", "002_b", "003_c"])
 
 
 if __name__ == "__main__":

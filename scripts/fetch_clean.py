@@ -13,6 +13,7 @@ Behavior:
 Importable API:
     from scripts.fetch_clean import fetch_clean, rewrite_github_url
 """
+
 from __future__ import annotations
 
 import re
@@ -35,6 +36,7 @@ _TRUNCATION_MARKER = "\n[truncated]"
 # ---------------------------------------------------------------------------
 # GitHub URL rewriting
 # ---------------------------------------------------------------------------
+
 
 def rewrite_github_url(url: str) -> Optional[str]:
     """Rewrite a github.com URL to the corresponding raw.githubusercontent.com URL.
@@ -90,6 +92,7 @@ def rewrite_github_url(url: str) -> Optional[str]:
 # URL classification helpers
 # ---------------------------------------------------------------------------
 
+
 def _is_already_clean(url: str) -> bool:
     """Return True if the URL points to already-clean content (raw text/markdown).
 
@@ -111,6 +114,7 @@ def _is_already_clean(url: str) -> bool:
 # Fetching helpers
 # ---------------------------------------------------------------------------
 
+
 def _fetch_bytes(url: str) -> bytes:
     """Fetch URL and return raw bytes. Raises on HTTP error or network issue."""
     resp = requests.get(url, headers={"User-Agent": _UA}, timeout=_TIMEOUT)
@@ -126,10 +130,12 @@ def _decode(content: bytes) -> str:
 # Extraction helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_trafilatura(html: bytes, url: str) -> Optional[str]:
     """Run trafilatura extraction. Returns None if empty/thin."""
     try:
         import trafilatura
+
         result = trafilatura.extract(
             html,
             url=url,
@@ -153,6 +159,7 @@ def _extract_lxml_fallback(html: bytes) -> Optional[str]:
     # Try BeautifulSoup first (cleaner API)
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "lxml")
         for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
             tag.decompose()
@@ -167,6 +174,7 @@ def _extract_lxml_fallback(html: bytes) -> Optional[str]:
     # lxml.html fallback
     try:
         from lxml import html as lxml_html
+
         tree = lxml_html.fromstring(html)
         # Remove noisy tags
         for bad_tag in ("script", "style", "nav", "footer", "header", "aside"):
@@ -203,6 +211,7 @@ def _extract_jina(url: str) -> Optional[str]:
 # Truncation
 # ---------------------------------------------------------------------------
 
+
 def _truncate(text: str, max_chars: int) -> str:
     """Truncate text to max_chars, appending [truncated] marker if cut."""
     if len(text) <= max_chars:
@@ -214,6 +223,7 @@ def _truncate(text: str, max_chars: int) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def fetch_clean(
     url: str,
@@ -259,17 +269,17 @@ def fetch_clean(
         if result:
             return _truncate(result, max_chars)
 
-    raise ValueError(
-        f"All extraction paths returned empty/thin content for: {url}"
-    )
+    raise ValueError(f"All extraction paths returned empty/thin content for: {url}")
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _parse_args(argv: list[str]):
     import argparse
+
     parser = argparse.ArgumentParser(
         description="Fetch and clean a URL to clean markdown text.",
     )

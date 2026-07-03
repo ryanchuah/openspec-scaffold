@@ -114,6 +114,7 @@ def _write_json_atomic(path: Path, payload) -> None:
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
+
 # ---------------------------------------------------------------------------
 # DDL parsing — leading indexed columns per table
 # ---------------------------------------------------------------------------
@@ -128,9 +129,7 @@ _CREATE_TABLE_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-_CONSTRAINT_COLS_RE = re.compile(
-    r"(?:PRIMARY\s+KEY|UNIQUE)\s*\(([^)]*)\)", re.IGNORECASE
-)
+_CONSTRAINT_COLS_RE = re.compile(r"(?:PRIMARY\s+KEY|UNIQUE)\s*\(([^)]*)\)", re.IGNORECASE)
 
 
 _EXPR_INDEX_RE = re.compile(r"^\(?\s*\w+\s*\(")
@@ -310,9 +309,7 @@ _WHERE_RE = re.compile(
     r"\bWHERE\s+(.+?)(?=\bGROUP\s+BY\b|\bORDER\s+BY\b|\bLIMIT\b|;|$)",
     re.IGNORECASE | re.DOTALL,
 )
-_ORDER_BY_RE = re.compile(
-    r"\bORDER\s+BY\s+(.+?)(?=\bLIMIT\b|;|$)", re.IGNORECASE | re.DOTALL
-)
+_ORDER_BY_RE = re.compile(r"\bORDER\s+BY\s+(.+?)(?=\bLIMIT\b|;|$)", re.IGNORECASE | re.DOTALL)
 _QUALIFIED_COL_RE = re.compile(r"(\w+)\.(\w+)")
 _WHERE_COL_RE = re.compile(
     r"(?:(\w+)\.)?(\w+)\s*(?:=|<>|!=|<=|>=|<|>|\bLIKE\b|\bIN\b|\bIS\b)",
@@ -431,9 +428,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Static index-coverage leads (audit-time report, never a gate)."
     )
-    parser.add_argument(
-        "--schema", required=True, help="DDL path or glob (concatenated, sorted)."
-    )
+    parser.add_argument("--schema", required=True, help="DDL path or glob (concatenated, sorted).")
     parser.add_argument(
         "--queries",
         action="append",
@@ -527,9 +522,7 @@ def main(argv: list[str] | None = None) -> int:
     json_path = Path(args.json)
     _write_json_atomic(json_path, payload)
 
-    print(
-        f"index_coverage: {len(leads)} leads across {len(tables_seen)} tables -> {json_path}"
-    )
+    print(f"index_coverage: {len(leads)} leads across {len(tables_seen)} tables -> {json_path}")
     return 0
 
 

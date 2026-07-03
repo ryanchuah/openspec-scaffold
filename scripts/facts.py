@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from checks import (  # noqa: E402
-    _REGISTRY,
+    EXPECTED_TOOL_VERSIONS,
     _all_checks,
     _autodetect_defaults,
     _availability_for_check,
@@ -34,7 +34,6 @@ from checks import (  # noqa: E402
     _load_config,
     _resolve_repo_root,
     _summary_line,
-    EXPECTED_TOOL_VERSIONS,
 )
 
 
@@ -78,9 +77,7 @@ def _mode_facts(config: dict, defaults: dict, pins: dict, repo_root: Path) -> in
     return 0
 
 
-def _mode_fact_check(
-    name: str, config: dict, defaults: dict, pins: dict, repo_root: Path
-) -> int:
+def _mode_fact_check(name: str, config: dict, defaults: dict, pins: dict, repo_root: Path) -> int:
     """Run a single fact by name. A check-family name is a usage error."""
     all_checks = {c["name"]: c for c in _all_checks(config)}
     if name not in all_checks:
@@ -89,8 +86,7 @@ def _mode_fact_check(
     check = all_checks[name]
     if check.get("family") != "fact":
         print(
-            f"facts: {name!r} is a check-family detector, not a fact"
-            f" — use checks.py",
+            f"facts: {name!r} is a check-family detector, not a fact — use checks.py",
             file=sys.stderr,
         )
         return 2
@@ -103,9 +99,7 @@ def _mode_fact_check(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Facts-only CLI (cache-semantics repo snapshots)."
-    )
+    parser = argparse.ArgumentParser(description="Facts-only CLI (cache-semantics repo snapshots).")
     parser.add_argument("--list", action="store_true", help="Enumerate fact entries.")
     parser.add_argument(
         "--check", metavar="NAME", help="Run exactly one fact (default: all enabled facts)."
