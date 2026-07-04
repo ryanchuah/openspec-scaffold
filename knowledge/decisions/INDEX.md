@@ -6,6 +6,8 @@ One line per decision. Format:
 
 ---
 
+- **2026-07-04** · ruff-target-version-pin · [inline] shared `ruff.toml` pins `target-version = "py311"` so ruff's isort stdlib detection (e.g. tomllib) is deterministic across repos; without it a byte-identical scaffold-managed file sorts imports differently per repo's inferred requires-python, breaking the byte-identical sync invariant (found propagating extrends; committed a879317)
+- **2026-07-04** · lint-knowledge-tombstone · [inline] the pre-rename `lint-knowledge` skill dir added to `scaffold_manifest_removed.txt` so the clarify-audit-tooling-surface rename deletes it deterministically downstream instead of by hand (committed 9ea6076)
 - **2026-07-03** · propagation-tooling-drift-fix · `sync_scaffold` `--check-refs` ephemeral allowlist realigned with `knowledge_lint.EPHEMERAL_PATHS` (add `audit-log.md`); `scaffold_lint` oneoff-exclude glob broadened `_*_oneoff.py`→`_*_oneoff.*`; both files authoring-side, not propagated → `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`
 - **2026-06-13** · all-state-in-tracked-files · [inline] project state lives only in tracked files visible to all harnesses; no harness-native memory (Claude-only stores break cross-agent continuity)
 - **2026-06-13** · skills-in-dot-claude-only · [inline] opencode ≥1.16 auto-discovers `.claude/skills/**`; a second .opencode/skills/ copy would create a divergence hazard

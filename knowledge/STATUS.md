@@ -55,30 +55,31 @@ forward-looking items parked in `knowledge/questions/`. Archive:
 ## Immediate next action
 The succession-hardening portfolio is **fully shipped**; the day-to-day-tooling portfolio (A: checks-facts-split, B: sync-deletion-manifest, C: shared-lint-layer) is now **fully shipped** — no proactive build is in flight.
 
-**Downstream propagation — extrends DONE, psc-monitor still frozen.** On 2026-07-03 the operator
-authorized propagation to **extrends** only. The full pending-sync batch (`premise-review-gate`,
-`pro-agent-flash-delegation`, `deterministic-tooling-layer`, `knowledge-lint`, `mechanize-invariants`,
-`repair-instruction-surface`, `delegated-agent-safety`, `prune-knowledge`) was synced in one pass via
-`scripts/sync_scaffold.py`, the `openspec-onboard` tombstone deleted by hand, and committed to extrends
-`main` — **local, unpushed** (push still needs separate authorization). Verified against
-`knowledge/reference/resync-verification.md`: `--check` converged (all IDENTICAL), extrends suite green,
-provenance beacon advanced. **psc-monitor stays explicitly frozen pending operator go-ahead** — do not
-run `scripts/sync_scaffold.py` against it until authorized; it still needs the same batch, and the same
-re-sync verification + onboard-tombstone deletion apply.
+**Downstream propagation — extrends FULLY SYNCED, psc-monitor still frozen.** On 2026-07-04 the operator
+authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full
+shared-lint-layer batch — `checks-facts-split` (audit_bundle→checks/facts), `clarify-audit-tooling-surface`
+(the lint-knowledge→knowledge-drift-review rename + tombstone), and the C lint layer (`ruff.toml`,
+`scripts/check.sh`) — was synced in one pass, and the D1 lint layer was **absorbed**: extrends' own code
+brought ruff-clean + format-clean, `knowledge_lint` clean (via a lint:planned marker and relocating 3
+transient root handoff files to a handoffs-archive dir). Committed to extrends `main` — **local, unpushed**
+(push needs separate authorization). Verified per `knowledge/reference/resync-verification.md`:
+`--check`/`--check-refs` converged, `scaffold_lint` structural clean, extrends gate (ruff+format+pytest)
+green through its commit hook.
 
-**Per-repo follow-ons owed in extrends** (parked, not blockers): a first `knowledge_lint` /
-`knowledge-drift-review` pass (pre-existing citation drift in extrends' own knowledge tree, newly surfaced now
-the linter is present) and the audit-layer wiring (`checks.toml`, `checks/`, task-runner `audit-*`
-targets, dev-extras pins, an `audit-log.md` seed on first audit). The `checks-facts-split` rename
-(`audit_bundle.py`→`checks.py`/`facts.py`, `audit.toml`→`checks.toml`) is also unsynced downstream —
-folds into the same pending propagation batch once the operator authorizes the next sync.
+Two scaffold fixes shipped **during** this propagation (see `knowledge/decisions/INDEX.md`): the
+lint-knowledge removed-manifest tombstone (9ea6076) and the ruff `target-version=py311` cross-repo
+determinism pin (a879317) — the latter fixing a byte-identical-sync break where ruff sorted a
+scaffold-managed file differently per repo's inferred Python version.
 
-**New from shared-lint-layer (C):** extrends (D1) and psc-monitor (D2, still frozen) now also owe
-the C lint layer (`ruff.toml`, `scripts/check.sh`, `knowledge_lint` hardening) plus the earlier
-`checks-facts-split` rename — operator-gated, unsynced. D1 specifically owes: apply the
-`<!-- lint:planned -->` marker (or reword) to extrends' 2 forward-references
-(`scripts/_autolabel_v2_oneoff.py`, `config/subreddits_general.yaml`) once C syncs, so extrends'  <!-- lint:planned -->
-`knowledge_lint` reaches zero and its live-tree gate can go green.
+**Remaining extrends follow-ons** (parked, not blockers): audit-layer wiring (checks.toml, checks/,
+task-runner audit-* targets, dev-extras pins, an audit-log seed on first audit); a `knowledge-drift-review`
+semantic pass; and operator pruning of the relocated handoffs-archive dir plus the 2 untracked root
+handoff files left in place.
+
+**psc-monitor stays explicitly frozen pending operator go-ahead** — do not run `scripts/sync_scaffold.py`
+against it until authorized. It owes the entire batch above (now including the target-version pin); its
+openspec-onboard + lint-knowledge tombstones are both in the removed-manifest, so the sync now deletes
+them automatically. Same re-sync verification applies.
 
 **Scaffold-tooling fix SHIPPED 2026-07-03** — `fix-propagation-tooling-drift` (SMALL, archived at
 `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`): found during the extrends
