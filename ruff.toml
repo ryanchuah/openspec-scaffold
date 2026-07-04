@@ -1,3 +1,9 @@
+# Pin the Python version so ruff's rule behavior — especially isort stdlib
+# detection (e.g. tomllib is stdlib on 3.11+) — is DETERMINISTIC across repos.
+# Without this, ruff infers the target per-repo from requires-python, so a
+# byte-identical scaffold-managed file can sort imports differently downstream
+# (breaking the byte-identical sync invariant). All scaffold repos run 3.11+.
+target-version = "py311"
 line-length = 100
 
 [lint]

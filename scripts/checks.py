@@ -149,12 +149,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import date
 from io import StringIO
 from pathlib import Path
-
-import tomllib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

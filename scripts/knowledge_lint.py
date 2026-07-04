@@ -87,11 +87,10 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from functools import lru_cache
 from pathlib import Path
 from typing import Callable, NamedTuple
-
-import tomllib
 
 # ---------------------------------------------------------------------------
 # Constants
