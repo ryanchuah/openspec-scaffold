@@ -6,6 +6,7 @@ One line per decision. Format:
 
 ---
 
+- **2026-07-04** · ruff-fastapi-immutable-calls · [inline] shared `ruff.toml` adds a `[lint.flake8-bugbear] extend-immutable-calls` carve-out for `fastapi.Depends/Query/Header/Path/Cookie/Form/File/Security` so bugbear B008 stops false-positiving on FastAPI's idiomatic call-in-default dependency-injection API; harmless in non-FastAPI repos (qualified names never appear), correct for every future FastAPI downstream — found propagating psc-monitor (30 B008 hits, all `Depends()`/`Query()` defaults)
 - **2026-07-04** · ruff-target-version-pin · [inline] shared `ruff.toml` pins `target-version = "py311"` so ruff's isort stdlib detection (e.g. tomllib) is deterministic across repos; without it a byte-identical scaffold-managed file sorts imports differently per repo's inferred requires-python, breaking the byte-identical sync invariant (found propagating extrends; committed a879317)
 - **2026-07-04** · lint-knowledge-tombstone · [inline] the pre-rename `lint-knowledge` skill dir added to `scaffold_manifest_removed.txt` so the clarify-audit-tooling-surface rename deletes it deterministically downstream instead of by hand (committed 9ea6076)
 - **2026-07-03** · propagation-tooling-drift-fix · `sync_scaffold` `--check-refs` ephemeral allowlist realigned with `knowledge_lint.EPHEMERAL_PATHS` (add `audit-log.md`); `scaffold_lint` oneoff-exclude glob broadened `_*_oneoff.py`→`_*_oneoff.*`; both files authoring-side, not propagated → `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`

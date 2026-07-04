@@ -9,3 +9,20 @@ line-length = 100
 [lint]
 select = ["E", "F", "I", "B"]
 ignore = ["E501"]
+
+# flake8-bugbear B008 flags function calls in argument defaults, but FastAPI's
+# dependency-injection API (Depends/Query/Header/…) is *designed* to be called
+# in defaults — that is idiomatic, not a bug. Treat those calls as immutable so
+# B008 does not false-positive across FastAPI downstream repos (e.g. psc-monitor).
+# Harmless in non-FastAPI repos: the qualified names simply never appear.
+[lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
