@@ -55,7 +55,7 @@ forward-looking items parked in `knowledge/questions/`. Archive:
 ## Immediate next action
 The succession-hardening portfolio is **fully shipped**; the day-to-day-tooling portfolio (A: checks-facts-split, B: sync-deletion-manifest, C: shared-lint-layer) is now **fully shipped** — no proactive build is in flight.
 
-**Downstream propagation — extrends FULLY SYNCED, psc-monitor still frozen.** On 2026-07-04 the operator
+**Downstream propagation — extrends AND psc-monitor FULLY SYNCED.** On 2026-07-04 the operator
 authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full
 shared-lint-layer batch — `checks-facts-split` (audit_bundle→checks/facts), `clarify-audit-tooling-surface`
 (the lint-knowledge→knowledge-drift-review rename + tombstone), and the C lint layer (`ruff.toml`,
@@ -76,10 +76,21 @@ task-runner audit-* targets, dev-extras pins, an audit-log seed on first audit);
 semantic pass; and operator pruning of the relocated handoffs-archive dir plus the 2 untracked root
 handoff files left in place.
 
-**psc-monitor stays explicitly frozen pending operator go-ahead** — do not run `scripts/sync_scaffold.py`
-against it until authorized. It owes the entire batch above (now including the target-version pin); its
-openspec-onboard + lint-knowledge tombstones are both in the removed-manifest, so the sync now deletes
-them automatically. Same re-sync verification applies.
+**psc-monitor PROPAGATED 2026-07-04** (operator go-ahead given) — converged to scaffold HEAD (beacon
+`511843b`), committed to psc-monitor `main` as `0485daa` — **local, unpushed** (push needs separate
+authorization). The whole batch synced in one pass (openspec-onboard tombstone auto-deleted from the
+removed-manifest) and was **absorbed to green**: psc-monitor is a **FastAPI** app, so the shared `ruff.toml`
+gained a `flake8-bugbear extend-immutable-calls` carve-out (`fastapi.Depends/Query/…`) upstream first —
+committed `511843b`, decisions `ruff-fastapi-immutable-calls`, re-synced — dropping 30 B008 false-positives;
+then psc's own code was ruff-autofixed + hand-fixed (21: B904/F841/B017/E402, plus a test that re-exported
+the `settings` singleton through `run_pipeline`) + `ruff format`; 69 `knowledge_lint` citation findings in
+psc's own knowledge tree were resolved (repoint / de-path retired historical plans / colon-fix live refs);
+and psc's per-repo `## On-demand references` AGENTS.md appendix was relocated out of the banned post-`After
+reading` tail into the Project-context zone. Verified per `knowledge/reference/resync-verification.md`:
+`--check` converged, `scaffold_lint` 4 structural clean, `knowledge_lint`/`status_lint` clean, psc gate
+(`check.sh`: ruff+format+627 tests) green. **Remaining psc-monitor follow-ons** (parked, not blockers):
+audit-layer wiring (checks.toml, checks/, task-runner audit-* targets, dev-extras pins) and a
+`knowledge-drift-review` semantic pass — same per-repo build-out extrends owes.
 
 **Scaffold-tooling fix SHIPPED 2026-07-03** — `fix-propagation-tooling-drift` (SMALL, archived at
 `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`): found during the extrends
