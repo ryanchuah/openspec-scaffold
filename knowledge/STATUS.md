@@ -7,7 +7,23 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — shared-lint-layer SHIPPED (2026-07-03)
+## Latest change — outstanding-work-collector SHIPPED (2026-07-09)
+
+Shipped a deterministic outstanding-work gather: a `facts.py` fact (`outstanding`) enumerates
+every configured source — `knowledge/questions/` Active+Parked, open `tasks.md` checkboxes, live
+`plans/`, non-closed roadmap entries, and audit `FINDINGS*` files — into one
+`output/facts/outstanding.{md,json}` snapshot with `source:line` provenance and a separate
+untriaged-findings bucket. Extractors handle both bullet and table-form `INDEX.md` files. The fact
+regenerates on use (never stale) and degrades on malformed input rather than crashing (D2). Three
+new `knowledge_lint.py` drift checks — duplicate-block detection, closed-but-unpruned flagging, and
+untriaged-age accumulation — catch rot automatically via the existing live-tree gate. A pull-only
+`outstanding-work-review` skill drives LLM judgment from the snapshot. All scaffold-managed, zero
+boot-context cost. Verify: self-review + pro + flash multi-model passes READY, all behavioral
+contracts confirmed on fixtures, full suite green including scaffold SEAL and live-tree lint gate.
+Decisions in `knowledge/decisions/INDEX.md`; follow-ons parked in `knowledge/questions/`. Archive:
+`openspec/changes/archive/2026-07-09-outstanding-work-collector/`.
+
+## Prior change — shared-lint-layer SHIPPED (2026-07-03)
 
 Shipped a shared lint/green layer: a scaffold-managed `ruff.toml` (selects E,F,I,B + enforced format;
 E501 ignored) and `scripts/check.sh` as the single definition of green (ruff check + `ruff format
@@ -36,21 +52,6 @@ ceremony is unchanged. Verify: self-review passed in full (multi-model passes wa
 instruction); suite green. A commit-test-gate hook misfire was discovered live during apply and parked,
 not fixed here. Decisions in `knowledge/decisions/INDEX.md`; forward items parked in `knowledge/questions/`.
 Archive: `openspec/changes/archive/2026-07-03-checks-facts-split`.
-
-## Prior change — clarify-audit-tooling-surface SHIPPED (2026-07-03)
-
-Renamed the LLM `lint-knowledge` skill to `knowledge-drift-review`, ending near-mirrored-name
-confusion with the deterministic `knowledge_lint.py` script. Added a `run-audit` skill as the
-deterministic-audit entry point (detects repo interpreter, runs `audit_bundle.py`/`audit_scope.py`,
-gracefully handles missing per-repo wiring). Generalized `scaffold_lint.py`'s dangling-skill-ref
-detection from a single hardcoded token to an explicit frozenset so both non-openspec skills validate.
-Surgical AGENTS.md edits mark the interpreter and `just audit-*` as per-repo/illustrative. Verified:
-live probe of the generalized `check_dangling_skill_refs` confirmed correct detection for both skills
-and the deliberate D2 trade-off (renamed-name stragglers caught by grep, not the check); in-repo
-`grep -rn lint-knowledge` returned only historical lines; suite green, SEAL green, `--check-refs`
-green. No code changes to deterministic scripts. Decisions in `knowledge/decisions/INDEX.md`;
-forward-looking items parked in `knowledge/questions/`. Archive:
-`openspec/changes/archive/2026-07-03-clarify-audit-tooling-surface`.
 
 ## Immediate next action
 The succession-hardening portfolio is **fully shipped**; the day-to-day-tooling portfolio (A: checks-facts-split, B: sync-deletion-manifest, C: shared-lint-layer) is now **fully shipped** — no proactive build is in flight.
