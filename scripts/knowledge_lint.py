@@ -92,6 +92,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable, NamedTuple
 
+# Ensure scripts/ is on sys.path so outstanding.py can be imported both when
+# this script is run directly and when imported in tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import outstanding  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -319,6 +325,24 @@ def load_retired_paths(root: Path) -> list[str]:
     return tokens
 
 
+def _load_knowledge_lint_config(root: Path) -> dict:
+    """Load [knowledge_lint] config from checks.toml with graceful defaults.
+
+    Returns dict with keys ``untriaged_max_age_days`` (default 14) and
+    ``duplicate_scan_dirs`` (default []).
+    """
+    kl: dict = {}
+    config_path = root / "checks.toml"
+    if config_path.is_file():
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+        kl = data.get("knowledge_lint", {})
+    return {
+        "untriaged_max_age_days": kl.get("untriaged_max_age_days", 14),
+        "duplicate_scan_dirs": kl.get("duplicate_scan_dirs", []),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Check 1 — orphan/duplicate canonical file
 # ---------------------------------------------------------------------------
@@ -528,6 +552,379 @@ def _check_root_handoff_files(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Check 7 — duplicate content blocks (D7)
+# ---------------------------------------------------------------------------
+
+_WINDOW_SIZE = 8
+
+
+def _is_excluded_dir(rel: str, prefix: str) -> bool:
+    """True when repo-relative dir *rel* IS *prefix* or lives under it.
+
+    A plain ``rel.startswith(prefix + "/")`` misses the exact-match case:
+    when ``os.walk`` visits the excluded directory itself, *rel* equals
+    *prefix* with no trailing slash (e.g. ``"knowledge/research"``, not
+    ``"knowledge/research/"``), so a strict prefix-with-slash check lets
+    files sitting directly inside it slip through uncompared. Both the
+    directory itself and anything nested under it must be excluded.
+    """
+    return rel == prefix or rel.startswith(prefix + "/")
+
+
+def _duplicate_scan_files(root: Path, is_ignored: Callable[[str], bool]) -> list[Path]:
+    """Build the narrow set of files compared for duplicate blocks.
+
+    Includes markdown under ``knowledge/`` (excluding ``knowledge/research/``),
+    top-level ``*.md`` files, and any extra dirs from
+    ``[knowledge_lint].duplicate_scan_dirs``.  Excludes ``openspec/specs/``.
+    """
+    files: list[Path] = []
+    kl_config = _load_knowledge_lint_config(root)
+
+    # knowledge/ markdown excluding research/ and openspec/specs/.
+    knowledge_dir = root / "knowledge"
+    if knowledge_dir.is_dir():
+        for dirpath, dirnames, filenames in os.walk(knowledge_dir):
+            rel = _relpath(root, Path(dirpath))
+            if _is_excluded_dir(rel, "knowledge/research") or _is_excluded_dir(
+                rel, "openspec/specs"
+            ):
+                dirnames[:] = []  # prune: don't descend into the excluded subtree either
+                continue
+            # Exclude gitignored dirs.
+            dirnames[:] = [d for d in dirnames if not is_ignored(f"{rel}/{d}")]
+            for fn in filenames:
+                if not fn.endswith(".md"):
+                    continue
+                full = Path(dirpath, fn)
+                files.append(full)
+
+    # Top-level *.md
+    for entry in sorted(root.glob("*.md")):
+        if entry.is_file():
+            files.append(entry)
+
+    # Extra scan dirs from config.
+    for extra_dir in kl_config.get("duplicate_scan_dirs", []):
+        extra_path = root / extra_dir
+        if extra_path.is_dir():
+            for dirpath, dirnames, filenames in os.walk(extra_path):
+                rel = _relpath(root, Path(dirpath))
+                if _is_excluded_dir(rel, "openspec/specs"):
+                    dirnames[:] = []
+                    continue
+                dirnames[:] = [d for d in dirnames if not is_ignored(f"{rel}/{d}")]
+                for fn in filenames:
+                    if not fn.endswith(".md"):
+                        continue
+                    full = Path(dirpath, fn)
+                    files.append(full)
+
+    return sorted(set(files))
+
+
+def _contiguous_runs(sorted_ints: list[int]) -> list[list[int]]:
+    """Split a sorted, deduplicated list of ints into runs of consecutive values."""
+    if not sorted_ints:
+        return []
+    runs: list[list[int]] = [[sorted_ints[0]]]
+    for value in sorted_ints[1:]:
+        if value - runs[-1][-1] == 1:
+            runs[-1].append(value)
+        else:
+            runs.append([value])
+    return runs
+
+
+def _check_duplicate_blocks(root: Path, is_ignored: Callable[[str], bool]) -> list[Finding]:
+    """Flag ≥8 consecutive non-trivial lines identical (whitespace-normalized)
+    across 2+ files in the narrow compared set (D7).
+
+    A sliding 8-line window is hashed per file; a window whose exact content
+    recurs in 2+ files is a duplicate. Because content shifts by one line at
+    each step, consecutive overlapping windows within one contiguous
+    duplicated span get DIFFERENT hash keys (each window's content differs),
+    so a naive per-key report would emit one finding per 1-line offset across
+    the whole span. To collapse that into ONE finding per maximal duplicated
+    region, this builds a union-find over ``(file, window-start-index)``
+    nodes: nodes sharing an exact-content window are unioned (same
+    duplicate), and — separately — nodes adjacent within the same file
+    (index i, i+1) are also unioned, chaining the shifting-hash windows of
+    one contiguous span together. Each resulting connected component is
+    reported as one finding per file, spanning from the first to the last
+    matched line.
+
+    A ``<!-- lint:dup-ok -->`` marker whose line falls inside a detected
+    duplicate window suppresses that finding.
+    """
+    files = _duplicate_scan_files(root, is_ignored)
+
+    # Per-file: raw lines (for marker-suppression scanning) and the
+    # (raw_line_no, stripped_content) list restricted to non-blank lines
+    # (for window-building — index i here is the node id's second element).
+    file_raw_lines: dict[Path, list[str]] = {}
+    file_nonempty: dict[Path, list[tuple[int, str]]] = {}
+    for fpath in files:
+        try:
+            raw_lines = fpath.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        file_raw_lines[fpath] = raw_lines
+        file_nonempty[fpath] = [(i + 1, s) for i, raw in enumerate(raw_lines) if (s := raw.strip())]
+
+    # window content (tuple of _WINDOW_SIZE stripped lines) -> [(path, index), ...]
+    window_map: dict[tuple[str, ...], list[tuple[Path, int]]] = {}
+    for fpath, non_empty in file_nonempty.items():
+        for i in range(len(non_empty) - _WINDOW_SIZE + 1):
+            window = tuple(non_empty[i + k][1] for k in range(_WINDOW_SIZE))
+            window_map.setdefault(window, []).append((fpath, i))
+
+    # --- Union-Find over (path, index) nodes -------------------------------
+    parent: dict[tuple[Path, int], tuple[Path, int]] = {}
+
+    def find(node: tuple[Path, int]) -> tuple[Path, int]:
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    def union(a: tuple[Path, int], b: tuple[Path, int]) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    # Same exact-content window recurring in 2+ files -> union all its
+    # occurrences together (this is what makes it a "duplicate" at all).
+    for locations in window_map.values():
+        if len({p for p, _ in locations}) < 2:
+            continue
+        for loc in locations:
+            parent.setdefault(loc, loc)
+        first = locations[0]
+        for loc in locations[1:]:
+            union(first, loc)
+
+    # Chain adjacent window-start indices within the same file so a
+    # contiguous duplicated span (whose per-offset hash keys all differ)
+    # collapses into one component instead of one per 1-line offset.
+    indices_by_file: dict[Path, set[int]] = {}
+    for path, idx in parent:
+        indices_by_file.setdefault(path, set()).add(idx)
+    for path, idxs in indices_by_file.items():
+        for idx in idxs:
+            if (idx + 1) in idxs:
+                union((path, idx), (path, idx + 1))
+
+    components: dict[tuple[Path, int], list[tuple[Path, int]]] = {}
+    for node in parent:
+        components.setdefault(find(node), []).append(node)
+
+    findings: list[Finding] = []
+    for comp_nodes in components.values():
+        by_file: dict[Path, list[int]] = {}
+        for path, idx in comp_nodes:
+            by_file.setdefault(path, []).append(idx)
+        if len(by_file) < 2:
+            continue  # adjacency-merge collapsed it below the 2-file floor
+
+        # Split each file's indices into contiguous runs (a component can
+        # hold >1 disjoint run per file, e.g. the same block repeated twice
+        # in one file), then compute each run's raw-line-number span.
+        occurrences: list[tuple[Path, int, int]] = []
+        for path, idxs in by_file.items():
+            non_empty = file_nonempty[path]
+            for run in _contiguous_runs(sorted(set(idxs))):
+                start_line = non_empty[run[0]][0]
+                end_line = non_empty[run[-1] + _WINDOW_SIZE - 1][0]
+                occurrences.append((path, start_line, end_line))
+
+        distinct_file_count = len({p for p, _, _ in occurrences})
+        if distinct_file_count < 2:
+            continue
+
+        # Suppress the whole region if a <!-- lint:dup-ok --> marker falls
+        # inside ANY occurrence's window.
+        suppressed = False
+        for path, start_line, end_line in occurrences:
+            all_lines = file_raw_lines.get(path, [])
+            for i in range(start_line - 1, min(end_line, len(all_lines))):
+                if "<!-- lint:dup-ok -->" in all_lines[i]:
+                    suppressed = True
+                    break
+            if suppressed:
+                break
+        if suppressed:
+            continue
+
+        for path, start_line, end_line in occurrences:
+            rel = _relpath(root, path)
+            loc_str = (
+                f"line {start_line}" if start_line == end_line else f"lines {start_line}-{end_line}"
+            )
+            findings.append(
+                Finding(
+                    "duplicate-content-block",
+                    rel,
+                    start_line,
+                    f"duplicate block ({loc_str}) appears in {distinct_file_count} files",
+                )
+            )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check 8 — closed-but-unpruned entries (D7)
+# ---------------------------------------------------------------------------
+
+_CLOSED_TOKEN_RE = re.compile(r"\b(?:CLOSED|DONE|COMPLETE)\b|✅|~~")
+
+
+def _check_closed_unpruned(root: Path) -> list[Finding]:
+    """Flag a ``knowledge/roadmap.md`` ``## `` entry or a top-level
+    ``plans/*.md`` file whose heading / ``**Priority:**`` / ``**Status:**``
+    line carries a closed-token (CLOSED, DONE, COMPLETE, ✅, ~~…~~).
+
+    A ``<!-- lint:keep -->`` marker in the entry/file opts out.
+    """
+    findings: list[Finding] = []
+
+    # -- Check knowledge/roadmap.md --
+    roadmap_path = root / "knowledge" / "roadmap.md"
+    if roadmap_path.is_file():
+        try:
+            roadmap_lines = roadmap_path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            roadmap_lines = []
+
+        if roadmap_lines:
+            rel = _relpath(root, roadmap_path)
+            i = 0
+            while i < len(roadmap_lines):
+                heading_m = re.match(r"^##\s+(.*)$", roadmap_lines[i])
+                if not heading_m:
+                    i += 1
+                    continue
+                heading_line = i
+                heading_text = heading_m.group(1).strip()
+
+                # Collect section until next ## or EOF.
+                j = i + 1
+                while j < len(roadmap_lines) and not re.match(r"^##\s", roadmap_lines[j]):
+                    j += 1
+
+                # Check for closed tokens in heading or Priority:/Status: lines.
+                tokens_found: list[tuple[int, str]] = []
+                if _CLOSED_TOKEN_RE.search(heading_text):
+                    tokens_found.append((heading_line, heading_text))
+
+                for k in range(heading_line + 1, j):
+                    stripped = roadmap_lines[k].strip()
+                    if re.match(
+                        r"\*\*(?:Priority|Status):\*\*", stripped
+                    ) and _CLOSED_TOKEN_RE.search(stripped):
+                        tokens_found.append((k, stripped))
+
+                if tokens_found:
+                    # Check for <!-- lint:keep --> anywhere in this section.
+                    if any(
+                        "<!-- lint:keep -->" in roadmap_lines[ln] for ln in range(heading_line, j)
+                    ):
+                        i = j
+                        continue
+                    token_detail = "; ".join(f"line {ln + 1}: {txt}" for ln, txt in tokens_found)
+                    findings.append(
+                        Finding(
+                            "closed-but-unpruned",
+                            rel,
+                            heading_line + 1,
+                            f"closed entry '{heading_text}' — {token_detail}",
+                        )
+                    )
+
+                i = j
+
+    # -- Check top-level plans/*.md --
+    plans_dir = root / "plans"
+    if plans_dir.is_dir():
+        for entry in sorted(plans_dir.glob("*.md")):
+            if entry.name == "README.md":
+                continue
+            try:
+                plan_text = entry.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            plan_lines = plan_text.splitlines()
+            rel = _relpath(root, entry)
+
+            # Check all headings, Priority:, and Status: lines.
+            tokens_found: list[tuple[int, str]] = []
+            for ln, line in enumerate(plan_lines):
+                heading_m = re.match(r"^#{1,3}\s+(.*)$", line)
+                if heading_m:
+                    if _CLOSED_TOKEN_RE.search(heading_m.group(1)):
+                        tokens_found.append((ln, line))
+                stripped = line.strip()
+                if re.match(r"\*\*(?:Priority|Status):\*\*", stripped) and _CLOSED_TOKEN_RE.search(
+                    stripped
+                ):
+                    tokens_found.append((ln, line))
+
+            if tokens_found:
+                if "<!-- lint:keep -->" in plan_text:
+                    continue
+                token_detail = "; ".join(f"line {ln + 1}: {txt}" for ln, txt in tokens_found)
+                findings.append(
+                    Finding(
+                        "closed-but-unpruned",
+                        rel,
+                        tokens_found[0][0] + 1,
+                        f"closed plan file '{entry.name}' — {token_detail}",
+                    )
+                )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check 9 — untriaged-finding accumulation (D8)
+# ---------------------------------------------------------------------------
+
+
+def _check_untriaged_age(root: Path) -> list[Finding]:
+    """Flag an untriaged finding (via ``outstanding.extract_untriaged``) whose
+    age exceeds ``untriaged_max_age_days`` from ``[knowledge_lint]`` config
+    (default 14).  Detect-only — imports the shared extraction, never
+    re-implements (D8).
+    """
+    # Load checks.toml config (shared with outstanding module).
+    config_path = root / "checks.toml"
+    config: dict = {}
+    if config_path.is_file():
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
+
+    kl_config = _load_knowledge_lint_config(root)
+    max_age = kl_config.get("untriaged_max_age_days", 14)
+
+    untriaged = outstanding.extract_untriaged(root, config)
+
+    findings: list[Finding] = []
+    for item in untriaged:
+        age = item.get("age_days", 0)
+        if age > max_age:
+            findings.append(
+                Finding(
+                    "untriaged-finding-stale",
+                    item.get("file", ""),
+                    None,
+                    f"untriaged finding {item.get('id', '?')} is {age} days old (max {max_age})",
+                )
+            )
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -546,6 +943,9 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
     findings.extend(_check_audit_log(root))
     findings.extend(_check_root_handoff_files(root))
+    findings.extend(_check_duplicate_blocks(root, is_ignored))
+    findings.extend(_check_closed_unpruned(root))
+    findings.extend(_check_untriaged_age(root))
     return findings
 
 

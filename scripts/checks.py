@@ -160,6 +160,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import audit_scope  # noqa: E402
 import data_lint  # noqa: E402
 import index_coverage  # noqa: E402
+import outstanding  # noqa: E402
 
 GENERATED_BY = "checks.py"
 
@@ -226,6 +227,7 @@ _REGISTRY: list[dict] = [
         "coverage_note": "disabling drops dead-code detection",
     },
     {"name": "index-coverage", "tier": "heavy", "kind": "delegate", "family": "fact"},
+    {"name": "outstanding", "tier": "snapshot", "kind": "delegate", "family": "fact"},
     {"name": "inventory", "tier": "snapshot", "kind": "builtin", "family": "fact"},
 ]
 
@@ -292,6 +294,7 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "jscpd": False,
         "vulture": False,
         "index-coverage": False,
+        "outstanding": True,
         "inventory": True,
     }
 
@@ -983,6 +986,12 @@ def _run_delegate(check: dict, config: dict, out_path: Path) -> dict:
         if status == "INFRA-FAIL":
             outcome["error"] = _last_nonempty_line(err_buf.getvalue())
         return outcome
+
+    if name == "outstanding":
+        root = _resolve_repo_root()
+        with redirect_stdout(buf), redirect_stderr(err_buf):
+            outstanding.run(root, config, out_path)
+        return {"status": "ok", "count": 0}
 
     raise ValueError(f"unknown delegate check: {name}")  # pragma: no cover
 

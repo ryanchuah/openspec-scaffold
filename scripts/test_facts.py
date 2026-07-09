@@ -207,17 +207,21 @@ class DefaultFactsRunTest(FactsTestBase):
     def test_default_run_exits_0_and_writes_undated_output(self):
         rc, out, err = self._facts_capture([])
         self.assertEqual(rc, 0)
-        # Default: scope + inventory are enabled; radon/index-coverage disabled
+        # Default: scope + inventory + outstanding are enabled (no external
+        # dependency, like inventory); radon/index-coverage disabled.
         facts_dir = self.repo / "output" / "facts"
         self.assertTrue(facts_dir.is_dir())
         self.assertTrue((facts_dir / "scope.json").exists())
         self.assertTrue((facts_dir / "inventory.json").exists())
+        self.assertTrue((facts_dir / "outstanding.json").exists())
+        self.assertTrue((facts_dir / "outstanding.md").exists())
         # Radon and index-coverage are disabled by default — not written
         self.assertFalse((facts_dir / "radon.json").exists())
         self.assertFalse((facts_dir / "index-coverage.json").exists())
         # Summary lines for each fact
         self.assertIn("scope:", out)
         self.assertIn("inventory:", out)
+        self.assertIn("outstanding:", out)
         self.assertEqual(err, "")
 
     def test_default_run_no_infra_fail_stderr(self):
@@ -230,7 +234,7 @@ class DefaultFactsRunTest(FactsTestBase):
         rc, out, err = self._facts_capture(["--list"])
         self.assertEqual(rc, 0)
         lines = {line.split()[0]: line for line in out.splitlines()}
-        expected_facts = {"scope", "radon", "index-coverage", "inventory"}
+        expected_facts = {"scope", "radon", "index-coverage", "outstanding", "inventory"}
         self.assertEqual(set(lines), expected_facts)
         for name in expected_facts:
             self.assertIn("fact", lines[name])
@@ -238,6 +242,27 @@ class DefaultFactsRunTest(FactsTestBase):
         self.assertNotIn("ruff", lines)
         self.assertNotIn("gitleaks", lines)
         self.assertEqual(err, "")
+
+
+class OutstandingFactTest(FactsTestBase):
+    """Task 5.4: the outstanding fact runs via `facts.py --check outstanding`
+    and is enabled by default in the all-facts run (D1)."""
+
+    def test_check_outstanding_runs_and_writes_artifacts(self):
+        rc, out, err = self._facts_capture(["--check", "outstanding"])
+        self.assertEqual(rc, 0)
+        facts_dir = self.repo / "output" / "facts"
+        self.assertTrue((facts_dir / "outstanding.json").exists())
+        self.assertTrue((facts_dir / "outstanding.md").exists())
+        self.assertIn("outstanding:", out)
+        self.assertEqual(err, "")
+
+    def test_outstanding_enabled_by_default_in_all_facts_run(self):
+        rc, out, err = self._facts_capture([])
+        self.assertEqual(rc, 0)
+        facts_dir = self.repo / "output" / "facts"
+        self.assertTrue((facts_dir / "outstanding.json").exists())
+        self.assertIn("outstanding:", out)
 
 
 class CheckFamilyRejectionTest(FactsTestBase):
@@ -274,6 +299,7 @@ class FloorExcludesFactsTest(FactsTestBase):
         self.assertNotIn("scope", lines)
         self.assertNotIn("radon", lines)
         self.assertNotIn("index-coverage", lines)
+        self.assertNotIn("outstanding", lines)
         self.assertNotIn("inventory", lines)
         # Check-family floor entries enabled by fixture (pyproject.toml + .git)
         self.assertIn("ruff", lines)

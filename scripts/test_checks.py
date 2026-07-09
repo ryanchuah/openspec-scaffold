@@ -210,6 +210,7 @@ class ListModeTest(AuditBundleTestBase):
             "jscpd",
             "vulture",
             "index-coverage",
+            "outstanding",
             "inventory",
         }
         self.assertEqual(set(lines), expected_names)
@@ -249,6 +250,7 @@ class AutodetectTest(AuditBundleTestBase):
         self.assertEqual(lines["deptry"], "enabled")
         self.assertEqual(lines["data-lint"], "enabled")
         self.assertEqual(lines["inventory"], "enabled")
+        self.assertEqual(lines["outstanding"], "enabled")
         # heavy checks + index-coverage default OFF absent config
         self.assertEqual(lines["radon"], "disabled")
         self.assertEqual(lines["jscpd"], "disabled")
@@ -1003,6 +1005,25 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
             rc = checks.main(["--floor"])
         self.assertEqual(rc, 0)
         self.assertIn("checks: no floor checks enabled", buf.getvalue())
+
+
+class OutstandingRegistryTest(AuditBundleTestBase):
+    """Task 5.4: `outstanding` is registered as a delegate fact (D1) and its
+    `--check outstanding` delegate arm actually runs the gather."""
+
+    def test_outstanding_registered_as_delegate_fact(self):
+        entry = next(c for c in checks._REGISTRY if c["name"] == "outstanding")
+        self.assertEqual(entry["kind"], "delegate")
+        self.assertEqual(entry["family"], "fact")
+        self.assertEqual(entry["tier"], "snapshot")
+
+    def test_check_outstanding_runs_gather_and_writes_artifacts(self):
+        out_dir = self.tmpdir / "out-outstanding"
+        rc, out = self._capture(["--check", "outstanding", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        self.assertTrue((out_dir / "outstanding.json").exists())
+        self.assertTrue((out_dir / "outstanding.md").exists())
+        self.assertIn("outstanding: ok", out)
 
 
 if __name__ == "__main__":

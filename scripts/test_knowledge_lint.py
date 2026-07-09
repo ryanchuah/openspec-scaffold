@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -768,6 +769,219 @@ def test_root_handoff_clean_tree_no_findings(tmp_path):
     )
     findings = knowledge_lint.collect_findings(tmp_path)
     assert not any(f.check == "root-handoff-file" for f in findings)
+
+
+# ===================================================================
+# 5.3 — duplicate-content-block (D7): flagged / not-flagged cases,
+# overlapping-window merge, research/specs exclusion, dup-ok marker.
+# ===================================================================
+
+_DUP_BLOCK_10_LINES = "\n".join(
+    f"Duplicated line number {n} of the shared block." for n in range(1, 11)
+)
+
+
+def test_duplicate_block_flagged_across_two_files_one_finding_per_file(tmp_path):
+    """A >=8-line verbatim block across two in-scope files is flagged — and
+    the overlapping 1-line-shifted sliding windows across the whole span
+    collapse into exactly ONE finding per file, not one per window offset
+    (the merge-overlapping-windows fix)."""
+    _write_tree(
+        tmp_path,
+        {
+            "AGENTS.md": f"# Agents\n\n{_DUP_BLOCK_10_LINES}\n\nTail content unique to AGENTS.md.\n",
+            "knowledge/reference/other.md": (
+                f"# Other\n\n{_DUP_BLOCK_10_LINES}\n\nTail content unique to other.md.\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dup_findings = [f for f in findings if f.check == "duplicate-content-block"]
+
+    assert len(dup_findings) == 2  # exactly one per file, not one per window offset
+    paths = {f.path for f in dup_findings}
+    assert paths == {"AGENTS.md", "knowledge/reference/other.md"}
+    for f in dup_findings:
+        assert "appears in 2 files" in f.message
+
+    exit_code, stdout = _run_main(tmp_path)
+    assert exit_code == 1
+    assert "duplicate-content-block" in stdout
+
+
+def test_duplicate_block_under_8_lines_not_flagged(tmp_path):
+    short_block = "\n".join(f"Short shared line {n}." for n in range(1, 7))  # 6 lines, < 8
+    _write_tree(
+        tmp_path,
+        {
+            "AGENTS.md": f"# Agents\n\n{short_block}\n",
+            "knowledge/reference/other.md": f"# Other\n\n{short_block}\n",
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "duplicate-content-block" for f in findings)
+
+
+def test_duplicate_block_in_research_dir_not_flagged(tmp_path):
+    """The duplicated block sitting DIRECTLY inside knowledge/research/ (not
+    nested in a subdirectory) must be excluded — regression test for the
+    exact-match exclusion bug (a bare prefix-with-slash check misses the
+    directory itself)."""
+    _write_tree(
+        tmp_path,
+        {
+            "AGENTS.md": f"# Agents\n\n{_DUP_BLOCK_10_LINES}\n",
+            "knowledge/research/old-plan.md": f"# Old Plan\n\n{_DUP_BLOCK_10_LINES}\n",
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "duplicate-content-block" for f in findings)
+
+
+def test_duplicate_block_openspec_specs_excluded_via_configured_scan_dir(tmp_path):
+    """openspec/specs/ is excluded even when a configured
+    ``duplicate_scan_dirs`` entry would otherwise bring it into scope; a
+    sibling dir under the same configured root is NOT exempt."""
+    _write_tree(
+        tmp_path,
+        {
+            "checks.toml": '[knowledge_lint]\nduplicate_scan_dirs = ["openspec"]\n',
+            "AGENTS.md": f"# Agents\n\n{_DUP_BLOCK_10_LINES}\n",
+            "openspec/specs/some-cap/spec.md": f"# Spec\n\n{_DUP_BLOCK_10_LINES}\n",
+            "openspec/other/notes.md": f"# Notes\n\n{_DUP_BLOCK_10_LINES}\n",
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dup_findings = [f for f in findings if f.check == "duplicate-content-block"]
+    dup_paths = {f.path for f in dup_findings}
+
+    assert "openspec/specs/some-cap/spec.md" not in dup_paths
+    assert "openspec/other/notes.md" in dup_paths
+    assert "AGENTS.md" in dup_paths
+
+
+def test_duplicate_block_dup_ok_marker_suppresses(tmp_path):
+    """The marker must sit INSIDE the detected duplicate window. Embedding
+    it at the same position in both files keeps the block a single
+    contiguous verbatim match (still >=8 lines, still identical across
+    both files) while placing the marker within each occurrence's own
+    reported line range."""
+    block_with_marker = (
+        "\n".join(f"Duplicated line number {n} of the shared block." for n in range(1, 6))
+        + "\n<!-- lint:dup-ok -->\n"
+        + "\n".join(f"Duplicated line number {n} of the shared block." for n in range(6, 11))
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "AGENTS.md": f"# Agents\n\n{block_with_marker}\n",
+            "knowledge/reference/other.md": f"# Other\n\n{block_with_marker}\n",
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "duplicate-content-block" for f in findings)
+
+
+# ===================================================================
+# 5.3 — closed-but-unpruned (D7): roadmap + top-level plan flagged;
+# lint:keep opts out.
+# ===================================================================
+
+
+def test_closed_unpruned_roadmap_entry_flagged(tmp_path):
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/roadmap.md": (
+                "# Roadmap\n\n## Some shipped idea\n**Status:** DONE\n**Priority:** ~~Medium~~\n"
+            )
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    closed = [f for f in findings if f.check == "closed-but-unpruned"]
+    assert len(closed) == 1
+    assert closed[0].path == "knowledge/roadmap.md"
+
+
+def test_closed_unpruned_top_level_plan_flagged(tmp_path):
+    _write_tree(
+        tmp_path,
+        {"plans/shipped-plan.md": "# Shipped Plan\n\n**Status:** COMPLETE\n"},
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    closed = [f for f in findings if f.check == "closed-but-unpruned"]
+    assert len(closed) == 1
+    assert closed[0].path == "plans/shipped-plan.md"
+
+
+def test_closed_unpruned_lint_keep_opts_out(tmp_path):
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/roadmap.md": (
+                "# Roadmap\n\n## Some shipped idea\n**Status:** DONE\n<!-- lint:keep -->\n"
+            ),
+            "plans/shipped-plan.md": (
+                "# Shipped Plan\n\n**Status:** COMPLETE\n<!-- lint:keep -->\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "closed-but-unpruned" for f in findings)
+
+
+# ===================================================================
+# 5.3 — untriaged-finding-stale (D8): past window flagged, within window
+# not flagged, mtime fallback when git is absent (no .git in these fixtures).
+# ===================================================================
+
+
+def _backdate(path: Path, days: int) -> None:
+    ts = time.time() - days * 86400
+    os.utime(path, (ts, ts))
+
+
+def test_untriaged_age_flagged_past_window(tmp_path):
+    findings_path = tmp_path / "knowledge" / "research" / "audit" / "FINDINGS.md"
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\nuntriaged_max_age_days = 5\n"})
+    _write_tree(tmp_path, {str(findings_path.relative_to(tmp_path)): "Found CA-W5-5 issue.\n"})
+    _backdate(findings_path, days=10)  # older than the 5-day window
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    stale = [f for f in findings if f.check == "untriaged-finding-stale"]
+    assert len(stale) == 1
+    assert "CA-W5-5" in stale[0].message
+
+
+def test_untriaged_age_not_flagged_within_window(tmp_path):
+    findings_path = tmp_path / "knowledge" / "research" / "audit" / "FINDINGS.md"
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\nuntriaged_max_age_days = 14\n"})
+    _write_tree(tmp_path, {str(findings_path.relative_to(tmp_path)): "Found CA-W6-6 issue.\n"})
+    # Freshly written -> mtime is "now", well within the 14-day window.
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "untriaged-finding-stale" for f in findings)
+
+
+def test_untriaged_age_uses_mtime_fallback_without_git(tmp_path):
+    """No .git anywhere in this fixture — age must come from filesystem
+    mtime, not crash for lack of git, and reflect the backdated age."""
+    assert not (tmp_path / ".git").exists()
+    findings_path = tmp_path / "knowledge" / "research" / "audit" / "FINDINGS.md"
+    _write_tree(tmp_path, {str(findings_path.relative_to(tmp_path)): "Found CA-W7-7 issue.\n"})
+    _backdate(findings_path, days=20)
+
+    untriaged = knowledge_lint.outstanding.extract_untriaged(tmp_path, {})
+    match = next(item for item in untriaged if item["id"] == "CA-W7-7")
+    assert 19 <= match["age_days"] <= 21
 
 
 # ===================================================================
