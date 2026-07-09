@@ -32,3 +32,5 @@
 - Audit-skill frontmatter `compatibility` boilerplate is inaccurate for both run-audit and knowledge-drift-review → `knowledge/questions/audit-skill-metadata-cleanup.md`
 - checks-facts-split follow-ons (cosmetic UX/wording, dead-code prune, engine-refactor additions) → `knowledge/questions/checks-facts-split-follow-ons.md`
 - Shared-lint-layer follow-ons → `knowledge/questions/shared-lint-layer-follow-ons.md`
+- data_lint.py SQLite backend (extrends ask; premise unconfirmed — app DB is Postgres) → `knowledge/questions/data-lint-sqlite-backend.md`
+- Security-scanner provisioning gaps (install-tools gitleaks version; GOPATH/bin non-interactive PATH) → `knowledge/questions/scanner-provisioning-gaps.md`

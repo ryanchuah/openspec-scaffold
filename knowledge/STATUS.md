@@ -71,10 +71,11 @@ lint-knowledge removed-manifest tombstone (9ea6076) and the ruff `target-version
 determinism pin (a879317) — the latter fixing a byte-identical-sync break where ruff sorted a
 scaffold-managed file differently per repo's inferred Python version.
 
-**Remaining extrends follow-ons** (parked, not blockers): audit-layer wiring (checks.toml, checks/,
-task-runner audit-* targets, dev-extras pins, an audit-log seed on first audit); a `knowledge-drift-review`
-semantic pass; and operator pruning of the relocated handoffs-archive dir plus the 2 untracked root
-handoff files left in place.
+**extrends audit layer now WIRED** (extrends b7280f6/2887f59: checks.toml, deptry, justfile audit-*
+targets; gitleaks enabled via the pinned *release* binary; `knowledge-drift-review` pass ran, 2000e40).
+Still-open extrends follow-ons (parked, not blockers): **data-lint stays off** — repo DB is SQLite, blocked
+on the upstream data_lint SQLite backend (`knowledge/questions/data-lint-sqlite-backend.md`); and operator
+pruning of the relocated handoffs-archive dir plus the 2 untracked root handoff files.
 
 **psc-monitor PROPAGATED 2026-07-04** (operator go-ahead given) — converged to scaffold HEAD (beacon
 `511843b`), committed to psc-monitor `main` as `0485daa` — **local, unpushed** (push needs separate
@@ -88,9 +89,10 @@ psc's own knowledge tree were resolved (repoint / de-path retired historical pla
 and psc's per-repo `## On-demand references` AGENTS.md appendix was relocated out of the banned post-`After
 reading` tail into the Project-context zone. Verified per `knowledge/reference/resync-verification.md`:
 `--check` converged, `scaffold_lint` 4 structural clean, `knowledge_lint`/`status_lint` clean, psc gate
-(`check.sh`: ruff+format+627 tests) green. **Remaining psc-monitor follow-ons** (parked, not blockers):
-audit-layer wiring (checks.toml, checks/, task-runner audit-* targets, dev-extras pins) and a
-`knowledge-drift-review` semantic pass — same per-repo build-out extrends owes.
+(`check.sh`: ruff+format+tests) green. **psc-monitor audit layer now WIRED** (psc b33d05a/f5ba85f:
+checks.toml, `checks/` with 4 Postgres data-lint invariants live, Makefile audit-* targets, gitleaks
+enabled; `knowledge-drift-review` pass ran, ebe06fe). Still idle by choice (parked, not blockers):
+osv-scanner (no root lockfile) and deptry (no pip dev-extra).
 
 **Scaffold-tooling fix SHIPPED 2026-07-03** — `fix-propagation-tooling-drift` (SMALL, archived at
 `openspec/changes/archive/2026-07-03-fix-propagation-tooling-drift/`): found during the extrends
@@ -99,3 +101,11 @@ propagation. `sync_scaffold.py` `--check-refs` `_EPHEMERAL_PATHS` was realigned 
 is green again), and `scaffold_lint.py`'s oneoff exclude glob was broadened `_*_oneoff.py`→`_*_oneoff.*`
 (no longer false-positives on `.sh` oneoffs downstream). Both files are authoring-side
 (manifest-excluded) — the fix does **not** propagate. Premise AGREE, flash verifier READY.
+
+**New scaffold gaps reported (parked, not scheduled)** — surfaced while extrends/psc enabled their
+scanners; see `knowledge/questions/scanner-provisioning-gaps.md`: (1) `install-tools.sh` installs gitleaks
+via `go install`, which embeds no version → fails `checks.py`'s version pin (both repos worked around it
+with the official release binary; re-running install-tools re-breaks it); (2) `$(go env GOPATH)/bin` is
+not on non-interactive PATH — root cause is the `~/.bashrc` interactivity guard sitting before the go PATH
+export (re-sourcing does not help), so cron/CI/`opencode run` hit `checks.py` preflight exit 3 unless PATH
+is set explicitly. A deterministic-audit runbook now lives at `knowledge/reference/audit-runbook.md`.
