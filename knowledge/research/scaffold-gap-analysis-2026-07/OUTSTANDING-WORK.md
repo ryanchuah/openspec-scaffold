@@ -48,6 +48,29 @@ bureaucracy. Get the ergonomics right or it will be ignored.
 **Effort:** ~1 week design + build. **Deps:** none, but unlocks OW-5/OW-6's value.
 
 ## OW-3 · Verify-stack redirect (breadth → lens diversity)  ·  Tier: MEDIUM (high blast radius)  ·  Orch: **Fable** (propose) → Opus (apply/verify)
+**STATUS 2026-07-10: PROPOSE COMPLETE — PAUSED AT APPLY (operator-mandated pause).**
+All artifacts frozen in `openspec/changes/verify-stack-redirect/` (tasks.md, 2 spec deltas,
+notes.md acceptance criteria): direction gate PREMISE: AGREE (round 1, zero 🔴, both 🟡
+resolved into the brief); artifact review round 1 PASS + PREMISE: AGREE, zero 🔴, both 🟡
+fixed pre-freeze. Design + evidence: change dir `explore-brief.md`, `premise-review.md`,
+`research/` (touch-surface inventory; per-pass yield mining). Decisive evidence: across ~40
+multi-model-verified changes in 3 repos, the flash same-lens pass **never uniquely caught a
+non-trivial defect** (3 cosmetic nits total), while lens-diverse gates (security, simplicity)
+caught critical defects both model passes rated clean. New shape: MEDIUM self→pro; COMPLEX
+self→pro→flash **lens pass** (test-quality default / data-scale for data-path; prompts inline
+in the verify skill); SMALL unchanged. Key design call: a lens is a *prompt*, not a detector —
+**OW-3's previously-stated dependency on OW-1/OW-4 is dissolved**; their detectors later feed
+the lens.
+- **Park verdict: PARKED apply does NOT block anything.** No backlog item depends on OW-3's
+  apply; the only cost of parking is that every MEDIUM/COMPLEX verify keeps paying the
+  zero-yield third full-suite flash pass until it lands (waste, not risk). Recommend batching
+  OW-3's apply into the same Opus session as OW-2's apply.
+- **Apply/verify orchestrator: Opus** (Fable NOT needed). Tasks carry exact anchors/wording
+  intents; budgets pinned (780/-k 15, budget-agreement lint guards them); apply is delegated
+  to deepseek-flash regardless. Verify THIS change under current (pre-change) semantics =
+  self + pro (see notes.md self-reference note). **Same escalation caveat as OW-2:** a
+  DESIGN-level defect at verify (lens contract wrong, unforeseen chain interaction) → stop
+  and escalate to operator/Fable; implementation bugs are normal defect-path work.
 **Why:** GAP 5 / token-waste answer. self→pro→flash run the *same* checklist; the third pass
 buys model weight, not a new question, and the bugs walked through all three.
 **Scope:** keep self + ONE independent model pass as the diversity guard; reinvest the third
@@ -79,6 +102,33 @@ never reviewed as a whole. Whole-repo detectors exist but are off-by-default and
 first-class, triggered composition pass; feed OW-2. **Effort:** ~2–3 days. **Deps:** OW-2, OW-5.
 
 ---
+
+## New findings — 2026-07-10 OW-3 session (Fable; untriaged, small, none block anything)
+
+1. **OW-2's frozen delta fails `openspec validate`.** `lesson-check-ratchet`'s
+   `specs/finding-closure-ratchet/spec.md` ADDED requirement
+   `generalizable-findings-close-only-with-a-recorded-disposition` lacks SHALL/MUST →
+   validator ERROR. **The Opus apply session for OW-2 should make the one-word normative fix
+   before delegating apply**, disclosing the post-freeze edit in `review-log.md` (mechanical,
+   no re-review round needed).
+2. **Validator blind spot for MEDIUM changes.** `openspec validate` discovers changes via
+   `proposal.md`, so MEDIUM (tasks.md-only) changes — including their spec deltas — are never
+   CLI-validated; delta format discipline rests entirely on the pro review. Candidate fix:
+   teach the validator (or a `scaffold_lint` check) to discover changes by dir presence.
+3. **No validate-at-freeze step.** The propose skill never runs `openspec validate` before
+   freezing artifacts — finding 1 slipped through a COMPLEX change that WAS validator-visible.
+   Candidate fix: one line in the propose skill (validate before declaring frozen) — cheap,
+   deterministic, mechanism-over-docs.
+4. **RENAMED spec-promotion path unexercised.** Hardened into the archive-executor by
+   `lifecycle-gates`, never used by any archived change. OW-3 deliberately avoided debuting it
+   (kept original requirement headers). Exercise it once on a low-stakes change.
+5. **Verify-skill internal drift found and absorbed into OW-3** (pass-sequence prose still
+   claimed OpenCode=flash-only; promoted spec self-contradictory on the same point; SMALL-pass
+   optional-vs-required contradiction; live skill citing an archived design.md "D5" for the
+   verifier prompt) — all fixed by OW-3's frozen tasks/deltas, listed here only so the pattern
+   is visible: **chain-shape prose is restated in ≥6 places and drifts independently**; the
+   long-term fix is fewer restatements (cite the spec), same cite-don't-restate rule the repo
+   already applies to rule-families.
 
 ## Orchestrator routing — summary
 - **Reserve Fable** for the *design/propose* of the three conceptually-novel, high-blast-radius

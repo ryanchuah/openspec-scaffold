@@ -96,3 +96,15 @@ the cross-cutting judgment.
   zero 🔴, all 🟡 fixed pre-freeze). PAUSED AT APPLY per operator instruction. Verdicts recorded in
   OUTSTANDING-WORK.md: parked apply does not block OW-3; apply/verify orchestrator = Opus (with a
   design-defect escalation caveat). Explore artifacts relocated into the change dir per D8.
+- 2026-07-10 (later session, Fable): OW-3 (verify-stack-redirect) started per operator instruction
+  (pause at apply). Explore COMPLETE: direction gate PREMISE: AGREE (round 1, zero 🔴, 🟡s resolved
+  into brief). New empirical input: pass-yield mining — flash same-lens pass has zero recorded
+  non-trivial unique catches across all 3 repos (~40 changes); full touch-surface inventory built
+  (spec delta required: verify-multimodel-gate). Artifacts relocated into the change dir per D8:
+  `openspec/changes/verify-stack-redirect/` (explore-brief, premise-review, research/).
+- 2026-07-10 (same session): OW-3 propose COMPLETE — tasks.md + 2 spec deltas + notes.md acceptance
+  criteria frozen (review round 1: PASS, PREMISE: AGREE, zero 🔴, both 🟡 fixed pre-freeze). PAUSED
+  AT APPLY per operator instruction. Verdicts in OUTSTANDING-WORK.md: park OK (nothing blocks);
+  apply/verify orchestrator = Opus, batch with OW-2's apply. Session also surfaced 3 new scaffold
+  findings (validator blind spot for MEDIUM changes, no validate-at-freeze step, RENAMED promotion
+  path unexercised) — recorded in OUTSTANDING-WORK.md "New findings".
