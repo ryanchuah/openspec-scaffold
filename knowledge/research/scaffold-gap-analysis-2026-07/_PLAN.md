@@ -108,3 +108,19 @@ the cross-cutting judgment.
   apply/verify orchestrator = Opus, batch with OW-2's apply. Session also surfaced 3 new scaffold
   findings (validator blind spot for MEDIUM changes, no validate-at-freeze step, RENAMED promotion
   path unexercised) — recorded in OUTSTANDING-WORK.md "New findings".
+- 2026-07-11 (later session, Fable): OW-5 (correctness-audit-skill) started per operator instruction
+  (pause at apply). Explore COMPLETE: 4 parallel research extractions checkpointed under
+  `openspec/changes/correctness-audit-skill/research/`; explore brief written; direction gate
+  PREMISE: AGREE (round 1, zero 🔴, three 🟡 carried to design.md as implementation questions).
+  Key evidence: psc-monitor ported extrends' audit playbook by hand (pattern already propagates
+  unowned); 6 documented failure modes across both hand-rolled audits each mapped to a named
+  mechanism in the skill direction. Status tracked in OUTSTANDING-WORK.md (this dir).
+- 2026-07-11 (same session): OW-5 propose COMPLETE — 4/4 artifacts frozen (proposal 1 round AGREE;
+  design 2 rounds, round 1 caught 2 real 🔴 incl. the untriaged-lint escape for REFUTED/one-off
+  findings → per-wave-gate triage file; specs 2 rounds, 1 🔴 graduation-log gap; tasks 1 round).
+  `openspec validate --strict` clean. PAUSED AT APPLY per operator instruction. Verdicts in
+  OUTSTANDING-WORK.md: park OK (blocks nothing; OW-5 apply itself gated on OW-2 apply);
+  apply/verify orchestrator = Opus with the standard design-defect escalation caveat. Recommended
+  single Opus batch: apply OW-2 → OW-3 → OW-5. Two review invocations crashed operationally
+  (budget-kill on first specs round; instant-kill on first tasks round) — both salvaged per the
+  harness crash ladder with clean re-runs.

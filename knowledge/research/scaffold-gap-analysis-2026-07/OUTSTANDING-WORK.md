@@ -89,11 +89,37 @@ data-path change requires either an at-scale run or a recorded bounded-domain ar
 `notes.md`. **Effort:** ~1 day. **Deps:** none.
 
 ## OW-5 · `correctness-audit` scaffold skill  ·  Tier: COMPLEX  ·  Orch: **Fable** (design) → Opus (apply/verify)
+**STATUS 2026-07-11: PROPOSE COMPLETE — PAUSED AT APPLY (operator-mandated pause).**
+All 4 artifacts frozen in `openspec/changes/correctness-audit-skill/` (proposal, design, 2 spec
+deltas — new `correctness-audit` capability + `knowledge-lint` dossier-lint delta — tasks), each
+through deepseek-v4-pro review: direction gate AGREE (round 1), proposal AGREE (round 1), design
+PASS (2 rounds — round 1 caught 2 🔴: REFUTED/one-off findings escaping the 14-day untriaged lint,
+fixed via a per-wave-gate triage file; missing token-set edit), specs PASS (2 rounds — round 1
+caught 1 🔴: graduation log undefined), tasks PASS (round 1). Zero 🔴 outstanding; every 🟡 fixed
+pre-freeze; `openspec validate --strict` clean (validate-at-freeze run this time — finding 3 from
+the OW-3 session applied procedurally). Research + explore artifacts in the change dir per D8.
+Direction: standardize the audit PROTOCOL (single charter with `format: correctness-audit/v1`
+marker, census-as-stopping-rule, FINDINGS contract with `Prior:` dedup field + `Class:` slugs
+shared with the ratchet ledger, refuter-overrule graduation, marker-gated dossier lint,
+ratchet-routed close-out); severity taxonomy and wave decomposition stay per-repo.
+- **Park verdict: PARKED apply blocks NOTHING.** OW-3 has no dependency on OW-5 in either
+  direction; no backlog item waits on OW-5's apply. OW-5's own apply is gated on OW-2's apply
+  (ratchet must be live). Recommended batch for one Opus session: **apply OW-2 → OW-3 → OW-5**
+  (OW-2 first for the ratchet; OW-3 before OW-5 preferred so OW-5's verify runs under the new
+  lens contract — see change notes.md).
+- **Apply/verify orchestrator: Opus** (Fable NOT needed). Contracts, verbatim formats, anchors,
+  and budgets are pinned in the frozen artifacts; apply is delegated to deepseek-flash
+  regardless. **Escalation caveat (same as OW-2/OW-3, plus one):** implementation bugs and prose
+  deviations from the frozen templates are normal defect-path work; a DESIGN-level defect
+  (ratchet interface doesn't fit as frozen, census/stopping-rule contract wrong) → stop and
+  escalate to operator/Fable. Reminder: OW-2's apply session makes its one-word normative fix
+  first (New findings item 1).
 **Why:** GAP 6 — both repos hand-rolled the LLM correctness audit (CHARTER/CENSUS/waves/oracles)
-differently; the scaffold owns only the deterministic `run-audit`.
+differently; the scaffold owns only the deterministic `run-audit`. (psc-monitor literally ported
+extrends' playbook and re-derived it by hand — the pattern already propagates, just without an owner.)
 **Scope:** a skill standardizing the wave/charter/census shape that **routes every generalizable
-finding into OW-2's ratchet** on close. **Effort:** ~3–4 days. **Deps:** land after OW-2 so
-findings have somewhere to go.
+finding into OW-2's ratchet** on close. **Effort:** ~3–4 days. **Deps:** apply-order dependency on
+OW-2 only (propose can proceed against frozen contracts); no OW-3 interaction in either direction.
 
 ## OW-6 · Cadenced composition-audit  ·  Tier: MEDIUM–COMPLEX  ·  Orch: **Fable** (design) → Opus (apply/verify)
 **Why:** GAP 2 — verify is single-diff-scoped; a subsystem built from many approved changes is
