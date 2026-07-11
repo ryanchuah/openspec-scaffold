@@ -35,6 +35,18 @@ reviewed at propose). Verify results will be recorded here at verify time.
   ratchet-routing behaviors are one invariant ("no ID leaves untriaged, nothing closes
   silently") — recorded here so archive doesn't reopen it.
 
+## Post-freeze input (2026-07-11, from psc-monitor — does NOT reopen the freeze)
+A downstream coverage-gap review (psc-monitor
+`plans/audit-correctness-quality/coverage-gaps-2026-07-11.md`) surfaced two audit-protocol
+failure modes outside this change's frozen scope: **silent wave-drop** (chartered discovery
+waves fell off every tracker when a remediation program took over the "wave" namespace —
+pull-only invocation + dossier-internal state can't defend against the dossier not being read)
+and **scope blind spots** (census-as-stopping-rule proves completeness within the chartered
+surface list; it cannot row a dimension the charter never enumerated — psc had five such, one an
+S4-class live gate). Queued as **OW-15** (apply strictly after this change), evidence at
+`knowledge/research/scaffold-gap-analysis-2026-07/psc-coverage-gap-review-2026-07-11.md`.
+Verify session: awareness only — do not fold into this change without operator direction.
+
 ## Orchestrator routing (operator-recorded verdicts, 2026-07-11)
 - **Park verdict:** parked apply blocks nothing — OW-3 has no dependency on OW-5, and
   no backlog item waits on OW-5's apply. OW-5 itself waits on OW-2's apply.

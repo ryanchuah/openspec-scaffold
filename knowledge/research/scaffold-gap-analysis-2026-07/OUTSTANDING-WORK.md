@@ -241,6 +241,39 @@ commit-test-gate hook. **Deps:** after frozen batch (touches same skills); pairs
 
 ---
 
+## Late addition — 2026-07-11 (psc-monitor coverage-gap review)
+
+Evidence doc: `psc-coverage-gap-review-2026-07-11.md` (this dir); source review in psc-monitor
+`plans/audit-correctness-quality/coverage-gaps-2026-07-11.md`.
+
+## OW-15 · Correctness-audit meta-hardening (liveness + scope blind spots)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+Three deltas to the `correctness-audit` capability OW-5 ships, from a downstream review that
+found a heavily-audited repo (psc-monitor, waves 0–2 executed) had (a) **silently dropped its
+chartered Waves 3–4 from every tracker** — the remediation program took over the "wave"
+namespace and the discovery tail fell off with no descope decision — and (b) **never chartered
+five whole dimensions**, one of which was an S4-class live gate (no implemented backup covered
+any non-reconstructible store while trackers said backups were "✅ satisfied"). Deltas:
+(1) **audit-liveness visibility** — an in-progress dossier SHALL be surfaced as an Active
+questions item until close-out; extend OW-5's dossier lint (dossier with unfinished waves + no
+Active item referencing it → drift finding); charter template requires discovery/remediation
+namespace separation. (2) **Chartered close-out coverage-gap review** — reviewer writes the
+full-audit dimension taxonomy BLIND (before reading charter/dossier), then diffs against
+chartered+executed coverage (census-as-stopping-rule proves completeness WITHIN scope; nothing
+else checks the scope itself). (3) **Scope-seeding checklist** — generic 45-dimension seed +
+eight named recurring blind-spot classes (backups of non-reconstructible state, cutover-as-one-
+sequence, provider feedback channels, policy-without-mechanism, phantom dev tooling, partial-✅
+dispositions, point-in-time audits without conventions, at-rest invariants at scale) consulted
+during the charter-instantiation walk.
+**Why:** both observed failure modes sit outside the frozen OW-5 design's defenses — dossier-
+internal state cannot defend against the dossier not being read, and the census cannot row a
+dimension the charter never enumerated. Checked against the frozen spec before filing: no overlap.
+**Scope:** spec delta to `correctness-audit` + skill-text additions + one knowledge-lint check.
+**Effort:** ~1 day. **Deps:** apply strictly AFTER OW-5 lands (amends its capability); zero
+interaction with OW-2/3/6. Alternative at operator discretion: fold into OW-5's verify session
+as an immediate follow-on. Standard escalation caveat.
+
+---
+
 ## New findings — 2026-07-10 OW-3 session (Fable; untriaged, small, none block anything)
 
 1. **OW-2's frozen delta fails `openspec validate`.** `lesson-check-ratchet`'s
@@ -282,6 +315,8 @@ commit-test-gate hook. **Deps:** after frozen batch (touches same skills); pairs
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
+  **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
+  capability, so it pairs naturally with OW-5's verify session or the first real audit run.
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the
