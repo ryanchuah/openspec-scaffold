@@ -1,9 +1,11 @@
 # OUTSTANDING WORK — scaffold hardening from downstream audit evidence
 
-**Source of truth for this backlog.** Derived from `SYNTHESIS.md` (this dir). All items are
-**PARKED** (see disposition at bottom) — none blocks the current session. Each is a candidate
-OpenSpec change in *this* (scaffold) repo; landing it here propagates to `extrends` +
-`psc-monitor` via `sync_scaffold.py`.
+**Source of truth for this backlog.** Wave 1 (OW-1..6, defect-prevention) derived from
+`SYNTHESIS.md` (this dir); wave 2 (OW-7..13, workflow efficiency) derived from
+`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`. All items are **PARKED** (see
+disposition at bottom) — none blocks the current session. Each is a candidate OpenSpec change
+in *this* (scaffold) repo; landing it here propagates to `extrends` + `psc-monitor` via
+`sync_scaffold.py`.
 
 Legend — **Orch** = who should orchestrate: **Fable** (reserve for novel, high-blast-radius
 design) vs **Opus** (well-specified design + all apply/verify orchestration; apply itself is
@@ -167,6 +169,64 @@ apply and ordered after OW-5's (ESCALATE references the correctness-audit skill)
 
 ---
 
+## Wave 2 — workflow-efficiency items (2026-07-11 Fable session)
+
+Full evidence, design calls, and non-findings: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`.
+**All wave-2 items: Orch Opus end-to-end** — the Fable-tier judgment each needed is already made and
+recorded in that document. Standard escalation caveat applies to every item (DESIGN-level defect at
+propose/apply/verify → stop, escalate to operator/Fable). **Sequencing constraint: OW-7/9/11 edit the
+same skill files OW-3 rewrites — land the frozen OW-2→3→5→6 batch FIRST.**
+
+## OW-7 · Delegation wrapper + run-telemetry ledger  ·  Tier: MEDIUM  ·  Orch: **Opus**
+`scripts/opencode_delegate.py` mechanizing the harness post-processing hand-rolled in 6 skills
+(timeout, fallback-grep, jq extraction, marker assert, EXIT-sentinel, exit-code interpretation) +
+one JSONL ledger line per run (agent, model, phase, change, duration, exit, fallback?, verdict,
+retry#) to untracked `output/delegation-log.jsonl`. Telemetry feeds the two scheduled decisions
+(premise-gate downgrade at ~50 reviews / MEDIUM pro-pass downgrade at ~20 verifies — see AUDIT.md).
+**Deps:** after frozen batch.
+
+## OW-8 · Delegated-context caching hygiene  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+Variable-paths-last in apply/archive/reviewer prompt templates; scope down / stabilize the
+AGENTS.md auto-injection into delegated deepseek calls (highest-churn file resets all 5 agents'
+prefix cache; ~7.2k orchestrator-voice tokens sent to the implementer role); single-source the
+triplicated premise prompt. **Deps:** none hard; prompt-template edits after frozen batch.
+
+## OW-9 · Instruction-surface contradiction sweep  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+Fix autonomy-grant vs phase-gate hard-STOP contradiction (resolved semantics recorded in AUDIT.md:
+grant auto-advances phases EXCEPT across DISSENT / NEEDS-REVISION / operator-named gates); fix
+harness-vs-skill self-review contradiction (resolve to: orchestrator's own inline pass); de-dup
+propose's Claude/OpenCode freeze branches; archive EXIT-sentinel line; add the assumption-batching
+rule (non-blocking ambiguity → recorded default in notes.md `Assumptions`, batch-surfaced at next
+gate); add the Sonnet-first pre-route line to the model-assignment matrix. **Deps:** after frozen
+batch. Do first among wave 2 — these are live contradictions.
+
+## OW-10 · Apply-executor throughput + resume contract  ·  Tier: MEDIUM  ·  Orch: **Opus**
+Green path = targeted tests per task + full suite once per slice (today: full suite after EVERY
+task, which is what makes the 600s ceiling bind); retry/fresh-executor brief gains the explicit
+resume contract (skip `[x]`, resume at first `[ ]`, reconcile the half-edited in-flight task) +
+distilled-state carry-forward. Attacks the measured ~15–19% crash/timeout→Sonnet escalation rate.
+**Deps:** after frozen batch (apply skill file).
+
+## OW-11 · Skill de-bloat + mechanized gates  ·  Tier: MEDIUM  ·  Orch: **Opus**
+Replace verify steps 12–16 with deterministic CLI coverage + coherence note; trim explore's
+gallery prose; `freeze-check` script (parse review verdict → FREEZE-OK/BLOCKED); `notes_lint.py`
+five-field gate replacing the step-18 ritual; explore→propose slug-match warning; run COMPLEX's
+two verifier passes concurrently (read-only frozen tree; ~13 min wall-clock saved); model-ID
+agreement lint (deepseek-v4 hardcoded 44×/13 files, no guard). **Deps:** strictly after OW-3
+applies (same file).
+
+## OW-12 · Archive mechanization  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**  ·  lowest priority
+`archive_move.py` for the dir move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM
+only for MODIFIED merge + reconciliation narrative). Keep the executor on pro — what remains IS
+the judgment. **Deps:** after frozen batch.
+
+## OW-13 · Knowledge-surface bounding, round 2  ·  Tier: SMALL  ·  Orch: **Opus**
+`status_lint` word-budgets for the currently-exempt sections (evidence: extrends "Immediate next
+action" at 1,645 words); bound `knowledge/decisions/INDEX.md` (extrends 52KB ≈ 13k boot-scan
+tokens; year-split); optional plans/-count lint (extrends 68-file shadow workflow). **Deps:** none.
+
+---
+
 ## New findings — 2026-07-10 OW-3 session (Fable; untriaged, small, none block anything)
 
 1. **OW-2's frozen delta fails `openspec validate`.** `lesson-check-ratchet`'s
@@ -195,19 +255,23 @@ apply and ordered after OW-5's (ESCALATE references the correctness-audit skill)
    already applies to rule-families.
 
 ## Orchestrator routing — summary
-- **Reserve Fable** for the *design/propose* of the three conceptually-novel, high-blast-radius
-  items: **OW-2** (ratchet), **OW-3** (verify redirect), **OW-5/OW-6** (audit skills). The
-  expensive-to-get-right part is the design decision, not the mechanics.
-- **Use Opus end-to-end** for the mechanical detectors — **OW-1, OW-4** — and for **all
-  apply+verify orchestration** once any proposal is frozen. Apply is delegated to deepseek/
-  sonnet regardless of orchestrator, and verifying a well-specified frozen change is squarely
-  within Opus's capability.
-- **Note the pleasant asymmetry:** the single highest-yield fix (OW-1) needs Fable *not at all*.
+- **The Fable-tier backlog is CLOSED as of 2026-07-11.** OW-2/3/5/6 designs are frozen; every
+  wave-2 item's design judgment is pre-made in `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`.
+- **Use Opus end-to-end** for everything remaining: applying+verifying the frozen batch, OW-1,
+  OW-4, and all of OW-7..13. Apply is delegated to deepseek/sonnet regardless of orchestrator,
+  and verifying a well-specified frozen change is squarely within Opus's capability.
+- **Escalate to operator/Fable** only on DESIGN-level defects surfacing mid-apply/verify (the
+  per-item caveats above), never for implementation bugs.
 
 ## Disposition
-- **All PARKED.** Nothing here blocks this session; its deliverable (the gap analysis) is
-  complete. These changes prevent *recurrence* of downstream bug classes — high value, not
-  urgent. Recommended landing order: OW-1 → OW-2 → OW-3 → OW-4 → OW-5 → OW-6.
+- **All PARKED.** Nothing here blocks anything; parking costs only the known waste OW-3/OW-7
+  will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
+  Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11 edit files OW-3
+  rewrites), then OW-9 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
+- **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
+  is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
+  defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the
+  explicit do-not-build list.
 - **Out-of-scope flag for the operator (downstream, not scaffold):** extrends currently has
   **~33 correctness-audit defect classes with ZERO remediation shipped** (per its
   `decisions/INDEX.md § audit-first-remediation-deferred`) — every class is still live in that

@@ -54,7 +54,14 @@ not fixed here. Decisions in `knowledge/decisions/INDEX.md`; forward items parke
 Archive: `openspec/changes/archive/2026-07-03-checks-facts-split`.
 
 ## Immediate next action
-The succession-hardening portfolio is **fully shipped**; the day-to-day-tooling portfolio (A: checks-facts-split, B: sync-deletion-manifest, C: shared-lint-layer) is now **fully shipped** — no proactive build is in flight.
+Four changes are **propose-complete and deliberately paused at apply** (operator-mandated batching):
+`lesson-check-ratchet` (OW-2), `verify-stack-redirect` (OW-3), `correctness-audit-skill` (OW-5),
+`composition-audit-cadence` (OW-6). Next session (Opus orchestrator) applies them in hard order
+OW-2→3→5→6, then works the remaining backlog per
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..13
+items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
+`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
+Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
 
 **Downstream propagation — extrends AND psc-monitor FULLY SYNCED.** On 2026-07-04 the operator
 authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full
