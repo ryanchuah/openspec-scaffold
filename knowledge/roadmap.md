@@ -22,11 +22,13 @@ Durable roadmap of larger improvements not yet scoped into a specific OpenSpec c
 **Priority:** Medium (defect-prevention wave above outranks it)
 **Gating condition:** Frozen batch OW-2→3→5→6 must apply first — OW-7/9/11 edit the same skill files OW-3 rewrites.
 **Summary:** Second-wave audit traced the lifecycle step-by-step and mined 81 archived changes across
-all 3 repos for operational friction. Seven Opus-tier items: delegation wrapper + run-telemetry ledger
+all 3 repos for operational friction. Eight Opus-tier items: delegation wrapper + run-telemetry ledger
 (OW-7), delegated-context caching hygiene — AGENTS.md is auto-injected into every deepseek call and is
 the highest-churn boot file (OW-8), instruction-surface contradiction sweep incl. autonomy-vs-phase-gate
 (OW-9), apply-executor targeted-tests + resume contract (OW-10), skill de-bloat + mechanized
-freeze/notes gates (OW-11), archive mechanization (OW-12), knowledge-surface bounding round 2 (OW-13).
+freeze/notes gates (OW-11), archive mechanization (OW-12), knowledge-surface bounding round 2 incl. a
+boot-surface byte budget (OW-13), delegation-by-default mechanics — haiku tier in the model matrix +
+point-of-action cues so run-and-extract work leaves the orchestrator (OW-14).
 Also records the evidence-gated scheduled decisions (premise-gate downgrade; MEDIUM pro-pass downgrade)
 and an explicit do-not-build list. **After this wave: scaffold optimization is at diminishing returns —
 spend downstream.**

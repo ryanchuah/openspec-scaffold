@@ -178,6 +178,40 @@ ship with it.
 
 ---
 
+## Addendum — operator follow-ups (same session)
+
+### Are the mandatory boot reads overboard?
+**No in kind, drifting in size.** Every member of the boot set traces to a real failure class
+(STATUS lag → the reconcile-first rule came from real drift; HANDOFF → real mid-change context
+exhaustion; questions Active → bounded by the horizon split). Measured cost: scaffold ~16k tokens
+(~8% of a 200k window) — fine; psc-monitor ~23k; **extrends ~30k (~15%) is at the edge**, driven by
+`decisions/INDEX.md` (52KB) — and the practical cost exceeds the nominal one because "scan the
+relevant entries" still physically Reads the whole file. Two rulings:
+1. **The per-member size problem is OW-13's job** (decisions year-split, STATUS exempt-section
+   budgets). Add to OW-13's scope: a deterministic `boot_surface` check — sum the byte sizes of the
+   boot-read set against a budget (suggest warn ~80KB, fail ~100KB) so growth is caught by machine,
+   not by a Fable session with a measuring tape.
+2. **The bigger hazard is the mandatory-read ratchet:** every incident tempts adding one more boot
+   read. Rule to adopt (one line, fold into OW-9): adding a new mandatory boot read requires
+   displacing or shrinking an existing one — the boot set is a fixed budget, not a growing list.
+
+### Orchestrators keep doing mechanical work inline instead of delegating (→ OW-14)
+Operator evidence: expensive main agents (Opus/Fable) run greps, builders, probes, and JSON parsing
+inline, filling their own windows, despite AGENTS.md item 5 saying to delegate. Diagnosis: **this is
+wave 1's "prose lessons are write-only memory" pattern applied to the instruction surface itself** —
+the rule lives in a global preamble, so it never fires at the moment of the mistake; the transcript
+shows an agent reciting the rule and still under-applying it. The operator's correction gives the
+crisp form of the rule: **run-and-extract goes to a subagent; read-and-judge stays with the
+orchestrator** — verification *judgment* is non-delegable, but its mechanical *feeds* (run X,
+extract Y, report the numbers) are exactly what haiku/sonnet are for; plan the slices before
+delegating. Mechanism fixes, not more prose (→ OW-14): a haiku tier in the model matrix (currently
+absent — the matrix only names Sonnet-for-extraction), point-of-action cues inside the verify/apply
+skill steps where the mistake actually happens, and an optional deterministic Claude-side
+large-output nudge hook. Note OW-7 already kills the single biggest observed class (inline parsing
+of opencode JSONL output).
+
+---
+
 ## Sequencing & orchestrator routing (recorded verdict)
 
 **Everything below is Opus. No remaining backlog item needs Fable.** The judgment calls each item
@@ -189,11 +223,12 @@ Recommended Opus session order:
    normative fix from wave-1 finding 1). Nothing in this wave blocks on it, but OW-7/9/11 edit the
    same skill files OW-3 rewrites — landing them before the batch would force rebasing frozen
    artifacts. **Batch first.**
-2. **OW-9** (contradiction sweep — cheap, fixes live contradictory instructions, carries the two
-   one-line matrix/rule additions).
-3. **OW-1, OW-4** (wave-1 detectors; defect-prevention outranks efficiency).
-4. **OW-7** (wrapper + telemetry — the sooner it lands, the sooner the scheduled decisions get data).
-5. **OW-10**, then **OW-11**, then **OW-8**, then **OW-13**, then **OW-12**.
+2. **OW-9** (contradiction sweep — cheap, fixes live contradictory instructions, carries the
+   one-line matrix/rule additions incl. the boot-read displacement rule).
+3. **OW-14** (delegation-by-default mechanics — cheap, and every subsequent session benefits).
+4. **OW-1, OW-4** (wave-1 detectors; defect-prevention outranks efficiency).
+5. **OW-7** (wrapper + telemetry — the sooner it lands, the sooner the scheduled decisions get data).
+6. **OW-10**, then **OW-11**, then **OW-8**, then **OW-13**, then **OW-12**.
 
 **Park verdict for this session: PARK EVERYTHING.** No item above must be applied now to unblock
 other work; the four frozen changes remain deliberately paused; the only cost of parking is the

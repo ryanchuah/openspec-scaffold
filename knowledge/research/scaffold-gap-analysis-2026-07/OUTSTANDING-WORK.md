@@ -1,7 +1,7 @@
 # OUTSTANDING WORK — scaffold hardening from downstream audit evidence
 
 **Source of truth for this backlog.** Wave 1 (OW-1..6, defect-prevention) derived from
-`SYNTHESIS.md` (this dir); wave 2 (OW-7..13, workflow efficiency) derived from
+`SYNTHESIS.md` (this dir); wave 2 (OW-7..14, workflow efficiency) derived from
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`. All items are **PARKED** (see
 disposition at bottom) — none blocks the current session. Each is a candidate OpenSpec change
 in *this* (scaffold) repo; landing it here propagates to `extrends` + `psc-monitor` via
@@ -171,11 +171,12 @@ apply and ordered after OW-5's (ESCALATE references the correctness-audit skill)
 
 ## Wave 2 — workflow-efficiency items (2026-07-11 Fable session)
 
-Full evidence, design calls, and non-findings: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`.
+Full evidence, design calls, and non-findings: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`
+(incl. the addendum answering the boot-read sanity check and the delegation-forgetting report).
 **All wave-2 items: Orch Opus end-to-end** — the Fable-tier judgment each needed is already made and
 recorded in that document. Standard escalation caveat applies to every item (DESIGN-level defect at
-propose/apply/verify → stop, escalate to operator/Fable). **Sequencing constraint: OW-7/9/11 edit the
-same skill files OW-3 rewrites — land the frozen OW-2→3→5→6 batch FIRST.**
+propose/apply/verify → stop, escalate to operator/Fable). **Sequencing constraint: OW-7/9/11/14 edit
+the same skill files OW-3 rewrites — land the frozen OW-2→3→5→6 batch FIRST.**
 
 ## OW-7 · Delegation wrapper + run-telemetry ledger  ·  Tier: MEDIUM  ·  Orch: **Opus**
 `scripts/opencode_delegate.py` mechanizing the harness post-processing hand-rolled in 6 skills
@@ -223,7 +224,20 @@ the judgment. **Deps:** after frozen batch.
 ## OW-13 · Knowledge-surface bounding, round 2  ·  Tier: SMALL  ·  Orch: **Opus**
 `status_lint` word-budgets for the currently-exempt sections (evidence: extrends "Immediate next
 action" at 1,645 words); bound `knowledge/decisions/INDEX.md` (extrends 52KB ≈ 13k boot-scan
-tokens; year-split); optional plans/-count lint (extrends 68-file shadow workflow). **Deps:** none.
+tokens; year-split); optional plans/-count lint (extrends 68-file shadow workflow); a
+deterministic `boot_surface` budget check summing the boot-read set's bytes (warn ~80KB / fail
+~100KB — extrends is at ~122KB today; see AUDIT.md addendum). **Deps:** none.
+
+## OW-14 · Delegation-by-default mechanics  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+Operator-reported failure: expensive orchestrators (Opus/Fable) run greps/builders/probes/JSON
+parsing inline instead of delegating — the AGENTS.md rule exists but never fires at the moment of
+action (prose-is-write-only-memory, applied to the instruction surface). Canonical rule:
+**run-and-extract → subagent (haiku mechanical / sonnet extraction); read-and-judge →
+orchestrator**; plan slices before delegating. Scope: (a) add the missing **haiku tier** to the
+model-assignment matrix; (b) point-of-action cues inside verify/apply/archive steps that run
+builders/probes/suites ("delegate the run+extract; read the distilled report"); (c) optional
+Claude-only PostToolUse large-Bash-output nudge hook — needs a decision-record carve-out like the
+commit-test-gate hook. **Deps:** after frozen batch (touches same skills); pairs with OW-9.
 
 ---
 
@@ -266,8 +280,8 @@ tokens; year-split); optional plans/-count lint (extrends 68-file shadow workflo
 ## Disposition
 - **All PARKED.** Nothing here blocks anything; parking costs only the known waste OW-3/OW-7
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
-  Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11 edit files OW-3
-  rewrites), then OW-9 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
+  Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
+  OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the

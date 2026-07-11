@@ -58,7 +58,7 @@ Four changes are **propose-complete and deliberately paused at apply** (operator
 `lesson-check-ratchet` (OW-2), `verify-stack-redirect` (OW-3), `correctness-audit-skill` (OW-5),
 `composition-audit-cadence` (OW-6). Next session (Opus orchestrator) applies them in hard order
 OW-2→3→5→6, then works the remaining backlog per
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..13
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
 items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
 Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
