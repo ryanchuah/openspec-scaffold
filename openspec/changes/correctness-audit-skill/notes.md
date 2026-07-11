@@ -47,6 +47,15 @@ S4-class live gate). Queued as **OW-15** (apply strictly after this change), evi
 `knowledge/research/scaffold-gap-analysis-2026-07/psc-coverage-gap-review-2026-07-11.md`.
 Verify session: awareness only — do not fold into this change without operator direction.
 
+**Second convergence (2026-07-12, extrends):** extrends independently executed the same blind
+close-out review against its four-wave audit (method validated n=2; psc's backup blind-spot
+class fired against extrends on first cross-repo use). OW-15 widened in place — notably
+**Delta 4: post-close coverage-liveness ledger** (code shipped after a clean close-out is
+unaudited by construction; ledger + mini-wave trigger, reference impl in extrends) and several
+Delta-3 checklist widenings. Evidence:
+`knowledge/research/scaffold-gap-analysis-2026-07/extrends-coverage-gap-review-2026-07-12.md`.
+Same rule: awareness only — OW-15's apply consumes this, not this change's verify.
+
 ## Orchestrator routing (operator-recorded verdicts, 2026-07-11)
 - **Park verdict:** parked apply blocks nothing — OW-3 has no dependency on OW-5, and
   no backlog item waits on OW-5's apply. OW-5 itself waits on OW-2's apply.

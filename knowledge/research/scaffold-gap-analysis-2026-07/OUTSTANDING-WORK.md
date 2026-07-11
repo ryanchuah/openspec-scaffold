@@ -241,10 +241,11 @@ commit-test-gate hook. **Deps:** after frozen batch (touches same skills); pairs
 
 ---
 
-## Late addition — 2026-07-11 (psc-monitor coverage-gap review)
+## Late addition — 2026-07-11 (psc-monitor coverage-gap review; extrends convergence 2026-07-12)
 
-Evidence doc: `psc-coverage-gap-review-2026-07-11.md` (this dir); source review in psc-monitor
-`plans/audit-correctness-quality/coverage-gaps-2026-07-11.md`.
+Evidence docs: `psc-coverage-gap-review-2026-07-11.md` + `extrends-coverage-gap-review-2026-07-12.md`
+(this dir); source reviews in psc-monitor `plans/audit-correctness-quality/coverage-gaps-2026-07-11.md`
+and extrends `knowledge/research/correctness-audit-2026-07/gap-map-2026-07-11.md`.
 
 ## OW-15 · Correctness-audit meta-hardening (liveness + scope blind spots)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
 Three deltas to the `correctness-audit` capability OW-5 ships, from a downstream review that
@@ -267,8 +268,28 @@ during the charter-instantiation walk.
 **Why:** both observed failure modes sit outside the frozen OW-5 design's defenses — dossier-
 internal state cannot defend against the dossier not being read, and the census cannot row a
 dimension the charter never enumerated. Checked against the frozen spec before filing: no overlap.
-**Scope:** spec delta to `correctness-audit` + skill-text additions + one knowledge-lint check.
-**Effort:** ~1 day. **Deps:** apply strictly AFTER OW-5 lands (amends its capability); zero
+**Extrends convergence + widenings (2026-07-12,** `extrends-coverage-gap-review-2026-07-12.md`**):**
+extrends independently ran the Delta-2 method (blind 30-dim taxonomy → 3-subagent recon → diff)
+against its FOUR-wave audit the same weekend — second success, n=2, plus first cross-repo yield in
+both directions (psc's class #1 fired against extrends: backups of non-reconstructible state,
+never chartered there either; routed in extrends' own queue). Adds to this entry: **Delta 4 —
+coverage liveness AFTER close-out** (post-close unaudited-code ledger appended at verify/archive
+for persistence/publish-path diffs, mini-wave trigger when the open set grows; reference impl
+`extrends/.../POST-WAVE4-LEDGER.md` — Delta 1's mirror image: Delta 1 defends the unfinished
+dossier, Delta 4 defends the finished one); **Delta-3 checklist widenings** — measurement-pipeline
+parity (eval grades the identical artifact path prod publishes), run-indexed vs period-indexed
+derived state under sequential same-period re-runs (survives idempotent storage), phantom
+*capability* claims (class-#5 widened from dev tooling to declared-never-exercised
+extras/backends — extrends `[postgres]`), cross-stream interference + the **boot-doc rule** (a
+routed constraint on another stream isn't routed until it's in that stream's boot/handoff doc),
+verified-safety-claim tagging (class-#6 widened: tracker claims authorizing state-mutating
+operator actions carry VERIFIED-BY or UNVERIFIED), a named group-I config smell
+(pydantic-settings `extra="ignore"` + no `env_prefix`), and grade-hazards-against-deployed-config
+(not code defaults). Plus one small adjacent process candidate (committed-handoffs check —
+pairs with OW-13's plans lint; placement at operator discretion, evidence doc §4).
+**Scope:** spec delta to `correctness-audit` + skill-text additions + one knowledge-lint check
+(now incl. the Delta-4 ledger requirement).
+**Effort:** ~1–1.5 days. **Deps:** apply strictly AFTER OW-5 lands (amends its capability); zero
 interaction with OW-2/3/6. Alternative at operator discretion: fold into OW-5's verify session
 as an immediate follow-on. Standard escalation caveat.
 
