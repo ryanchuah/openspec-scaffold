@@ -121,11 +121,49 @@ extrends' playbook and re-derived it by hand — the pattern already propagates,
 finding into OW-2's ratchet** on close. **Effort:** ~3–4 days. **Deps:** apply-order dependency on
 OW-2 only (propose can proceed against frozen contracts); no OW-3 interaction in either direction.
 
-## OW-6 · Cadenced composition-audit  ·  Tier: MEDIUM–COMPLEX  ·  Orch: **Fable** (design) → Opus (apply/verify)
+## OW-6 · Cadenced composition-audit  ·  Tier: COMPLEX (was MEDIUM–COMPLEX; classified at explore)  ·  Orch: **Fable** (design) → Opus (apply/verify)
+**STATUS 2026-07-11: PROPOSE COMPLETE — PAUSED AT APPLY (operator-mandated pause).**
+All 4 artifacts frozen in `openspec/changes/composition-audit-cadence/` (proposal, design,
+3 spec deltas — new `composition-audit` capability + `outstanding-work-view` +
+`knowledge-lint` — tasks), every review round PASS with **zero 🔴 on round 1** (proposal
+AGREE; design 3🟡; specs 5🟡, cross-change collision check vs OW-2/OW-5 deltas explicitly
+clean; tasks 2🟡 — every 🟡 fixed pre-freeze), `openspec validate --strict` clean at freeze
+(validate-at-freeze applied), zero reviewer-invocation crashes. Direction gate at explore:
+PREMISE: AGREE round 1 (two 🟡 resolved into the brief: composition-discriminable anchor so
+run-audit tags never silently reset the cadence clock; honest pull-surfaced-signal framing).
+Key design judgment: **the trigger is the product** — both repos had all instruments and
+lessons; nothing ever named the occasion. Shape: (1) deterministic count-based due-signal
+(archived-changes-since-composition-anchor ≥10 OR commits ≥100, per-repo keys) in the
+`outstanding` fact + `inventory` sibling anchor; (2) operator-invoked `composition-audit`
+skill (one-shot `checks.py --report --include jscpd/vulture/radon` + baseline delta +
+D5-shape pre-digest + bounded top-K=5 judgment pass) with machine verdict
+`COMPOSITION: CLEAN|FINDINGS-ROUTED|ESCALATE`; (3) close-out routes into OW-2's ratchet
+(orchestrator-performed triage per OW-2's SHALL) and lays the `audit/<date>-composition`
+anchor. Honest limit stated in-artifact: detectors catch only the narrow mechanical slice
+(~30+/~36 evidence classes needed LLM judgment) — the pass's value is occasion + early
+mechanical catch + standing escalation point into OW-5.
+- **Park verdict: PARKED apply blocks NOTHING — including OW-3.** OW-3 has no dependency
+  on OW-6 in either direction (its OW-1/OW-4 dependency was dissolved at its own propose;
+  OW-6 depends on OW-2/OW-5, not OW-3). Cost of parking: downstream repos keep accruing
+  unreviewed composition debt — waste/risk-accumulation, not a blocker.
+- **Apply/verify orchestrator: Opus** (Fable NOT needed). Contracts, exact anchors
+  (file:line, all 12 reviewer-verified), formats, defaults, and insertion points are
+  pinned in the frozen artifacts; apply is delegated to deepseek-flash regardless.
+  **Standard escalation caveat:** implementation bugs are normal defect-path work; a
+  DESIGN-level defect at verify (trigger semantics wrong, ceremony contract doesn't fit,
+  ratchet seam mismatch surfacing during OW-2's apply) → stop and escalate to
+  operator/Fable. See change `notes.md` for the verify-semantics note (under OW-3's new
+  chain if batch order holds: lens = test-quality).
+- **Recommended single Opus batch: apply OW-2 → OW-3 → OW-5 → OW-6** (hard order: OW-2
+  before OW-6 — ratchet ledger must exist; OW-5 before OW-6 — ESCALATE cites its skill).
+  With OW-6 frozen, the batch closes the entire Fable-tier design backlog; OW-1/OW-4
+  remain Opus end-to-end greenfield.
 **Why:** GAP 2 — verify is single-diff-scoped; a subsystem built from many approved changes is
 never reviewed as a whole. Whole-repo detectors exist but are off-by-default and cadence-less.
 **Scope:** wire `jscpd`/`vulture`/`audit_scope.py scan`/`knowledge-drift-review` into a
-first-class, triggered composition pass; feed OW-2. **Effort:** ~2–3 days. **Deps:** OW-2, OW-5.
+first-class, triggered composition pass; feed OW-2. **Effort:** ~2–3 days. **Deps:** propose
+proceeds now against OW-2/OW-5 frozen contracts (same pattern OW-5 used); apply gated on OW-2's
+apply and ordered after OW-5's (ESCALATE references the correctness-audit skill).
 
 ---
 

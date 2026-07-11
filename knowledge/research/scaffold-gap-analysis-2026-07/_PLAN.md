@@ -124,3 +124,21 @@ the cross-cutting judgment.
   single Opus batch: apply OW-2 → OW-3 → OW-5. Two review invocations crashed operationally
   (budget-kill on first specs round; instant-kill on first tasks round) — both salvaged per the
   harness crash ladder with clean re-runs.
+- 2026-07-11 (later session, Fable): OW-6 (composition-audit-cadence) started per operator
+  instruction (pause at apply). Explore COMPLETE: 5 parallel sonnet research extractions
+  checkpointed under `openspec/changes/composition-audit-cadence/research/`; brief at
+  `plans/composition-audit-cadence/explore-brief.md`; direction gate PREMISE: AGREE (round 1,
+  zero 🔴, two 🟡 resolved into the brief: composition-discriminable anchor vs run-audit
+  clock-reset collision; honest pull-surfaced-signal framing + non-gating notice as design
+  question). Core judgment: the trigger is the product — instruments existed, occasions didn't.
+  Tier classified COMPLEX. Status tracked in OUTSTANDING-WORK.md (this dir).
+- 2026-07-11 (same session): OW-6 propose COMPLETE — 4/4 artifacts frozen (proposal 1 round
+  AGREE; design 1 round 3🟡; specs 1 round 5🟡 incl. clean cross-change collision check vs
+  OW-2/OW-5 deltas; tasks 1 round 2🟡 — all 🟡 fixed pre-freeze; zero 🔴 anywhere; zero
+  reviewer crashes). `openspec validate --strict` clean at freeze. Explore artifacts relocated
+  into the change dir per D8. PAUSED AT APPLY per operator instruction. Verdicts in
+  OUTSTANDING-WORK.md: park OK (blocks nothing, incl. OW-3); apply/verify orchestrator = Opus
+  with the standard design-defect escalation caveat. Recommended single Opus batch:
+  apply OW-2 → OW-3 → OW-5 → OW-6 (hard order; see change notes.md). **G (operator pause
+  point) for OW-6: reported in chat this session.** With OW-6 frozen, all four Fable-tier
+  designs (OW-2/3/5/6) are frozen — remaining backlog (OW-1, OW-4) is Opus end-to-end.
