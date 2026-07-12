@@ -241,11 +241,13 @@ commit-test-gate hook. **Deps:** after frozen batch (touches same skills); pairs
 
 ---
 
-## Late addition — 2026-07-11 (psc-monitor coverage-gap review; extrends convergence 2026-07-12)
+## Late addition — 2026-07-11 (psc-monitor coverage-gap review; extrends convergence 2026-07-12; psc strategy pressure-test 2026-07-12)
 
 Evidence docs: `psc-coverage-gap-review-2026-07-11.md` + `extrends-coverage-gap-review-2026-07-12.md`
-(this dir); source reviews in psc-monitor `plans/audit-correctness-quality/coverage-gaps-2026-07-11.md`
-and extrends `knowledge/research/correctness-audit-2026-07/gap-map-2026-07-11.md`.
++ `psc-strategy-pressure-test-2026-07-12.md` (this dir); source reviews in psc-monitor
+`plans/audit-correctness-quality/coverage-gaps-2026-07-11.md` and
+`plans/strategy-pressure-test/pressure-test-2026-07-12.md`, and extrends
+`knowledge/research/correctness-audit-2026-07/gap-map-2026-07-11.md`.
 
 ## OW-15 · Correctness-audit meta-hardening (liveness + scope blind spots)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
 Three deltas to the `correctness-audit` capability OW-5 ships, from a downstream review that
@@ -287,11 +289,53 @@ operator actions carry VERIFIED-BY or UNVERIFIED), a named group-I config smell
 (pydantic-settings `extra="ignore"` + no `env_prefix`), and grade-hazards-against-deployed-config
 (not code defaults). Plus one small adjacent process candidate (committed-handoffs check —
 pairs with OW-13's plans lint; placement at operator discretion, evidence doc §4).
+**psc CG9 third validation + widenings (2026-07-12,** `psc-strategy-pressure-test-2026-07-12.md`**):**
+the blind-diff method ran a third time — first use in a NON-code domain (business-thesis
+pressure-test, 24 blind attacks) — n=3, method holds across domains. New method note for the
+Delta-2 skill text: the two top-severity findings came from the **evidence fan-out, not the blind
+list** (sold-but-unbuilt from implementation extraction; a new direct competitor from live-web
+scan) — blind list defends against anchoring, evidence fan-out finds the unpredictable; both
+halves load-bearing. **Delta-3 checklist additions (classes 9–12):** copy↔capability conformance
+/ claims ledger (sold-but-unbuilt AND built-but-unsold); entitlement-state **reachability**
+(dead-but-correct sold differentiator passes every behavior audit — widens group G's matrix from
+enforcement-of-reached-states to reachability-of-sold-states); severity-taxonomy completeness
+prompt (a slot for external-promise/trust/legal harm, or an explicit named exclusion — silence is
+the defect); source-class labeling for durable web-sourced claims (official / secondary /
+vendor-speculation; the circular-sourcing signature is near-verbatim phrasing match to a
+promotional source). One OW-6 lens candidate routed to OW-6: **revealed-vs-stated-priority
+diff** (repo's standing priority ruling vs actual archive/commit distribution). The
+promise-surface/thesis audit protocol itself is **OW-16** below, not an OW-15 delta.
 **Scope:** spec delta to `correctness-audit` + skill-text additions + one knowledge-lint check
 (now incl. the Delta-4 ledger requirement).
 **Effort:** ~1–1.5 days. **Deps:** apply strictly AFTER OW-5 lands (amends its capability); zero
 interaction with OW-2/3/6. Alternative at operator discretion: fold into OW-5's verify session
 as an immediate follow-on. Standard escalation caveat.
+
+## OW-16 · `product-audit` scaffold skill (promise surface + business thesis)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+**Why:** a launch-gate defect (pricing page selling unbuilt features) survived three chartered
+code audits in a heavily-audited repo because **no audit class owns the promise surface** — every
+existing class is code-facing (object = code, oracle = spec); this class inverts it (object =
+copy/thesis, oracle = code/market). The business thesis itself had zero adversarial review while
+code had three; when reviewed, it yielded one new launch gate, a live competitor the strategy doc
+didn't know existed, a mis-sourced regulatory claim in a durable reference, and six ratified
+operator decisions — the highest single-session decision yield of any audit run in either repo.
+Method proven and cheap: one session, n=3 for the blind-diff core.
+**Scope:** a skill standardizing: blind attack-list first (committed before evidence) →
+**five-lane evidence fan-out** (implementation-as-sold · cost/critical-path · repo+git-history/
+GTM-artifact sweep · live-web regulatory · live-web competitive; web lanes ride the existing
+research convention) → per-attack disposition diff (CONFIRMED / PARTIAL / SURVIVED-BY-THESIS /
+OPEN — survived attacks recorded, not dropped) → findings ranked with an **operator ratification
+menu** (decisions, not observations). Ships the **claims-ledger convention** (externally visible
+promise → delivering code surface → proving check, per repo) + optional knowledge-lint check
+(promise-surface files newer than the claims ledger → staleness finding). Charter prompts
+include the OW-15 classes 9–12. Cadence guidance: pre-launch gate for product repos + on
+strategy-reference watch-list expiry; NOT a recurring ceremony.
+**Evidence:** `psc-strategy-pressure-test-2026-07-12.md` (this dir); reference impl in
+psc-monitor `plans/strategy-pressure-test/` (blind attack list, pressure-test doc with
+disposition table, tracked web-evidence appendices).
+**Effort:** ~1–2 days. **Deps:** none hard — independent of the OW-2/3/5/6 chain in both
+directions; shares the blind-diff method with OW-15 (cross-cite, no code dependency). Slots
+anywhere after the frozen batch. Standard escalation caveat.
 
 ---
 
@@ -338,6 +382,9 @@ as an immediate follow-on. Standard escalation caveat.
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
   **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
   capability, so it pairs naturally with OW-5's verify session or the first real audit run.
+  **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the
+  frozen batch; if a downstream repo approaches a launch, its claims-ledger half is the urgent
+  slice and can be run by hand from the psc reference impl before the skill exists.
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the

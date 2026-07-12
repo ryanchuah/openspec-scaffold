@@ -56,6 +56,19 @@ Delta-3 checklist widenings. Evidence:
 `knowledge/research/scaffold-gap-analysis-2026-07/extrends-coverage-gap-review-2026-07-12.md`.
 Same rule: awareness only — OW-15's apply consumes this, not this change's verify.
 
+**Third input (2026-07-12, psc CG9 strategy pressure-test):** the blind-diff method validated a
+third time, first in a NON-code domain (business thesis) — and found a launch-gate defect class
+structurally invisible to this skill's object/oracle direction (pricing copy selling unbuilt or
+unreachable features; code-as-object audits pass a dead-but-correct path by construction). OW-15
+widened again in place (Delta-3 classes 9–12: copy↔capability claims ledger; entitlement-state
+reachability; severity-taxonomy completeness prompt; source-class labeling for durable
+web-sourced claims) plus a Delta-2 method note (evidence fan-out and blind list are BOTH
+load-bearing — the top-severity findings came from evidence, not the blind list). The inverse
+audit class itself is registered as **OW-16** (`product-audit` skill) — no interaction with this
+change's frozen scope in either direction. Evidence:
+`knowledge/research/scaffold-gap-analysis-2026-07/psc-strategy-pressure-test-2026-07-12.md`.
+Same rule: awareness only.
+
 ## Orchestrator routing (operator-recorded verdicts, 2026-07-11)
 - **Park verdict:** parked apply blocks nothing — OW-3 has no dependency on OW-5, and
   no backlog item waits on OW-5's apply. OW-5 itself waits on OW-2's apply.
