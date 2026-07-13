@@ -8,7 +8,7 @@ semantic drift a deterministic check cannot see. Both are detect-only — neithe
 tracked prose — and both are scaffold-managed, propagating byte-identical to every downstream repo
 via `sync_scaffold.py`. The deterministic linter's citation matcher is hardened against
 false-positives on legitimate notation, a `<!-- lint:planned -->` marker suppresses forward-reference
-citations, a root-handoff-file check mechanizes the handoff-file convention, and the linter is gated
+citations, a repo-wide handoff-file check mechanizes the handoff-file convention, and the linter is gated
 on the live repository tree via pytest.
 ## Requirements
 ### Requirement: deterministic-knowledge-linter-detects-drift
@@ -19,7 +19,7 @@ per-repo knowledge drift **without modifying any file**. It SHALL scan the markd
 SHALL exit `0` when it finds no drift and exit `1` when it finds drift, printing one report line
 per finding (path, and line number where the check is line-anchored). The checks are: orphan/duplicate
 canonical files; retired-path tokens; broken prose path citations; dangling archive pointers; a
-guarded `knowledge/audit-log.md` registry-line format check; and a root-handoff-file check.
+guarded `knowledge/audit-log.md` registry-line format check; and a handoff-file check.
 
 #### Scenario: orphan-or-duplicate-canonical-file-flagged
 - **WHEN** a canonical filename from the linter's fixed single-home canonical set (`STATUS.md → knowledge/STATUS.md`, `lessons.md → knowledge/lessons.md`, `roadmap.md → knowledge/roadmap.md`, `audit-log.md → knowledge/audit-log.md`) exists as a file **outside** its taxonomy home (e.g. a root `STATUS.md`), or a second copy of a canonical file exists
@@ -199,18 +199,31 @@ affect other lines.
 - **WHEN** line 1 cites `` `src/gone.py` `` without the marker and line 3 cites `` `src/other.py` `` with the marker
 - **THEN** line 1's broken citation SHALL still be flagged despite the marker on line 3
 
-### Requirement: Root-level handoff files are flagged
-`knowledge_lint.py` SHALL flag any `HANDOFF*` or `HANDOVER*` file at the repository root, mechanizing
-the knowledge-handoff-file decision (durable handoffs belong in the knowledge tree, not as tracked
-root files). The sanctioned ephemeral `knowledge/HANDOFF.md` SHALL be exempt (it is inside the
-knowledge tree, not at the root). This check rides the same live-tree gate as the other doc-lints.
+### Requirement: Handoff-named files are flagged
+`knowledge_lint.py` SHALL flag any non-gitignored file anywhere in the repository whose name
+contains `handoff` or `handover` (case-insensitive substring match), mechanizing the
+knowledge-handoff-file decision that exactly one sanctioned handoff file may exist. The
+sanctioned ephemeral `knowledge/HANDOFF.md` SHALL be the sole exemption; every other
+handoff-named file — at any depth, tracked or merely present in the working tree — SHALL be
+flagged. Gitignored paths SHALL NOT be scanned (consistent with the other repo-wide checks), so
+transient handoff-named files under ignored directories are out of scope for this check. This
+check rides the same live-tree gate as the other doc-lints.
 
-#### Scenario: a root handoff file is flagged
-- **WHEN** a file matching `HANDOFF*` or `HANDOVER*` exists at the repository root
+#### Scenario: a nested handoff-named file is flagged
+- **WHEN** a file whose name contains `handoff` (any case) exists at any path outside
+  `knowledge/HANDOFF.md` and is not gitignored — e.g. `plans/session-handoff.md`
+- **THEN** the linter SHALL flag it as a finding
+
+#### Scenario: a handover-named file is matched case-insensitively
+- **WHEN** a non-gitignored file named e.g. `docs/HANDOVER.md` or `tmp/session-Handover.md` exists
 - **THEN** the linter SHALL flag it as a finding
 
 #### Scenario: the sanctioned in-tree handoff is exempt
 - **WHEN** `knowledge/HANDOFF.md` exists (the sanctioned mid-session handoff location)
+- **THEN** the linter SHALL NOT flag it
+
+#### Scenario: gitignored handoff files are not scanned
+- **WHEN** a handoff-named file exists under a gitignored path — e.g. `output/x-handoff.md`
 - **THEN** the linter SHALL NOT flag it
 
 ### Requirement: linter-detects-duplicate-content-blocks

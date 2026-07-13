@@ -3,7 +3,7 @@
 real repo root.
 
 Mirrors the real-root pattern from scripts/test_scaffold_lint.py.  Any drift
-introduced into a knowledge doc, a broken citation, a root-handoff file, or a
+introduced into a knowledge doc, a broken citation, a handoff-named file, or a
 STATUS.md / decisions/INDEX.md invariant violation will turn the suite red.
 """
 

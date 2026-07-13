@@ -35,6 +35,7 @@
 - data_lint.py SQLite backend (extrends ask; premise unconfirmed — app DB is Postgres) → `knowledge/questions/data-lint-sqlite-backend.md`
 - Security-scanner provisioning gaps (install-tools gitleaks version; GOPATH/bin non-interactive PATH) → `knowledge/questions/scanner-provisioning-gaps.md`
 - Outstanding-work-collector follow-ons → `knowledge/questions/outstanding-work-collector-follow-ons.md`
+- Handoff-file lint downstream cleanup (extrends ~27 + psc-monitor handoff-named files; coupled to sync_scaffold.py propagation, operator-gated) → `knowledge/questions/continuity-file-downstream-cleanup.md`
 - plans/ gather scope: keep recursive, align spec+lint (buried, unexecuted handoff — SMALL, ready to run) → `plans/plans-scope-alignment.md`
 - lessons.md prescriptions never wired in (reviewer read-only preamble; git-worktree convention) → `knowledge/questions/lessons-md-implementation-gaps.md`
 - research-industry-standards-2026-06 Tier-3 items — no closing APPLY/DROP verdict (low priority) → `knowledge/questions/research-synthesis-tier3-residue.md`
