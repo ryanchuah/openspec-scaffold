@@ -206,6 +206,7 @@ class ListModeTest(AuditBundleTestBase):
             "osv-scanner",
             "deptry",
             "data-lint",
+            "repo-lint",
             "radon",
             "jscpd",
             "vulture",
@@ -251,6 +252,8 @@ class AutodetectTest(AuditBundleTestBase):
         self.assertEqual(lines["data-lint"], "enabled")
         self.assertEqual(lines["inventory"], "enabled")
         self.assertEqual(lines["outstanding"], "enabled")
+        # repo-lint disabled without checks/*.py
+        self.assertEqual(lines["repo-lint"], "disabled")
         # heavy checks + index-coverage default OFF absent config
         self.assertEqual(lines["radon"], "disabled")
         self.assertEqual(lines["jscpd"], "disabled")
@@ -1024,6 +1027,90 @@ class OutstandingRegistryTest(AuditBundleTestBase):
         self.assertTrue((out_dir / "outstanding.json").exists())
         self.assertTrue((out_dir / "outstanding.md").exists())
         self.assertIn("outstanding: ok", out)
+
+
+class RepoLintDelegateTest(AuditBundleTestBase):
+    """Repo-lint delegation tests: auto-detect, config disable, paths rules,
+    delegate run surfaces findings."""
+
+    def _write_py_check(self, filename: str, source: str) -> None:
+        p = self.repo / "checks" / filename
+        p.write_text(source, encoding="utf-8")
+        p.chmod(0o755)
+
+    def _write_passing_py_check(self) -> None:
+        self._write_py_check(
+            "001_pass.py",
+            "#!/usr/bin/env python3\nimport sys, json\nprint(json.dumps([]))\nsys.exit(0)\n",
+        )
+
+    def _write_failing_py_check(self, n_findings: int = 1) -> None:
+        import json as _json
+
+        findings = _json.dumps(
+            [
+                {"path": "src/bad.py", "line": i * 10, "message": f"violation {i}"}
+                for i in range(1, n_findings + 1)
+            ]
+        )
+        self._write_py_check(
+            "001_fail.py",
+            f"#!/usr/bin/env python3\nimport sys, json\nprint({findings!r})\nsys.exit(0)\n",
+        )
+
+    def test_list_shows_repo_lint(self):
+        repo_lint_names = [c for c in checks._REGISTRY if c["name"] == "repo-lint"]
+        self.assertEqual(len(repo_lint_names), 1)
+        entry = repo_lint_names[0]
+        self.assertEqual(entry["tier"], "floor")
+        self.assertEqual(entry["kind"], "delegate")
+        self.assertEqual(entry["family"], "check")
+
+    def test_auto_enabled_when_py_checks_exist(self):
+        self._write_passing_py_check()
+        # Re-compute auto-detect for this repo
+        defaults = checks._autodetect_defaults(self.repo)
+        self.assertTrue(defaults.get("repo-lint", False))
+
+    def test_auto_disabled_when_only_sql_exist(self):
+        # Base fixture already has checks/*.sql but NO checks/*.py
+        defaults = checks._autodetect_defaults(self.repo)
+        self.assertFalse(defaults.get("repo-lint", False))
+
+    def test_explicit_disable_respected(self):
+        self._write_passing_py_check()
+        (self.repo / "checks.toml").write_text("[checks.repo-lint]\nenabled = false\n")
+        rc, out = self._capture(["--list"])
+        self.assertEqual(rc, 0)
+        lines = {line.split()[0]: line.split()[3] for line in out.splitlines()}
+        self.assertEqual(lines.get("repo-lint"), "disabled")
+
+    def test_second_paths_entry_infra_fails(self):
+        self._write_passing_py_check()
+        # Make a second checks-like dir so the path makes sense.
+        alt_dir = self.repo / "alt_checks"
+        alt_dir.mkdir(exist_ok=True)
+        (self.repo / "checks.toml").write_text(
+            '[checks.repo-lint]\npaths = ["checks", "alt_checks"]\n'
+        )
+        out_dir = self.tmpdir / "out-rp"
+        rc, out = self._capture(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+        manifest = json.loads((out_dir / "run-manifest.json").read_text())
+        record = next(r for r in manifest if r.get("check") == "repo-lint")
+        self.assertEqual(record["status"], "INFRA-FAIL")
+        self.assertIn("only a single checks directory", record["error"])
+
+    def test_delegate_run_surfaces_findings_as_findings_status(self):
+        self._write_failing_py_check(n_findings=2)
+        out_dir = self.tmpdir / "out-rp2"
+        rc, out = self._capture(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        manifest = json.loads((out_dir / "run-manifest.json").read_text())
+        record = next(r for r in manifest if r.get("check") == "repo-lint")
+        self.assertEqual(record["status"], "FINDINGS")
+        self.assertEqual(record["count"], 2)
+        self.assertTrue((out_dir / "repo-lint.json").exists())
 
 
 if __name__ == "__main__":

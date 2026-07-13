@@ -246,6 +246,14 @@ Archive a completed change in the experimental workflow.
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
      re-delegate to the archive-executor with a specific fix-spec and re-review.
+   - **Ratchet triage (finding-closure-ratchet):** scan the change's
+     `notes.md`/`review-log.md` for found-and-fixed defects; apply the three
+     questions (real defect? → generalizable class? → detectable or test-freezable?);
+     Q1/Q2 = no → no entry; otherwise append one `knowledge/ratchet-log.md` registry
+     line (format: ``- **YYYY-MM-DD** · <kebab-slug> · <disposition> — <essence>``,
+     e.g. ``- **2026-07-10** · some-class · check:checks/some_check.py — description``).
+     Performed by the primary, not the archive-executor — this is the generalizability
+     judgment the mechanical executor cannot make.
    - **Lint before committing:** run `python scripts/status_lint.py <repo>` from the
      repo root and resolve any `knowledge/STATUS.md` cap/word-budget or `knowledge/decisions/INDEX.md` Date/Status
      violations it reports (the executor's `#### 3d` step should already have cleaned

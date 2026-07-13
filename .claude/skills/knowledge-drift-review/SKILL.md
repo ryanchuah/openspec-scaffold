@@ -49,6 +49,11 @@ tracked file — every finding is reported for the operator/primary to act on se
    Flag each contradiction with: the file/line making the stale claim, and the archive
    entry/STATUS.md line that contradicts it.
 
+   Additionally, spot-check `knowledge/ratchet-log.md` `check:`/`test:` entries whose enforcing
+   artifact (file/symbol) still exists but no longer exercises the recorded defect class — the
+   semantic-drift residue the deterministic liveness check (`scripts/knowledge_lint.py`'s
+   `_check_ratchet_log`) cannot see.
+
 3. **Class D — intra-doc contradictions.**
 
    Within each tracked knowledge doc (not just the trackers — reference/roadmap/review-adjacent

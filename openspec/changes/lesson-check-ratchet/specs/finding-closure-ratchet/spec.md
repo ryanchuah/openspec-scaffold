@@ -12,13 +12,13 @@ lessons allow.
 
 ### Requirement: generalizable-findings-close-only-with-a-recorded-disposition
 
-A generalizable finding (a defect class that could recur in sibling code, not a one-off
-instance) SHALL NOT be treated as closed until `knowledge/ratchet-log.md` records exactly
-one disposition for its class: an enforcing deterministic check (`check:`), a frozen
-regression-test linkage (`test:`), an explicit waiver (`waiver:review-by YYYY-MM-DD` with
-a reason), a temporary `open:since YYYY-MM-DD` state, or `grandfathered` (legal only for
-pre-ratchet legacy lessons). The normative preference ordering is check > frozen test >
-waiver.
+A generalizable finding SHALL NOT be treated as closed until `knowledge/ratchet-log.md`
+records exactly one disposition for its class: an enforcing deterministic check
+(`check:`), a frozen regression-test linkage (`test:`), an explicit waiver
+(`waiver:review-by YYYY-MM-DD` with a reason), a temporary `open:since YYYY-MM-DD` state,
+or `grandfathered` (legal only for pre-ratchet legacy lessons). A generalizable finding is
+a defect class that could recur in sibling code, not a one-off instance; the normative
+preference ordering is check > frozen test > waiver.
 
 #### Scenario: class closed by an enforcing check
 

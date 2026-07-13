@@ -328,6 +328,13 @@ Two tiers of state, with deliberately different write rules:
   guessing.
 - To find what work is outstanding, invoke the pull-only `outstanding-work-review` skill
   — deliberately never boot-wired into any auto-run path.
+- **Finding closure ratchet:** a generalizable finding is not closed until
+  `knowledge/ratchet-log.md` records exactly one disposition — check (enforcing
+  deterministic detector), frozen test (pinned regression test), or waiver
+  (domain-judgment-only, with a re-review trigger) — with preference ordering
+  check > test > waiver; `open:since` for deferral (age-flagged at the configured
+  threshold). See the `finding-closure-ratchet` capability spec for the full format
+  and close-out routing.
 
 ## Web research convention
 

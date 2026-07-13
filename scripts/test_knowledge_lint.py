@@ -1044,6 +1044,294 @@ def test_untriaged_age_uses_mtime_fallback_without_git(tmp_path):
 
 
 # ===================================================================
+# 6.1 — ratchet-log registry format check (guarded)
+# ===================================================================
+
+
+def test_ratchet_log_absent_is_skipped_silently(tmp_path):
+    """No ratchet-log.md -> no ratchet findings."""
+    _write_tree(tmp_path, {"knowledge/reference/notes.md": "# Notes\n"})
+    assert not (tmp_path / "knowledge" / "ratchet-log.md").exists()
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "ratchet-log-registry-format" for f in findings)
+    exit_code, _stdout = _run_main(tmp_path)
+    assert exit_code == 0
+
+
+def test_ratchet_valid_check_disposition_passes(tmp_path):
+    """A valid check: pointer with existing file passes."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · my-class · check:scripts/knowledge_lint.py::_check_ratchet_log — test check\n"
+            ),
+            "scripts/knowledge_lint.py": (
+                "#!/usr/bin/env python3\ndef _check_ratchet_log():\n    pass\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_valid_test_disposition_passes(tmp_path):
+    """A valid test: pointer with existing file passes."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · my-test-class · test:test_ratchet_valid_test_disposition_passes.py — test pin\n"
+            ),
+            "test_ratchet_valid_test_disposition_passes.py": ("def test_something(): pass\n"),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_bare_test_path_with_existing_file_passes(tmp_path):
+    """A test: pointer with bare file path (no ::name) passes if file exists."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · bare-test-class · test:scripts/knowledge_lint.py — bare file path\n"
+            ),
+            "scripts/knowledge_lint.py": "content\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_valid_waiver_disposition_passes(tmp_path):
+    """A valid waiver: reason present, review-by in the future."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · waived-class · waiver:review-by 2099-12-31 — domain judgment only, no detector possible\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_valid_open_disposition_passes(tmp_path):
+    """A valid open:since with young age passes."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · open-class · open:since 2026-07-10 — enforcement deferred\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_valid_grandfathered_passes(tmp_path):
+    """grandfathered disposition with dead path in essence is NOT flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · legacy-class · grandfathered — pre-ratchet lesson; see `knowledge/gone/lesson.md`\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+def test_ratchet_bad_keyword_flagged(tmp_path):
+    """Unknown disposition keyword is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n\n- **2026-07-10** · unknown-class · nope:what — unknown keyword\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "unknown disposition" in ratchet_findings[0].message
+
+
+def test_ratchet_bad_slug_flagged(tmp_path):
+    """Non-kebab slug is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n\n- **2026-07-10** · Bad_Slug · grandfathered — bad slug\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "malformed" in ratchet_findings[0].message
+
+
+def test_ratchet_invalid_calendar_date_flagged(tmp_path):
+    """Invalid calendar date (2026-13-01) is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-13-01** · bad-date-class · grandfathered — invalid date\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "invalid" in ratchet_findings[0].message
+
+
+def test_ratchet_dangling_check_pointer_flagged(tmp_path):
+    """Dangling check: path is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · dangling-check · check:checks/nonexistent.py — missing check\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "does not exist" in ratchet_findings[0].message
+
+
+def test_ratchet_dangling_test_symbol_flagged(tmp_path):
+    """Dangling test::name where symbol not in file is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · dangling-symbol · test:scripts/test_checks.py::_no_such_test — missing symbol\n"
+            ),
+            "scripts/test_checks.py": ("class DoesExist: pass\n"),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "not found" in ratchet_findings[0].message
+    assert "_no_such_test" in ratchet_findings[0].message
+
+
+def test_ratchet_stale_waiver_flagged(tmp_path):
+    """Waiver with review-by in the past is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-10** · stale-waiver · waiver:review-by 2020-01-01 — old waiver\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "past" in ratchet_findings[0].message
+
+
+def test_ratchet_aged_open_flagged_default_threshold(tmp_path):
+    """Open:since older than default 30 days is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2020-01-01** · aged-open · open:since 2020-01-01 — very old open\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 1
+    assert "days old" in ratchet_findings[0].message
+    assert "max 30 days" in ratchet_findings[0].message
+
+
+def test_ratchet_open_honors_configured_threshold(tmp_path):
+    """Open:since age check honors checks.toml ratchet_open_max_age_days = 7."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                "- **2026-07-01** · config-open · open:since 2026-07-01 — deferred\n"
+            ),
+            "checks.toml": "[knowledge_lint]\nratchet_open_max_age_days = 7\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    # 2026-07-01 is 12 days before 2026-07-13, so it exceeds 7 days
+    assert len(ratchet_findings) == 1
+    assert "max 7 days" in ratchet_findings[0].message
+
+
+def test_ratchet_open_within_threshold_not_flagged(tmp_path):
+    """Open:since within the default 30-day threshold is NOT flagged."""
+    from datetime import date as _date
+
+    today = _date.today()
+    since_str = today.isoformat()
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/ratchet-log.md": (
+                "# Ratchet Log\n"
+                "\n"
+                f"- **{since_str}** · recent-open · open:since {since_str} — fresh deferral\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ratchet_findings = [f for f in findings if f.check == "ratchet-log-registry-format"]
+    assert len(ratchet_findings) == 0
+
+
+# ===================================================================
 # Detect-only enforcement — no write-mode calls anywhere in the module
 # ===================================================================
 

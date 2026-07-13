@@ -330,3 +330,17 @@ PREMISE: AGREE
 **PASS** — ready to freeze and move to apply after addressing the five 🟡 issues. None are 🔴 blocking; all are integration-clarity gaps that an experienced implementer would resolve by reading the referenced source files, but the tasks should be explicit enough that an executor reading only `tasks.md` cannot miss them.
 
 **Primary disposition:** zero 🔴 + PREMISE: AGREE → frozen after applying all five 🟡 (explicit _autodetect_defaults() update; checks.py-docstring D3-caveat disambiguation; manifest placement adjacent to data-lint siblings, no reorder; archive-skill insertion point pinned between Quality-check and Lint; drift-review Step 2 bullet spelled out) and all five 💡 (run-sequence position, config-override fixture case, unittest convention note, header-comment wording, _load_knowledge_lint_config return-dict addition).
+
+## Pre-apply mechanical fix (validation-shape, no re-review) · primary (Opus) · 2026-07-13
+
+`openspec validate --strict` failed on the ADDED requirement
+`generalizable-findings-close-only-with-a-recorded-disposition`:
+`must contain SHALL or MUST`. Root cause is **not** a missing normative verb — openspec's
+parser captures a requirement's `text` as only its **first physical line**, and the SHALL sat
+on line 2 ("instance) SHALL NOT be treated as closed"). Fix: reordered the opening sentence so
+the normative clause ("A generalizable finding SHALL NOT be treated as closed until …") is on
+line 1, with the definition of "generalizable finding" and the preference ordering moved to a
+trailing sentence. **No normative content changed** — all five dispositions, the `grandfathered`
+legality note, and the check > test > waiver ordering are preserved verbatim; this is a
+line-wrap/validation-shape fix only, so no review round is triggered. `openspec validate
+lesson-check-ratchet --strict` now exits 0.

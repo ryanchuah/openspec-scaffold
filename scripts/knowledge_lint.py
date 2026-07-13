@@ -48,15 +48,24 @@ Checks (each yields zero or more findings; a finding is
      ``<dir>`` segment containing `<`/`>` (a literal format-doc placeholder,
      not a real directory name) never matches. NOT exempted for
      ``knowledge/research/`` (structural, not prose-content).
-  5. **audit-log registry format (guarded)** — if
-     ``<root>/knowledge/audit-log.md`` exists, each registry-anchored line
-     (``- **YYYY-MM-DD** · ...``) must fully match
-     ``- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>``; absent
-     file → skipped silently.
+   5. **audit-log registry format (guarded)** — if
+      ``<root>/knowledge/audit-log.md`` exists, each registry-anchored line
+      (``- **YYYY-MM-DD** · ...``) must fully match
+      ``- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>``; absent
+      file → skipped silently.
+   6. **ratchet-log registry format (guarded)** — if
+      ``<root>/knowledge/ratchet-log.md`` exists, each registry-anchored line
+      must match the finding-closure-ratchet format
+      ``- **YYYY-MM-DD** · <kebab-slug> · <disposition> — <essence>``; valid
+      dispositions: ``check:<pointer>`` (file/symbol exists),
+      ``test:<path>[::<name>]`` (file/symbol exists),
+      ``waiver:review-by YYYY-MM-DD`` (valid date, not past, reason present),
+      ``open:since YYYY-MM-DD`` (age-flagged at threshold),
+      ``grandfathered`` (format only); absent file → skipped silently.
 
-Checks 2 and 3 scan ``<root>/knowledge/**/*.md`` excluding
+ Checks 2 and 3 scan ``<root>/knowledge/**/*.md`` excluding
 ``knowledge/research/``; check 4 scans the same corpus WITHOUT that
-exclusion; check 5 targets one specific file; check 1 scans ``<root>``.
+exclusion; checks 5 and 6 each target one specific file; check 1 scans ``<root>``.
 
 Per-repo config (D5): an optional repo-root ``checks.toml``
 ``[knowledge_lint].retired_paths`` array (read via stdlib ``tomllib``) is
@@ -110,6 +119,7 @@ CANONICAL_MAP: dict[str, str] = {
     "lessons.md": "knowledge/lessons.md",
     "roadmap.md": "knowledge/roadmap.md",
     "audit-log.md": "knowledge/audit-log.md",
+    "ratchet-log.md": "knowledge/ratchet-log.md",
 }
 
 # Built-in default retired-path tokens (the known universal reorg residue).
@@ -123,7 +133,11 @@ DEFAULT_RETIRED_PATHS: tuple[str, ...] = (
 # citation to one is NOT a broken citation. knowledge/HANDOFF.md is the sanctioned
 # mid-session handoff file (written mid-change, deleted on absorption) — see the
 # knowledge taxonomy (knowledge/README.md).
-EPHEMERAL_PATHS: tuple[str, ...] = ("knowledge/HANDOFF.md", "knowledge/audit-log.md")
+EPHEMERAL_PATHS: tuple[str, ...] = (
+    "knowledge/HANDOFF.md",
+    "knowledge/audit-log.md",
+    "knowledge/ratchet-log.md",
+)
 
 # Content checks (retired-path token, broken citation) exclude this dir —
 # period-correct historical analyses legitimately cite pre-restructure
@@ -328,8 +342,9 @@ def load_retired_paths(root: Path) -> list[str]:
 def _load_knowledge_lint_config(root: Path) -> dict:
     """Load [knowledge_lint] config from checks.toml with graceful defaults.
 
-    Returns dict with keys ``untriaged_max_age_days`` (default 14) and
-    ``duplicate_scan_dirs`` (default []).
+    Returns dict with keys ``untriaged_max_age_days`` (default 14),
+    ``duplicate_scan_dirs`` (default []), and
+    ``ratchet_open_max_age_days`` (default 30).
     """
     kl: dict = {}
     config_path = root / "checks.toml"
@@ -340,6 +355,7 @@ def _load_knowledge_lint_config(root: Path) -> dict:
     return {
         "untriaged_max_age_days": kl.get("untriaged_max_age_days", 14),
         "duplicate_scan_dirs": kl.get("duplicate_scan_dirs", []),
+        "ratchet_open_max_age_days": kl.get("ratchet_open_max_age_days", 30),
     }
 
 
@@ -519,7 +535,237 @@ def _check_audit_log(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
-# Check 6 — handoff-named files (repo-wide)
+# Check 6 — ratchet-log registry format (guarded)
+# ---------------------------------------------------------------------------
+
+# Matches the registry-anchor prefix (any line beginning with `- **<date>**`)
+_RATCHET_LOG_ANCHOR_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\*")
+# Full format: `- **YYYY-MM-DD** · <slug> · <disposition> — <essence>`
+# Uses \S[^—]* for disposition to allow multi-word forms like
+# "waiver:review-by 2026-12-31" while stopping at the em-dash.
+_RATCHET_LOG_FULL_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\* · [a-z][a-z0-9-]* · \S[^—]* — .+$")
+# Disposition keyword patterns — same structure with capture groups
+_RATCHET_DISP_RE = re.compile(
+    r"^- \*\*(\d{4}-\d{2}-\d{2})\*\* · ([a-z][a-z0-9-]*) · (\S[^—]*) — (.+)$"
+)
+# Valid ISO calendar date check
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+# Extract `waiver:review-by YYYY-MM-DD`
+_RATCHET_WAIVER_RE = re.compile(r"^waiver:review-by (\d{4}-\d{2}-\d{2})$")
+# Extract `open:since YYYY-MM-DD`
+_RATCHET_OPEN_RE = re.compile(r"^open:since (\d{4}-\d{2}-\d{2})$")
+
+
+def _check_ratchet_log(root: Path) -> list[Finding]:
+    """Validate ``knowledge/ratchet-log.md`` registry format.
+
+    Guarded on file existence (absent → silent clean, same as
+    ``_check_audit_log``). Validates:
+    - Registry-anchored lines match the full format.
+    - Disposition keyword is one of the five known forms.
+    - Slugs are kebab-case.
+    - Dates are real ISO calendar dates (rejects ``2026-13-01``).
+    - ``check:``/``test:`` pointers resolve to an existing file.
+    - ``::<name>`` suffix on a pointer is textually present in the file.
+    - ``waiver`` has non-empty essence and review-by date is not past.
+    - ``open`` older than ``ratchet_open_max_age_days`` (config, default 30) is flagged.
+    - ``grandfathered`` entries get format-only validation.
+    - Lines that are NOT registry-anchored (header, blank, prose) are skipped.
+    """
+    path = root / "knowledge" / "ratchet-log.md"
+    if not path.is_file():
+        return []
+    rel = _relpath(root, path)
+    findings: list[Finding] = []
+
+    kl_config = _load_knowledge_lint_config(root)
+    max_open_age = kl_config.get("ratchet_open_max_age_days", 30)
+
+    lines = _read_lines(path)
+    for lineno, raw_line in enumerate(lines, start=1):
+        line = raw_line.rstrip()
+        if not _RATCHET_LOG_ANCHOR_RE.match(line):
+            continue  # not a registry-anchored line — skip
+        if not _RATCHET_LOG_FULL_RE.match(line):
+            findings.append(
+                Finding(
+                    "ratchet-log-registry-format",
+                    rel,
+                    lineno,
+                    f"malformed ratchet-log registry line: {line!r}",
+                )
+            )
+            continue
+
+        # Parse disposition
+        m = _RATCHET_DISP_RE.match(line)
+        if not m:
+            continue  # already caught by FULL_RE above, but guard
+        entry_date_str = m.group(1)
+        slug = m.group(2)
+        disposition = m.group(3)
+        essence = m.group(4)
+
+        # Validate entry date is a real calendar date
+        date_err = _validate_date(entry_date_str)
+        if date_err:
+            findings.append(
+                Finding(
+                    "ratchet-log-registry-format",
+                    rel,
+                    lineno,
+                    f"invalid entry date {entry_date_str!r}: {date_err}",
+                )
+            )
+            continue
+
+        # Validate slug is kebab-case
+        if not re.match(r"^[a-z][a-z0-9-]*$", slug):
+            findings.append(
+                Finding(
+                    "ratchet-log-registry-format",
+                    rel,
+                    lineno,
+                    f"invalid slug {slug!r}: must be kebab-case (lowercase, digits, hyphens)",
+                )
+            )
+            continue
+
+        # Validate disposition
+        disp_err = _validate_ratchet_disposition(
+            disposition, essence, root, entry_date_str, max_open_age
+        )
+        if disp_err:
+            findings.append(
+                Finding(
+                    "ratchet-log-registry-format",
+                    rel,
+                    lineno,
+                    disp_err,
+                )
+            )
+
+    return findings
+
+
+def _validate_date(date_str: str) -> str | None:
+    """Validate a ``YYYY-MM-DD`` string is a real ISO calendar date.
+    Returns None on valid, or an error message string."""
+    m = _ISO_DATE_RE.match(date_str)
+    if not m:
+        return "not a valid YYYY-MM-DD format"
+    year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    import calendar
+
+    try:
+        max_day = calendar.monthrange(year, month)[1]
+    except calendar.IllegalMonthError:
+        return f"invalid month {month:02d}"
+    if day < 1 or day > max_day:
+        return f"invalid day {day:02d} for month {month:02d}"
+    return None
+
+
+def _validate_ratchet_disposition(
+    disposition: str, essence: str, root: Path, entry_date_str: str, max_open_age: int
+) -> str | None:
+    """Validate a single disposition keyword and its payload.
+    Returns an error message string, or None if valid."""
+
+    # --- grandfathered ---
+    if disposition == "grandfathered":
+        return None  # format only, no liveness checks
+
+    # --- check:<pointer> ---
+    cm = re.match(r"^check:(.+)$", disposition)
+    if cm:
+        return _validate_pointer(cm.group(1), root, disposition)
+
+    # --- test:<path>[::<name>] ---
+    tm = re.match(r"^test:(.+)$", disposition)
+    if tm:
+        return _validate_pointer(tm.group(1), root, disposition)
+
+    # --- waiver:review-by YYYY-MM-DD ---
+    wm = _RATCHET_WAIVER_RE.match(disposition)
+    if wm:
+        review_by = wm.group(1)
+        # Validate review-by date is real
+        err = _validate_date(review_by)
+        if err:
+            return f"invalid waiver review-by date {review_by!r}: {err}"
+        # Validate essence (reason) is non-empty
+        if not essence.strip().replace("\u2014", "").strip():
+            return "waiver disposition must have a non-empty reason (essence)"
+        # Check waiver is not past
+        from datetime import date as _date
+
+        try:
+            parts = review_by.split("-")
+            review_date = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+            if review_date < _date.today():
+                return f"waiver review-by date {review_by} is in the past"
+        except (ValueError, IndexError):
+            return f"invalid waiver review-by date {review_by!r}"
+        return None
+
+    # --- open:since YYYY-MM-DD ---
+    om = _RATCHET_OPEN_RE.match(disposition)
+    if om:
+        since = om.group(1)
+        err = _validate_date(since)
+        if err:
+            return f"invalid open:since date {since!r}: {err}"
+        # Check if open entry is older than the threshold
+        from datetime import date as _date
+
+        try:
+            parts = since.split("-")
+            since_date = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+            age = (_date.today() - since_date).days
+            if age > max_open_age:
+                return (
+                    f"open:since entry is {age} days old "
+                    f"(max {max_open_age} days configured in ratchet_open_max_age_days)"
+                )
+        except (ValueError, IndexError):
+            return f"invalid open:since date {since!r}"
+        return None
+
+    # --- unknown disposition ---
+    return f"unknown disposition keyword: {disposition!r}"
+
+
+def _validate_pointer(pointer: str, root: Path, disposition: str) -> str | None:
+    """Validate a ``check:`` or ``test:`` pointer.
+
+    If pointer contains ``::<name>``, verify the file exists AND the name
+    appears textually in it. Otherwise verify file existence only.
+    Returns an error message string, or None if valid.
+    """
+    if "::" in pointer:
+        file_part, symbol = pointer.split("::", 1)
+    else:
+        file_part = pointer
+        symbol = None
+
+    file_path = root / file_part
+    if not file_path.is_file():
+        return f"pointer file {file_part!r} does not exist ({disposition})"
+
+    if symbol is not None:
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return f"cannot read pointer file {file_part!r} ({disposition})"
+        if symbol not in content:
+            return f"symbol {symbol!r} not found in pointer file {file_part!r} ({disposition})"
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Check 7 — handoff-named files (repo-wide)
 # ---------------------------------------------------------------------------
 
 
@@ -954,6 +1200,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_broken_citations(root, content_check_md))
     findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
     findings.extend(_check_audit_log(root))
+    findings.extend(_check_ratchet_log(root))
     findings.extend(_check_handoff_files(root, is_ignored))
     findings.extend(_check_duplicate_blocks(root, is_ignored))
     findings.extend(_check_closed_unpruned(root))

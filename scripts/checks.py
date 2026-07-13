@@ -4,7 +4,7 @@
 The checks/facts/audit trichotomy:
   **checks** = findings-capable detectors (gate/record semantics, dated
   output). ``ruff``, ``gitleaks``, ``osv-scanner``, ``deptry``,
-  ``data-lint``, ``jscpd``, ``vulture``.
+  ``data-lint``, ``repo-lint``, ``jscpd``, ``vulture``.
   **facts**  = can't-fail repo snapshots (cache semantics, undated output,
   regenerate-on-use). ``scope``, ``radon``, ``index-coverage``,
   ``inventory``.
@@ -38,6 +38,7 @@ additionally has no sane default ``--schema`` path to auto-detect):
     requirements*.txt | poetry.lock | uv.lock | package-lock.json
                                                              -> osv-scanner
     checks/ (any *.sql)                                    -> data-lint
+    checks/ (any *.py)                                     -> repo-lint
     (always)                                               -> inventory
 
 ``[tools]`` — version-pin overrides for `EXPECTED_TOOL_VERSIONS` (binary
@@ -83,7 +84,8 @@ line-text output, e.g. ``path.py:12: unused variable 'x' (60% confidence)``,
 parsed by regex). Delegating checks (own JSON shape, NOT merged into the
 aggregate `findings.json`): ``scope`` (`audit_scope.py scan`, floor, never
 gates — informational hotspot ranking), ``data-lint`` (`data_lint.py`,
-floor, gates on violating rows), ``index-coverage`` (`index_coverage.py`,
+floor, gates on violating rows), ``repo-lint`` (`repo_lint.py`, floor,
+gates on check findings), ``index-coverage`` (`index_coverage.py`,
 heavy, NEVER gates — leads are for LLM triage only). Built-in snapshot
 ``inventory`` (zero-findings semantics — always "ok"): tracked source-file
 tree, detected entrypoints (pyproject `[project.scripts]`, `justfile`/
@@ -161,6 +163,7 @@ import audit_scope  # noqa: E402
 import data_lint  # noqa: E402
 import index_coverage  # noqa: E402
 import outstanding  # noqa: E402
+import repo_lint  # noqa: E402
 
 GENERATED_BY = "checks.py"
 
@@ -209,6 +212,7 @@ _REGISTRY: list[dict] = [
         "coverage_note": "drops dependency-hygiene checking",
     },
     {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
+    {"name": "repo-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "radon", "tier": "heavy", "kind": "builtin", "family": "fact"},
     {
         "name": "jscpd",
@@ -281,7 +285,8 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
     has_git = (repo_root / ".git").exists()
     has_lockfile = any(glob_module.glob(str(repo_root / pattern)) for pattern in _LOCKFILE_PATTERNS)
     checks_dir = repo_root / "checks"
-    has_checks = checks_dir.is_dir() and any(checks_dir.glob("*.sql"))
+    has_sql_checks = checks_dir.is_dir() and any(checks_dir.glob("*.sql"))
+    has_py_checks = checks_dir.is_dir() and any(checks_dir.glob("*.py"))
 
     return {
         "scope": has_git,
@@ -289,7 +294,8 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "gitleaks": has_git,
         "osv-scanner": has_lockfile,
         "deptry": has_pyproject,
-        "data-lint": has_checks,
+        "data-lint": has_sql_checks,
+        "repo-lint": has_py_checks,
         "radon": False,
         "jscpd": False,
         "vulture": False,
@@ -932,6 +938,44 @@ def _run_delegate(check: dict, config: dict, out_path: Path) -> dict:
             try:
                 data = json.loads(out_path.read_text())
                 count = sum(c["rows"] for c in data.get("checks", []) if c["status"] == "fail")
+            except (json.JSONDecodeError, OSError, KeyError):
+                pass
+        status = "INFRA-FAIL" if rc == 3 else ("FINDINGS" if rc == 2 else "ok")
+        outcome = {"status": status, "count": count}
+        if status == "INFRA-FAIL":
+            outcome["error"] = _last_nonempty_line(err_buf.getvalue())
+        return outcome
+
+    if name == "repo-lint":
+        argv = ["--json", str(out_path)]
+        raw_paths = config.get("checks", {}).get("repo-lint", {}).get("paths")
+        if raw_paths:
+            paths, err = _coerce_config_str_list(raw_paths)
+            if err is not None:
+                return {
+                    "status": "INFRA-FAIL",
+                    "count": None,
+                    "error": f"[checks.repo-lint].paths: {err}",
+                }
+            if len(paths) > 1:
+                return {
+                    "status": "INFRA-FAIL",
+                    "count": None,
+                    "error": (
+                        "[checks.repo-lint].paths: only a single checks "
+                        f"directory is supported (first entry used; extra "
+                        f"entries are a config error, not silently "
+                        f"dropped), got {len(paths)} entries: {paths!r}"
+                    ),
+                }
+            argv = ["--checks-dir", paths[0]] + argv
+        with redirect_stdout(buf), redirect_stderr(err_buf):
+            rc = repo_lint.main(argv)
+        count = None
+        if out_path.exists():
+            try:
+                data = json.loads(out_path.read_text())
+                count = sum(c["findings"] for c in data.get("checks", []) if c["status"] == "fail")
             except (json.JSONDecodeError, OSError, KeyError):
                 pass
         status = "INFRA-FAIL" if rc == 3 else ("FINDINGS" if rc == 2 else "ok")

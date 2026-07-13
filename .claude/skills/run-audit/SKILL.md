@@ -55,6 +55,18 @@ Python interpreter. Resolve it in this try-order:
    Apply judgment to determine which findings are real defects vs.
    environment/configuration noise. The skill's LLM value is in this step.
 
+   For each finding judged real and generalizable (could recur in sibling code),
+   apply the finding-closure-ratchet three-question triage:
+   - Q1: Real defect (not noise/env)? No → stop (no ledger entry).
+   - Q2: Generalizable class (sibling could recur)? No → stop (point fix suffices).
+   - Q3: Mechanically detectable or test-freezable?
+     - Yes → disposition `check:` / `test:` (appended to `knowledge/ratchet-log.md`
+       alongside the existing audit-log ceremony).
+     - No → disposition `waiver:review-by <date>` with a reason.
+
+   Append one `knowledge/ratchet-log.md` registry line per qualifying finding
+   (format: `- **YYYY-MM-DD** · <kebab-slug> · <disposition> — <essence>`).
+
 4. **Anchor (operator-gated).** Tag this audit only when the operator's
    invocation explicitly asks to "tag" or "anchor this audit". Otherwise
    run the cycle read-only and report findings without anchoring.
