@@ -79,3 +79,75 @@ Same rule: awareness only.
   DESIGN-level defect (ratchet interface doesn't fit as frozen, lens/verify-chain
   interaction surprises, census/stopping-rule contract wrong) → stop and escalate to
   the operator or a Fable session rather than redesigning mid-verify.
+
+## VERIFY CHECKPOINT (2026-07-13, Opus orchestrator) — READY for archive
+
+**1. Verdict:** READY for archive. COMPLEX chain complete: self-review READY → pro behavioral
+(deepseek-v4-pro) READY → flash lens (test-quality) READY → simplicity gate clean. Full gate green.
+
+**2. Confirmed by eyeballing live output (behavioral, not counts):** built a real conforming
+dossier from the SKILL's LITERAL inlined template blocks (charter marker + the 4 example census
+rows + the filled `CA-W1-3` finding) → `knowledge_lint: OK`. A deliberately-broken dossier flagged
+exactly the three contract violations — duplicate finding ID (reported with both file:line
+locations), invalid census disposition (with the valid-set message), and a graduated finding
+missing `Prior:`+`Class:`. The pro verifier independently reproduced this and ran a mutation probe
+(removing `Prior:` fires a finding). The lint fires as designed on real content; the templates
+round-trip clean.
+
+**3. Defects found + how fixed + who:**
+- Self-review: one skill typo (wave-gate step 5 "des not"→"does not") — fixed inline (trivial).
+- Pro behavioral pass (deepseek-v4-pro) surfaced 4 🟡, all confirmed from disk, all fixed via ONE
+  re-delegated deepseek-flash fix-spec (one attempt, clean, no Sonnet): (a) dead `_NON_LEAD_EVIDENCE_RE`
+  regex removed; (b) skill census prose "Tab-separated or pipe-separated" narrowed to "Pipe-separated:"
+  to match the pipe-only lint; (c) skill Evidence template now states the spec's disqualification
+  rules (bare "confirmed" invalid; `VERIFIED-BY-repro` without a named path disqualified); (d) skill
+  graduation step now states the spec's `UNVERIFIABLE-HERE → Class: none (one-off)` default.
+- Simplicity gate (2 parallel finders) surfaced 3 behavior-preserving nits; 2 folded (use `_relpath`
+  helper; collapse redundant `startswith`) — re-delegation was killed, so applied inline as trivial
+  one-liners + ruff-format; 1 parked (single-pass FINDINGS read).
+- Flash lens pass: READY, no defects.
+- **No Sonnet fallback used anywhere in this change.**
+
+**4. As-built delta (beyond the frozen artifacts):** the 4 pro-pass fixes make the shipped SKILL/lint
+MORE faithfully encode the two frozen spec deltas (which are unchanged) — the skill now explicitly
+carries the spec's evidence-label disqualification rules and the UNVERIFIABLE Class default, and the
+census delimiter prose matches enforcement. Plus dead-code removal and 2 lint cleanups. None alters
+the delta-spec text being promoted; these tighten the implementation to the spec, not vice-versa.
+
+**5. Forward-looking items (fold into knowledge/questions/INDEX.md at archive):**
+- **Dossier-lint format-robustness limits (v1, by design):** the census check parses ONLY
+  pipe-separated rows with no leading pipe. Tab-separated rows are silently skipped; a markdown-table
+  census (leading `|` + a `---` separator row) would mis-column the disposition / false-positive on the
+  separator. Documented format is pipe-no-leading-pipe. Candidate future hardening if a downstream
+  census is authored as a table.
+- **Round-trip is fixture-similarity, not literal-template extraction:** no test extracts the SKILL's
+  fenced CENSUS/FINDINGS template block and runs it through the lint, so a future SKILL-template edit
+  that drifts from the parser has no deterministic catch (same class as the graduation-log-not-
+  lint-enforced gap). Concrete fix available: a test that extracts the fenced template and asserts it
+  lints clean. **This is the one genuinely generalizable class from this change — decide its ratchet
+  disposition at archive Step 6 (candidate `test:` follow-on, not a waiver).**
+- **(c) parser fragility:** a stray `### ` subheading inside a finding body truncates entry-collection
+  and could skip the Prior/Class check (false negative); and "graduated" is keyed off the FINDINGS
+  evidence label, not the census disposition (a census `AUDITED-finding` left `LEAD` in FINDINGS
+  escapes the check). Both require non-template input; noted by the correctness finder. Low priority.
+- **Simplicity finding 1 parked:** merge the two `FINDINGS*.md` read loops in `_check_audit_dossier`
+  into a single pass — behavior-preserving, low value on tiny files → route to the existing
+  `ratchet-lint-cleanup` parked follow-on.
+- **Pre-existing README staleness (out of scope):** root `README.md:19` still lists a removed
+  `onboard` skill in "the 7 workflow skills". Unrelated to OW-5 (which touched no README vocabulary);
+  flag for a future doc cleanup, do NOT fold here.
+- **Carried from freeze (reconfirmed):** graduation log is not lint-enforced (D8 scope, by design);
+  first-real-audit manual check (wave-gate triage appends keep findings out of the 14-day
+  untriaged bucket — not unit-testable); OW-15 amends this capability and applies strictly AFTER it.
+
+**Still owned by archive (do NOT reconcile here — write-discipline):**
+- `knowledge/STATUS.md` — add the OW-5 shipped section (≤3-cap: drop oldest narrating section).
+- `knowledge/decisions/INDEX.md` — one registry line for `correctness-audit` (new capability) →
+  archive dir; note `knowledge-lint` modified (dossier check).
+- `knowledge/questions/INDEX.md` — park the field-5 forward items above.
+- **Spec promotion:** sync the 2 delta specs → `openspec/specs/`: ADD `correctness-audit/spec.md`
+  (new capability), MERGE the `knowledge-lint` ADDED requirement into the existing knowledge-lint spec.
+- **Ratchet self-application (archive Step 6, PRIMARY's job):** run the 3-question triage over the
+  found-and-fixed defects; the template↔parser round-trip gap (field 5) is the one generalizable
+  candidate — decide check/test/waiver/open. Most other slips are Q2=no one-offs (no entry).
+- Downstream propagation (extrends/psc-monitor) — operator-gated and DEFERRED.

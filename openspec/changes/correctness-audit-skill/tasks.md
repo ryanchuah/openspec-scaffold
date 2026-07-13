@@ -8,7 +8,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
 
 ## 1. Skill file
 
-- [ ] 1.1 Create `.claude/skills/correctness-audit/SKILL.md` with: frontmatter matching
+- [x] 1.1 Create `.claude/skills/correctness-audit/SKILL.md` with: frontmatter matching
       the audit-family siblings exactly (`name: correctness-audit`; a one-sentence
       `description` stating it standardizes the deep LLM correctness-audit protocol,
       is Operator-invoked and pull-only, and never fixes product code; `license: MIT`;
@@ -21,7 +21,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
       `.claude/skills/run-audit/SKILL.md:23-28` — included because the skill invokes
       Python directly for census seeding (`<py> scripts/facts.py` inventory) and the
       dossier lint (`<py> scripts/knowledge_lint.py`), not only `opencode run`.
-- [ ] 1.2 Add the protocol procedure as numbered bold-titled steps, sourcing every
+- [x] 1.2 Add the protocol procedure as numbered bold-titled steps, sourcing every
       behavior from the frozen spec delta
       (`specs/correctness-audit/spec.md`) and design decisions: **Wiring/resume**
       (detect in-progress dossier → resume from disk; else walk the operator through
@@ -51,7 +51,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
       orchestrator-only severity/evidence finalization; never-record-counts naming the
       coverage-percentage trap; audit waves exempt from the multi-model verify stack
       because refutation-graduation is the audit's verification — D12).
-- [ ] 1.3 Add the inlined templates as fenced blocks: CHARTER.md skeleton (scope,
+- [x] 1.3 Add the inlined templates as fenced blocks: CHARTER.md skeleton (scope,
       ground-rules citation, severity-taxonomy table, wave plan with per-wave status,
       verification-method map, prior-knowledge register path, and the literal line
       `format: correctness-audit/v1`), CENSUS.md row format (one line per surface,
@@ -65,7 +65,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
       sections + prior-audit coverage map; suggested path
       `knowledge/reference/known-findings-ledger.md`) — per design D2/D3/D4/D7/D11 and
       both spec deltas.
-- [ ] 1.4 End the skill with a **Guardrails** bullet list naming exactly what the audit
+- [x] 1.4 End the skill with a **Guardrails** bullet list naming exactly what the audit
       may write (the dossier dir, the triage questions file, `knowledge/ratchet-log.md`
       at close-out, and — only under the fix-now criterion — audit-instrument code);
       everything else read-only; never proceed past a wave gate unattended; never
@@ -75,7 +75,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
 
 ## 2. Dossier lint
 
-- [ ] 2.1 Add `_check_audit_dossier` to `scripts/knowledge_lint.py` beside
+- [x] 2.1 Add `_check_audit_dossier` to `scripts/knowledge_lint.py` beside
       `_check_untriaged_age`: iterate `knowledge/research/correctness-audit-*/` dirs;
       skip any dir whose `CHARTER.md` is missing or lacks the literal line
       `format: correctness-audit/v1`; for marked dossiers flag (a) a finding ID
@@ -88,7 +88,7 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
       from the adjacent checks; add its `findings.extend(_check_audit_dossier(...))`
       call to the flat sequence in `collect_findings()` alongside the other checks.
       Parse the formats exactly as the 1.3 templates define them (design D8).
-- [ ] 2.2 Add fixture tests to `scripts/test_knowledge_lint.py` covering every scenario
+- [x] 2.2 Add fixture tests to `scripts/test_knowledge_lint.py` covering every scenario
       of the `knowledge-lint` spec delta: conforming marked dossier → clean; duplicate
       ID across two wave files → flagged with both locations; invalid census
       disposition → flagged; graduated entry missing `Prior:`/`Class:` → flagged; entry
@@ -99,13 +99,13 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
 
 ## 3. Registration and pointers
 
-- [ ] 3.1 Add `.claude/skills/correctness-audit/SKILL.md` to
+- [x] 3.1 Add `.claude/skills/correctness-audit/SKILL.md` to
       `scripts/scaffold_manifest.txt` in its sorted position among the
       `.claude/skills/` lines.
-- [ ] 3.2 Add `"correctness-audit"` to `_NON_OPENSPEC_SKILL_TOKENS` in
+- [x] 3.2 Add `"correctness-audit"` to `_NON_OPENSPEC_SKILL_TOKENS` in
       `scripts/scaffold_lint.py` (the set near line 168; keep it sorted/formatted as
       the existing entries are).
-- [ ] 3.3 Append one sentence at the END of `AGENTS.md`'s
+- [x] 3.3 Append one sentence at the END of `AGENTS.md`'s
       `## Deterministic audit tooling` section (inside the synced span, as a new final
       paragraph after the "Discover checks" paragraph): stating that deep LLM
       correctness audits are a separate
@@ -113,13 +113,13 @@ includes `openspec validate correctness-audit-skill --strict` per design § Veri
       standardizes the charter/census/findings protocol and routes findings into the
       finding-closure ratchet — while this section's ceremony remains
       deterministic-detector-only.
-- [ ] 3.4 Add one cross-pointer line to `.claude/skills/run-audit/SKILL.md` (in its
+- [x] 3.4 Add one cross-pointer line to `.claude/skills/run-audit/SKILL.md` (in its
       opening boundary callout area): the deterministic ceremony here is distinct from
       the deep LLM audit program, which is the `correctness-audit` skill.
 
 ## 4. Gate
 
-- [ ] 4.1 Run `bash scripts/check.sh` (ruff + format + full pytest including the
+- [x] 4.1 Run `bash scripts/check.sh` (ruff + format + full pytest including the
       scaffold SEAL) and fix any failure caused by these edits — expected sensitive
       checks: `manifest-completeness` (3.1), `dangling-skill-refs` (3.2–3.4),
       `budget-agreement` (only sanctioned pairs may appear in 1.2), and the live-tree

@@ -20,6 +20,9 @@ under `--report`. For quick orientation snapshots that regenerate on use, use
 `facts.py` directly — it runs fact-family entries undated to `output/facts/`
 and is not part of the audit ceremony.
 
+**Deterministic vs deep LLM audit.** The deterministic ceremony here is distinct from
+the deep LLM audit program, which is the `correctness-audit` skill.
+
 **Interpreter convention.** Use `<py>` below as a placeholder for the repo's
 Python interpreter. Resolve it in this try-order:
 1. A repo task-runner `audit-*` target, if one exists (e.g. `just audit-floor`);

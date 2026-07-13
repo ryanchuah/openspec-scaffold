@@ -1145,7 +1145,182 @@ def _check_closed_unpruned(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
-# Check 9 — untriaged-finding accumulation (D8)
+# Check 9 — audit dossier format (D8)
+# ---------------------------------------------------------------------------
+
+# Matches a finding ID at the `## CA-W<N>-<seq>` heading level.
+_FINDING_ID_HEADING_RE = re.compile(r"^## (CA-W\d+-\d+)")
+# The four valid census dispositions (N/A- is a prefix match).
+_VALID_CENSUS_DISPOSITIONS: tuple[str, ...] = (
+    "AUDITED-clean",
+    "AUDITED-finding",
+    "LEAD-deferred",
+    "N/A-",
+)
+
+
+def _check_audit_dossier(root: Path) -> list[Finding]:
+    """Validate correctness-audit dossiers (marker-gated).
+
+    Scans ``knowledge/research/correctness-audit-*/`` directories. Checks
+    only those whose ``CHARTER.md`` contains the literal line
+    ``format: correctness-audit/v1``. For marked dossiers flags:
+    (a) duplicate finding IDs across ``FINDINGS*.md`` files,
+    (b) census disposition values outside the D3 set,
+    (c) graduated findings (any non-``LEAD`` evidence label) missing
+        ``Prior:`` or ``Class:``.
+    A directory with no ``CHARTER.md``, or a ``CHARTER.md`` without the
+    marker, is skipped entirely. No dossier directory at all lints clean.
+    """
+    findings: list[Finding] = []
+
+    dossier_dirs = sorted(root.glob("knowledge/research/correctness-audit-*/"))
+    for dd in dossier_dirs:
+        if not dd.is_dir():
+            continue
+
+        # Check for CHARTER.md with the format marker.
+        charter_path = dd / "CHARTER.md"
+        if not charter_path.is_file():
+            continue
+        try:
+            charter_text = charter_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "format: correctness-audit/v1" not in charter_text:
+            continue
+
+        # (a) — duplicate finding IDs across FINDINGS*.md files.
+        id_locations: dict[str, list[str]] = {}
+        for fpath in sorted(dd.glob("FINDINGS*.md")):
+            if not fpath.is_file():
+                continue
+            rel = _relpath(root, fpath)
+            try:
+                lines = fpath.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                continue
+            for lineno, line in enumerate(lines, start=1):
+                m = _FINDING_ID_HEADING_RE.match(line)
+                if m:
+                    fid = m.group(1)
+                    id_locations.setdefault(fid, []).append(f"{rel}:{lineno}")
+        for fid, locs in sorted(id_locations.items()):
+            if len(locs) > 1:
+                findings.append(
+                    Finding(
+                        "audit-dossier-format",
+                        _relpath(root, dd),
+                        None,
+                        f"duplicate finding ID {fid!r} appears in: {', '.join(locs)}",
+                    )
+                )
+
+        # (b) — invalid census disposition.
+        census_path = dd / "CENSUS.md"
+        if census_path.is_file():
+            try:
+                census_lines = census_path.read_text(
+                    encoding="utf-8", errors="replace"
+                ).splitlines()
+            except OSError:
+                census_lines = []
+            rel = _relpath(root, census_path)
+            for lineno, line in enumerate(census_lines, start=1):
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or stripped.startswith("<"):
+                    # Skip blank lines, comments, and the template header line.
+                    continue
+                # Parse pipe-separated: surface | disposition | IDs | notes
+                if "|" not in stripped:
+                    continue
+                parts = [p.strip() for p in stripped.split("|")]
+                if len(parts) < 2:
+                    continue
+                disposition = parts[1]
+                valid = any(
+                    disposition == d if not d.endswith("-") else disposition.startswith(d)
+                    for d in _VALID_CENSUS_DISPOSITIONS
+                )
+                if not valid:
+                    findings.append(
+                        Finding(
+                            "audit-dossier-format",
+                            rel,
+                            lineno,
+                            f"invalid census disposition {disposition!r} "
+                            f"(must be one of AUDITED-clean / AUDITED-finding / "
+                            f"LEAD-deferred / N/A-<reason>)",
+                        )
+                    )
+
+        # (c) — graduated findings missing Prior: or Class:.
+        for fpath in sorted(dd.glob("FINDINGS*.md")):
+            if not fpath.is_file():
+                continue
+            rel = _relpath(root, fpath)
+            try:
+                text = fpath.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            lines = text.splitlines()
+            # Split into entries by ## CA- headings and graduation-log prefix.
+            i = 0
+            while i < len(lines):
+                m = _FINDING_ID_HEADING_RE.match(lines[i])
+                if not m:
+                    i += 1
+                    continue
+                entry_start = i
+                fid = m.group(1)
+                i += 1
+                # Collect lines until next ## CA- heading or EOF.
+                while i < len(lines) and not _FINDING_ID_HEADING_RE.match(lines[i]):
+                    # Also stop at ### Graduation log (the graduation log
+                    # is an append-only block at the top of the file).
+                    if lines[i].startswith("### "):
+                        break
+                    i += 1
+                entry_lines = lines[entry_start:i]
+
+                # Extract the evidence label (line after **Evidence**).
+                evidence_label = None
+                for j, el in enumerate(entry_lines):
+                    if el.strip() == "**Evidence**":
+                        if j + 1 < len(entry_lines):
+                            candidate = entry_lines[j + 1].strip()
+                            if candidate and not candidate.startswith("**"):
+                                evidence_label = candidate
+                        break
+
+                # Only check graduated (non-LEAD) findings.
+                if evidence_label is None or evidence_label == "LEAD":
+                    continue
+
+                # Check for Prior: and Class: lines.
+                has_prior = any(el.strip().startswith("**Prior:") for el in entry_lines)
+                has_class = any(el.strip().startswith("**Class:") for el in entry_lines)
+                missing: list[str] = []
+                if not has_prior:
+                    missing.append("Prior:")
+                if not has_class:
+                    missing.append("Class:")
+                if missing:
+                    findings.append(
+                        Finding(
+                            "audit-dossier-format",
+                            rel,
+                            entry_start + 1,
+                            f"finding {fid} has evidence label {evidence_label!r} "
+                            f"but is missing {', '.join(missing)}",
+                        )
+                    )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check 10 — untriaged-finding accumulation (D8)
 # ---------------------------------------------------------------------------
 
 
@@ -1204,6 +1379,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_handoff_files(root, is_ignored))
     findings.extend(_check_duplicate_blocks(root, is_ignored))
     findings.extend(_check_closed_unpruned(root))
+    findings.extend(_check_audit_dossier(root))
     findings.extend(_check_untriaged_age(root))
     return findings
 

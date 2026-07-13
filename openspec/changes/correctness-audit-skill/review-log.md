@@ -301,3 +301,70 @@ Round 1 returned zero 🔴 (PASS) → freeze condition met. Fixed pre-freeze:
 2 spec deltas, tasks) — proposal 1 round, design 2 rounds, specs 2 rounds, tasks 1
 round, zero 🔴 outstanding anywhere, PREMISE: AGREE at direction gate, proposal, and
 specs.**
+
+---
+
+## VERIFY (2026-07-13, Opus orchestrator)
+
+### Self-review (behavioral, mandatory pass 1) — READY
+- Implementation faithfully matches the frozen spec deltas + design D1–D12. Diff scope
+  exactly as proposed: new SKILL.md (349L), `_check_audit_dossier` in knowledge_lint.py,
+  8 fixture tests, manifest line, scaffold_lint token, AGENTS.md + run-audit pointers.
+- `bash scripts/check.sh` green (ruff + format + full pytest incl scaffold SEAL:
+  manifest-completeness, dangling-skill-refs, budget-agreement all pass).
+- **Round-trip eyeball (step 6):** built a real conforming dossier from the SKILL's
+  LITERAL template example blocks (charter marker + 4 census example rows + filled
+  CA-W1-3 finding) → `knowledge_lint: OK`. A deliberately-broken dossier flagged exactly
+  3 defects (dup ID w/ both locations, invalid census disposition, graduated finding
+  missing Prior:+Class:). The parser's assumptions match the templates as written.
+- Parser/template alignment confirmed: CENSUS template uses NO leading pipe so `parts[1]`
+  is the disposition; FINDINGS puts the evidence label on the line after a standalone
+  `**Evidence**`, and `**Prior:**`/`**Class:**` are bold field lines — all match the parser.
+- No external-API surface → live smoke N/A (design confirms). No auth/credentials/
+  persisted-data/external surface → security gate does not trigger.
+- Fixed one inline typo (SKILL.md wave-gate step 5 "des not" → "does not"; zero-risk).
+- README lesson-#7 check: README has no audit-tooling/skill-roster vocabulary that OW-5
+  makes stale (its "7 workflow skills" line is the openspec-* bucket; correctness-audit is
+  an operator skill). No README reconciliation owed. (Incidental pre-existing drift: README
+  line 19 still lists a removed `onboard` skill — out of scope for OW-5.)
+
+### Lens selection (COMPLEX pass 3)
+**Lens: test-quality / adversarial-oracle (default).** Rationale: OW-5's shipped code is a
+deterministic lint check + 8 new fixture tests + skill prose — test integrity is the
+dominant risk surface. It is NOT data-path-dominant (no unbounded queries / at-scale data
+processing), so the data-scale lens does not apply.
+
+### Pro behavioral pass — deepseek/deepseek-v4-pro — READY (4 🟡, all folded + fixed)
+Real verifier ran (no fallback). VERDICT: READY. Four 🟡 warnings, all confirmed from disk
+and fixed via one consolidated re-delegated deepseek fix-spec (one attempt, clean):
+  1. `_NON_LEAD_EVIDENCE_RE` dead code in knowledge_lint.py → removed.
+  2. SKILL census prose "Tab-separated or pipe-separated" vs pipe-only enforcement → narrowed to "Pipe-separated:".
+  3. SKILL Evidence template missing spec disqualification rules (bare "confirmed" invalid; repro w/o named path disqualified) → added.
+  4. SKILL graduation missing spec's UNVERIFIABLE-HERE → `Class: none (one-off)` default → added.
+Post-fix: check.sh green (393), clean-dossier probe OK, broken-dossier probe 3 findings (unchanged).
+
+### Flash lens pass (test-quality/adversarial-oracle) — deepseek/deepseek-v4-flash — READY, no defects
+Real verifier ran (no fallback). Diff-scoped review of the 8 test_audit_dossier_* fixtures +
+_check_audit_dossier. Confirmed: no tautological/forced-green assertions, no self-mocking (real
+integration via collect_findings + tmp_path), conforming_clean exercises genuinely graduated
+findings (non-LEAD w/ Prior:/Class:) — verified by the verifier's own mutation probe — and each
+flagged test asserts specific message content, not just non-empty. One non-blocking note (an
+`or` vs `and` in one assertion; sound in practice). VERDICT: READY, Defects: None.
+
+### Simplicity/quality gate — 2 parallel finders (correctness + cleanup) → verified from disk
+- Correctness finder: NO actionable findings — parser handles all template-conforming/broken
+  cases, no crashes, tests specific (confirmed graduation-log-at-top handling, evidence-label
+  extraction, census pipe-parsing). Two non-actionable notes (stray `### ` mid-entry truncation;
+  graduated-keyed-off-FINDINGS-label-not-census) require non-template input → forward items.
+- Cleanup finder: 3 behavior-preserving nits. Disposition:
+  1. FINDINGS files read twice (blocks a + c) → PARKED (single-pass restructure, nil benefit on
+     tiny files, more regression surface than worth) → route to `ratchet-lint-cleanup` follow-on.
+  2. block (a) inlined `dd.relative_to(root).as_posix()` instead of `_relpath(root, dd)` → FOLDED.
+  3. `startswith("**Prior:**") or startswith("**Prior: ")` → `startswith("**Prior:")` → FOLDED.
+- Findings 2+3 fix: re-delegation was KILLED with zero progress (no exit sentinel, no edits);
+  applied inline as trivial one-liners (helper substitution + `or`-collapse), ruff-format
+  normalized, check.sh green (393), round-trip probes unchanged. No Sonnet fallback used.
+- Security gate: NOT triggered (no auth/credentials/persisted-data/external-API surface).
+
+**VERIFY VERDICT: READY for archive.** Self-review READY; pro behavioral READY (4 🟡 folded);
+flash lens READY (no defects); simplicity gate clean after 2 folds. Full gate green.

@@ -1358,3 +1358,250 @@ def test_module_source_has_no_write_calls():
     ]
     for token in forbidden:
         assert token not in source, f"potential write call found: {token!r}"
+
+
+# ===================================================================
+# 2.2 — correctness-audit dossier lint (_check_audit_dossier)
+# ===================================================================
+
+_CHARTER_WITH_MARKER = (
+    "# Correctness Audit Charter\n"
+    "\n"
+    "## Scope\n"
+    "scripts/ingestion.py, scripts/validation.py\n"
+    "\n"
+    "---\n"
+    "format: correctness-audit/v1\n"
+)
+
+_CENSUS_VALID = (
+    "# Census\n"
+    "\n"
+    "scripts/ingestion.py | AUDITED-clean    | — | No issues\n"
+    "scripts/validation.py | AUDITED-finding | CA-W1-1 | Silent truncation\n"
+    "vendor/old-lib/ | N/A-no-source | — | No source\n"
+)
+
+_FINDINGS_W1_VALID = (
+    "## CA-W1-1 — Silent data truncation\n"
+    "\n"
+    "**Statement**\n"
+    "Truncation without warning.\n"
+    "\n"
+    "**Evidence**\n"
+    "VERIFIED-BY-repro\n"
+    "Repro snapshot exists.\n"
+    "\n"
+    "**Severity**\n"
+    "HIGH\n"
+    "\n"
+    "**Prior:**\n"
+    "none (grep clean)\n"
+    "\n"
+    "**Class:**\n"
+    "silent-truncation\n"
+    "\n"
+    "**Fix sketch**\n"
+    "Add length check.\n"
+    "\n"
+    "**Effort:** S\n"
+)
+
+_FINDINGS_W2_VALID = (
+    "### Graduation log\n"
+    "\n"
+    "- **2026-07-10** — Refutation session\n"
+    "  - Adjudicated: CA-W2-1\n"
+    "  - Verdicts: CA-W2-1 -> REFUTED\n"
+    "\n"
+    "## CA-W2-1 — Retry loop without backoff\n"
+    "\n"
+    "**Statement**\n"
+    "Retries without exponential backoff.\n"
+    "\n"
+    "**Evidence**\n"
+    "REFUTED\n"
+    "Premise false — outer layer has backoff.\n"
+    "\n"
+    "**Severity**\n"
+    "LOW\n"
+    "\n"
+    "**Prior:**\n"
+    "none (grep clean)\n"
+    "\n"
+    "**Class:**\n"
+    "none (one-off)\n"
+    "\n"
+    "**Fix sketch**\n"
+    "No fix needed.\n"
+    "\n"
+    "**Effort:** S\n"
+)
+
+
+def _build_dossier(
+    root: Path, subdir: str, charter: str, census: str, findings: list[tuple[str, str]]
+) -> Path:
+    """Build a correctness-audit dossier under *root*/*subdir*."""
+    dd = root / "knowledge" / "research" / subdir
+    dd.mkdir(parents=True, exist_ok=True)
+    (dd / "CHARTER.md").write_text(charter, encoding="utf-8")
+    if census is not None:
+        (dd / "CENSUS.md").write_text(census, encoding="utf-8")
+    for fname, content in findings:
+        (dd / fname).write_text(content, encoding="utf-8")
+    return dd
+
+
+def test_audit_dossier_conforming_clean(tmp_path):
+    """A conforming marked dossier with unique IDs, valid dispositions, and
+    Prior:/Class: on all graduated findings lints clean."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_WITH_MARKER,
+        _CENSUS_VALID,
+        [("FINDINGS-wave1.md", _FINDINGS_W1_VALID), ("FINDINGS-wave2.md", _FINDINGS_W2_VALID)],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert dossier_findings == []
+
+
+def test_audit_dossier_duplicate_id_flagged(tmp_path):
+    """A duplicate finding ID across two wave files is flagged with both
+    locations."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_WITH_MARKER,
+        _CENSUS_VALID,
+        [
+            ("FINDINGS-wave1.md", "## CA-W1-1 — First\n\n**Evidence**\nLEAD\n"),
+            ("FINDINGS-wave2.md", "## CA-W1-1 — Duplicate\n\n**Evidence**\nLEAD\n"),
+        ],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert len(dossier_findings) == 1
+    assert "duplicate finding ID" in dossier_findings[0].message
+    assert "CA-W1-1" in dossier_findings[0].message
+    assert "FINDINGS-wave1.md" in dossier_findings[0].message
+    assert "FINDINGS-wave2.md" in dossier_findings[0].message
+
+
+def test_audit_dossier_invalid_census_disposition_flagged(tmp_path):
+    """A census row with an invalid disposition is flagged."""
+    bad_census = "# Census\n\nscripts/ingestion.py | UNKNOWN-VALUE | — | Bad\n"
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_WITH_MARKER,
+        bad_census,
+        [("FINDINGS-wave1.md", "# No findings yet\n")],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert len(dossier_findings) == 1
+    assert "invalid census disposition" in dossier_findings[0].message
+    assert "UNKNOWN-VALUE" in dossier_findings[0].message
+
+
+def test_audit_dossier_graduated_missing_prior_class_flagged(tmp_path):
+    """A graduated finding (non-LEAD evidence) missing Prior: or Class: is
+    flagged."""
+    bad_findings = (
+        "## CA-W1-1 — Silent truncation\n"
+        "\n"
+        "**Statement**\n"
+        "Truncation.\n"
+        "\n"
+        "**Evidence**\n"
+        "VERIFIED-BY-repro\n"
+        "\n"
+        "**Severity**\n"
+        "HIGH\n"
+        "\n"
+        "**Fix sketch**\n"
+        "Fix it.\n"
+        "\n"
+        "**Effort:** S\n"
+    )
+    census = "# Census\n\nscripts/ingestion.py | AUDITED-finding | CA-W1-1 | Truncation\n"
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_WITH_MARKER,
+        census,
+        [("FINDINGS-wave1.md", bad_findings)],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert len(dossier_findings) == 1
+    assert "CA-W1-1" in dossier_findings[0].message
+    assert "Prior:" in dossier_findings[0].message or "Class:" in dossier_findings[0].message
+
+
+def test_audit_dossier_lead_not_flagged_for_missing_prior_class(tmp_path):
+    """A finding still labeled LEAD is NOT flagged for missing Prior:/Class: —
+    it is still in the draft phase."""
+    lead_findings = (
+        "## CA-W1-2 — Potential issue\n"
+        "\n"
+        "**Statement**\n"
+        "Something might be wrong.\n"
+        "\n"
+        "**Evidence**\n"
+        "LEAD\n"
+        "\n"
+        "**Severity**\n"
+        "MEDIUM\n"
+        "\n"
+        "**Fix sketch**\n"
+        "TBD.\n"
+        "\n"
+        "**Effort:** M\n"
+    )
+    census = "# Census\n\nscripts/ingestion.py | LEAD-deferred | CA-W1-2 | Lead deferred\n"
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_WITH_MARKER,
+        census,
+        [("FINDINGS-wave1.md", lead_findings)],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert dossier_findings == []
+
+
+def test_audit_dossier_markerless_skipped(tmp_path):
+    """A dossier whose CHARTER.md lacks the format marker is skipped entirely
+    — no findings from it."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        "# Charter without marker\n",
+        "# Census\n\nscripts/ingestion.py | INVALID-DISP | — | Bad\n",
+        [("FINDINGS-wave1.md", "## CA-W1-1 — Duplicate\n")],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert dossier_findings == []
+
+
+def test_audit_dossier_no_charter_skipped(tmp_path):
+    """A dossier dir with no CHARTER.md is skipped entirely."""
+    dd = tmp_path / "knowledge" / "research" / "correctness-audit-2026-07"
+    dd.mkdir(parents=True, exist_ok=True)
+    (dd / "CENSUS.md").write_text("scripts/ingestion.py | INVALID | — | Bad\n", encoding="utf-8")
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert dossier_findings == []
+
+
+def test_audit_dossier_no_dossier_dir_clean(tmp_path):
+    """No correctness-audit-* directory at all → clean."""
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
+    assert dossier_findings == []

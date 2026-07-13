@@ -6,6 +6,7 @@
 .claude/agents/archive-executor.md
 
 # Skills (.claude)
+.claude/skills/correctness-audit/SKILL.md
 .claude/skills/knowledge-drift-review/SKILL.md
 .claude/skills/openspec-apply-change/SKILL.md
 .claude/skills/openspec-archive-change/SKILL.md

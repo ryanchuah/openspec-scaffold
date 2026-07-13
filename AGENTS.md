@@ -379,6 +379,8 @@ Discover checks: `python scripts/checks.py --list` (interpreter is per-repo; `py
 illustratively — the `run-audit` skill resolves it). `knowledge_lint.py` is the
 deterministic linter (structural), while `knowledge-drift-review` is the LLM semantic pass.
 
+Deep LLM correctness audits are a separate surface owned by the operator-invoked `correctness-audit` skill, which standardizes the charter/census/findings protocol and routes findings into the finding-closure ratchet — while this section's ceremony remains deterministic-detector-only.
+
 ## Scaffold-managed files & propagation
 
 Some files in this repo are **scaffold-managed**: they are kept in sync from the

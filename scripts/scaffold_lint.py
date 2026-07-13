@@ -169,7 +169,9 @@ _SCAN_BASE_DIRS: tuple[str, ...] = (
 _TOKEN_RE = re.compile(r"\bopenspec-[a-z][a-z-]*[a-z]\b")
 # Non-openspec skills have no shared prefix to pattern-match, so police them by
 # explicit name. Keep in step with actual .claude/skills/ non-openspec dirs.
-_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset({"knowledge-drift-review", "run-audit"})
+_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset(
+    {"correctness-audit", "knowledge-drift-review", "run-audit"}
+)
 _DANGLING_ALLOWLIST: frozenset[str] = frozenset({"openspec-scaffold"})
 
 # budget-agreement
