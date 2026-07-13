@@ -7,7 +7,22 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — instruction-surface-coherence SHIPPED (2026-07-13)
+## Latest change — defect-prevention-detectors SHIPPED (2026-07-13)
+
+Shipped two universal in-process defect-prevention detectors in `scripts/checks.py` (OW-1 + OW-4,
+MEDIUM): `test-quality` — six AST-based rules flagging forced-green assertions, empty test bodies,
+self-mocks, unfrozen clocks, and discarded return flags in test files; `data-scale` —
+unbounded `.fetchall()` detection on non-test source. Both are enabled-by-default, FP-safe (advisory
+surface, operator-triaged, no CI-gate impact). Verify lens/rule wiring: the existing
+verify-multimodel-gate lens forward-compat clause is now concrete (detectors ship, lens prompts
+delegate to `checks.py --check`), and a new data-path recording rule enforces the "Mind data scale"
+rule at verify. Verify: full MEDIUM gate green — orchestrator independent exercise PASS (built own
+fixtures, confirmed real detection not forced-green), pro behavioral READY, 2 🟡 fixed inline, zero
+Sonnet fallback. One real defect (hidden-dir scan in `_iter_py_files`) found and re-delegated.
+Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-defect-prevention-detectors/`.
+
+## Prior change — instruction-surface-coherence SHIPPED (2026-07-13)
 
 Shipped the instruction-surface coherence sweep (OW-9 + OW-14, MEDIUM): resolved the
 autonomy-grant-vs-phase-gate contradiction with a single canonical
@@ -42,24 +57,11 @@ operator-gated and DEFERRED (scaffold-only ship). Decisions: `knowledge/decision
 follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-composition-audit-cadence/`.
 
-## Prior change — correctness-audit-skill SHIPPED (2026-07-13)
-
-Shipped the deep-audit protocol (OW-5, COMPLEX) as one scaffold-owned, operator-invoked/
-pull-only `correctness-audit` skill: charter/census/FINDINGS artifact contract, refuter-
-overrule graduation discipline, per-wave-gate triage-file append, and close-out routing
-into OW-2's finding-closure ratchet. New marker-gated `_check_audit_dossier` in
-`knowledge_lint.py` (fires only on a `format: correctness-audit/v1` charter) plus fixture
-tests. Two specs promoted: `correctness-audit` (new) and `knowledge-lint` (modified).
-Verify: full gate green — self-review, pro behavioral, and flash lens passes all READY;
-4 pro-pass warnings and 2 simplicity cleanups folded in, no Sonnet fallback used anywhere.
-Downstream propagation is operator-gated and DEFERRED (scaffold-only ship). Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-correctness-audit-skill/`.
-
 ## Immediate next action
-`instruction-surface-coherence` (OW-9 + OW-14) is now **SHIPPED**. The frozen OW-2→3→5→6
+`defect-prevention-detectors` (OW-1 + OW-4) is now **SHIPPED**, joining
+`instruction-surface-coherence` (OW-9 + OW-14, SHIPPED earlier this session). The frozen OW-2→3→5→6
 batch and the paired OW-9/14 sweep are both complete. There is no proactive build in flight.
-The wave-2 remainder — OW-1, OW-4, OW-7, OW-8, OW-10, OW-11, OW-12, OW-13 — plus the late
+The wave-2 remainder — OW-7, OW-8, OW-10, OW-11, OW-12, OW-13 — plus the late
 additions OW-15 and OW-16 are still open; work is in progress this session. Single source:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`. The Fable-tier design
 backlog is closed (2026-07-11 workflow audit:

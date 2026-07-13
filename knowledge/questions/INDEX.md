@@ -45,3 +45,5 @@
 - Composition-audit-cadence follow-ons → `knowledge/questions/composition-audit-cadence-follow-ons.md`
 - Instruction-surface PostToolUse hook (OW-14 item c, deferred — Claude-only, needs own carve-out) → `knowledge/questions/instruction-surface-posttooluse-hook.md`
 - Instruction-surface content checklist (OW-9, deferred — low-yield) → `knowledge/questions/instruction-surface-content-checklist.md`
+- Defect-prevention per-rule toggle v2 (notes.md A3, deferred — observed from downstream noise first) → `knowledge/questions/per-rule-toggle-v2.md`
+- repo_lint.py no_fetchall docstring example (notes.md A2, low — wording only) → `knowledge/questions/repo-lint-fetchall-docstring.md`
