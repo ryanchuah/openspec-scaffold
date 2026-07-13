@@ -51,8 +51,9 @@ Checks (each yields zero or more findings; a finding is
    5. **audit-log registry format (guarded)** — if
       ``<root>/knowledge/audit-log.md`` exists, each registry-anchored line
       (``- **YYYY-MM-DD** · ...``) must fully match
-      ``- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>``; absent
-      file → skipped silently.
+      ``- **YYYY-MM-DD** · audit/<date> · <short-sha> · <essence>`` (plain)
+      or ``- **YYYY-MM-DD** · audit/<date>-composition · <short-sha> · <essence>``
+      (composition variant); absent file → skipped silently.
    6. **ratchet-log registry format (guarded)** — if
       ``<root>/knowledge/ratchet-log.md`` exists, each registry-anchored line
       must match the finding-closure-ratchet format
@@ -158,7 +159,7 @@ _URL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://")
 _ARCHIVE_POINTER_RE = re.compile(r"openspec/changes/archive/([^`\s)/<>]+)/")
 _AUDIT_LOG_ANCHOR_RE = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\*")
 _AUDIT_LOG_FULL_RE = re.compile(
-    r"^- \*\*\d{4}-\d{2}-\d{2}\*\* · audit/\d{4}-\d{2}-\d{2} · [0-9a-f]{7,40} · \S.*$"
+    r"^- \*\*\d{4}-\d{2}-\d{2}\*\* · audit/\d{4}-\d{2}-\d{2}(?:-composition)? · [0-9a-f]{7,40} · \S.*$"
 )
 # Matches date/period placeholders like `YYYY`, `YYYY-Www`, `MM-DD`, or
 # `YY-MM-DD`.  Built from a date-token alternation so all-caps component

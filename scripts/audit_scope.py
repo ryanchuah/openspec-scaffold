@@ -33,19 +33,21 @@ Three subcommands (``scan`` is the default when none is given):
     churn * 1 (radon unavailable). Files are ranked by hotspot score,
     descending.
 
-``tag --date YYYY-MM-DD``
-    Creates an ANNOTATED tag ``audit/<date>`` at HEAD (message
+``tag --date YYYY-MM-DD [--kind plain|composition]``
+    Creates an ANNOTATED tag ``audit/<date>`` (``--kind plain``, the default)
+    or ``audit/<date>-composition`` (``--kind composition``) at HEAD (message
     ``audit anchor <date>``). ``--date`` is required — no implicit "today" —
     so a documented invocation stays reproducible. If the tag already
     exists, this refuses (exit 3) rather than silently minting a second
     anchor. This is the ONLY mutating operation anywhere in this change
     (D3-compatible bookkeeping) and only fires on explicit invocation.
 
-``log-line --date YYYY-MM-DD --essence "<free text>"``
+``log-line --date YYYY-MM-DD --essence "<free text>" [--kind plain|composition]``
     PRINTS (never writes) the audit-log registry line in the exact format
-    ``- **<date>** · audit/<date> · <short-HEAD-sha> · <essence>``. The
-    orchestrator appends the printed line to ``knowledge/audit-log.md``
-    deliberately — this script stays write-free.
+    ``- **<date>** · audit/<date> · <short-HEAD-sha> · <essence>`` (plain)
+    or ``- **<date>** · audit/<date>-composition · <short-HEAD-sha> · <essence>``
+    (composition). The orchestrator appends the printed line to
+    ``knowledge/audit-log.md`` deliberately — this script stays write-free.
 
 Output (scan only)
 -------------------
@@ -307,7 +309,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 
 def cmd_tag(args: argparse.Namespace) -> int:
-    tag_name = f"audit/{args.date}"
+    suffix = "-composition" if getattr(args, "kind", "plain") == "composition" else ""
+    tag_name = f"audit/{args.date}{suffix}"
 
     existing = _run_git(["tag", "--list", tag_name])
     if existing.returncode != 0:
@@ -360,7 +363,8 @@ def cmd_log_line(args: argparse.Namespace) -> int:
                 " then append the line below.",
                 file=sys.stderr,
             )
-    print(f"- **{args.date}** · audit/{args.date} · {short_sha} · {args.essence}")
+    suffix = "-composition" if getattr(args, "kind", "plain") == "composition" else ""
+    print(f"- **{args.date}** · audit/{args.date}{suffix} · {short_sha} · {args.essence}")
     return 0
 
 
@@ -394,11 +398,23 @@ def main(argv: list[str] | None = None) -> int:
         "tag", help="Create the annotated audit/<date> anchor tag (the only mutating op)."
     )
     tag_p.add_argument("--date", required=True, help="Anchor date, YYYY-MM-DD.")
+    tag_p.add_argument(
+        "--kind",
+        choices=("plain", "composition"),
+        default="plain",
+        help="Anchor kind: plain (audit/<date>) or composition (audit/<date>-composition).",
+    )
     tag_p.set_defaults(func=cmd_tag)
 
     log_p = sub.add_parser("log-line", help="Print (never write) the audit-log registry line.")
     log_p.add_argument("--date", required=True, help="Audit date, YYYY-MM-DD.")
     log_p.add_argument("--essence", required=True, help="One-line free-text essence.")
+    log_p.add_argument(
+        "--kind",
+        choices=("plain", "composition"),
+        default="plain",
+        help="Anchor kind: plain (audit/<date>) or composition (audit/<date>-composition).",
+    )
     log_p.set_defaults(func=cmd_log_line)
 
     args = parser.parse_args(argv)

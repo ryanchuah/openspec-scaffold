@@ -70,6 +70,21 @@ stdout summary) — there is no parser for custom commands.
 the CONFIGURING repo's responsibility, not something this orchestrator can
 enforce for arbitrary argv.
 
+``[facts.outstanding]`` — config for the ``outstanding`` fact (``outstanding.py``,
+consumed by ``facts.py --check outstanding`` and ``knowledge_lint.py``'s
+``_check_untriaged_age``). All keys optional with documented defaults:
+``findings_globs`` (list[str], default ``["knowledge/research/**/FINDINGS*.md"]``,
+from ``outstanding.py:29``),
+``finding_id_pattern`` (str, default ``\\b[A-Z]{2,}(?:-[A-Z0-9]+)?-\\d+\\b``,
+from ``outstanding.py:32``),
+``composition_change_threshold`` (int, default ``10``, from the composition-audit
+spec — the count of archived-change directories since the last composition anchor
+that triggers ``due``),
+``composition_commit_threshold`` (int, default ``100``, from the composition-audit
+spec — the commit count since the last composition anchor that triggers ``due``).
+The composition-audit spec is normative for the threshold defaults; per-repo
+overrides go here.
+
 Check registry
 --------------
 Built-in PARSED checks (native output -> normalized finding
@@ -120,9 +135,12 @@ Modes
 ``--list``                one line per registered check, always exit 0.
 ``--check <name>``        run exactly one check (query shape).
 ``--floor``                all enabled floor-tier check-family entries.
-``--report [--out DIR] [--date YYYY-MM-DD] [--resume] [--baseline PATH]``
+``--report [--out DIR] [--date YYYY-MM-DD] [--resume] [--baseline PATH] [--include NAME ...]``
                             floor + heavy + snapshot checks, in registry
-                            order, checkpointed incrementally.
+                            order, checkpointed incrementally. ``--include``
+                            force-enables a registered-but-disabled check for
+                            this run only (repeatable; composition-audit uses
+                            it for jscpd/vulture/radon).
 
 Output contract (D8b)
 ----------------------
@@ -673,12 +691,56 @@ def _run_inventory(repo_root: Path) -> dict:
                 commits_since = int(count_result.stdout.strip())
     except (OSError, subprocess.TimeoutExpired, ValueError):
         pass
+
+    # Compute composition_anchor from the latest audit/*-composition tag (sibling).
+    comp_tag = None
+    comp_commits_since = None
+    try:
+        comp_tag_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "tag",
+                "--list",
+                "audit/*-composition",
+                "--sort=-creatordate",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        comp_lines = [ln for ln in comp_tag_result.stdout.splitlines() if ln.strip()]
+        if comp_lines:
+            comp_tag = comp_lines[0]
+            comp_count_result = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-list", "--count", f"{comp_tag}..HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if comp_count_result.returncode == 0:
+                comp_commits_since = int(comp_count_result.stdout.strip())
+        else:
+            # No composition tag exists — use full-history commit count.
+            comp_count_result = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-list", "--count", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if comp_count_result.returncode == 0:
+                comp_commits_since = int(comp_count_result.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+
     return {
         "generated_by": GENERATED_BY,
         "tree": tracked,
         "entrypoints": _detect_entrypoints(repo_root),
         "env_vars": sorted(_detect_env_vars(repo_root, tracked)),
         "audit_anchor": {"tag": tag, "commits_since": commits_since},
+        "composition_anchor": {"tag": comp_tag, "commits_since": comp_commits_since},
     }
 
 
@@ -1254,8 +1316,21 @@ def _mode_multi(
     date_str: str,
     config_source: str,
     enforce_empty_out_dir: bool = False,
+    include_list: list[str] | None = None,
 ) -> int:
     all_checks = _all_checks(config)
+
+    # Validate --include names before selecting checks.
+    if include_list:
+        registered_names = {c["name"] for c in all_checks}
+        for name in include_list:
+            if name not in registered_names:
+                print(
+                    f"checks: INFRA-FAIL — unknown check {name!r} in --include",
+                    file=sys.stderr,
+                )
+                return 3
+
     selected = []
     for check in all_checks:
         if check["tier"] not in tiers:
@@ -1266,6 +1341,9 @@ def _mode_multi(
             enabled = True
         else:
             enabled = _is_enabled(check["name"], config, defaults)
+        # Force-enable if the name appears in --include (for this run only).
+        if include_list and check["name"] in include_list:
+            enabled = True
         if enabled:
             selected.append(check)
 
@@ -1477,6 +1555,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--baseline", default=None, help="Prior findings.json to diff against (--report only)."
     )
+    parser.add_argument(
+        "--include",
+        action="append",
+        default=None,
+        metavar="NAME",
+        help="Force-enable a registered-but-disabled check for this run (--report only).",
+    )
 
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
@@ -1485,6 +1570,9 @@ def main(argv: list[str] | None = None) -> int:
         return 3
     if args.resume and not args.report:
         print("checks: INFRA-FAIL — --resume is only valid with --report", file=sys.stderr)
+        return 3
+    if args.include and not args.report:
+        print("checks: INFRA-FAIL — --include is only valid with --report", file=sys.stderr)
         return 3
 
     repo_root = _resolve_repo_root()
@@ -1514,6 +1602,7 @@ def main(argv: list[str] | None = None) -> int:
             baseline_path=None,
             date_str=date_str,
             config_source=config_source,
+            include_list=None,
         )
 
     # --report
@@ -1533,6 +1622,7 @@ def main(argv: list[str] | None = None) -> int:
         date_str=date_str,
         config_source=config_source,
         enforce_empty_out_dir=True,
+        include_list=args.include,
     )
 
 

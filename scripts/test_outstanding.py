@@ -341,3 +341,190 @@ def test_open_work_source_is_repo_relative_not_absolute(tmp_path):
     # spot-check the concrete relative path is present
     sources = {item["source"] for item in payload["open_work"]}
     assert "knowledge/questions/INDEX.md" in sources
+
+
+# ===================================================================
+# 4.4 — composition-audit due-signal tests (AC1)
+# ===================================================================
+
+
+def _git(cmd: list[str], cwd: Path) -> str:
+    """Run a git command in *cwd*, assert success, return stdout."""
+    import subprocess as _sp
+
+    result = _sp.run(["git", *cmd], cwd=str(cwd), capture_output=True, text=True)
+    assert result.returncode == 0, f"git {' '.join(cmd)} failed: {result.stderr}"
+    return result.stdout
+
+
+def _git_init(tmp_path: Path) -> Path:
+    """Create a minimal git repo under *tmp_path* and return its root."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(["init", "-b", "main"], repo)
+    _git(["config", "user.email", "test@example.com"], repo)
+    _git(["config", "user.name", "Test User"], repo)
+    # Initial commit.
+    (repo / "README.md").write_text("# repo\n")
+    _git(["add", "README.md"], repo)
+    _git(["commit", "-m", "initial"], repo)
+    return repo
+
+
+def test_composition_no_anchor_archives_below_threshold(tmp_path):
+    """No composition tag, fewer archives than threshold → not due."""
+    repo = _git_init(tmp_path)
+    # Create 1 archive dir (threshold default is 10).
+    archive_dir = repo / "openspec" / "changes" / "archive" / "change-one"
+    archive_dir.mkdir(parents=True)
+    (archive_dir / "file.md").write_text("x")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add archive"], repo)
+
+    sig = outstanding._composition_signal(repo, {})
+    assert sig["due"] is False
+    assert sig["status"] == "ok"
+    assert sig["anchor_tag"] is None
+    assert sig["archived_changes_since"] == 1
+
+
+def test_composition_no_anchor_archives_above_threshold_due(tmp_path):
+    """No composition tag, ≥10 archives → due (extrends-shape)."""
+    repo = _git_init(tmp_path)
+    archive_root = repo / "openspec" / "changes" / "archive"
+    for i in range(10):
+        d = archive_root / f"change-{i}"
+        d.mkdir(parents=True)
+        (d / "file.md").write_text(f"content-{i}")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add 10 archives"], repo)
+
+    sig = outstanding._composition_signal(repo, {})
+    assert sig["due"] is True
+    assert sig["status"] == "ok"
+    assert sig["archived_changes_since"] == 10
+    assert "archived changes" in sig.get("reason", "")
+
+
+def test_plain_audit_tag_does_not_reset_composition(tmp_path):
+    """Plain audit/<date> tag after a composition anchor does NOT reset the clock."""
+    repo = _git_init(tmp_path)
+    # Create a composition anchor.
+    _git(["tag", "-a", "audit/2026-07-01-composition", "-m", "comp", "HEAD"], repo)
+    # Add an archive dir.
+    archive_dir = repo / "openspec" / "changes" / "archive" / "change-a"
+    archive_dir.mkdir(parents=True)
+    (archive_dir / "f.md").write_text("a")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add archive"], repo)
+    # Then a plain audit tag.
+    import time
+
+    time.sleep(1.1)
+    _git(["tag", "-a", "audit/2026-07-02", "-m", "plain", "HEAD"], repo)
+
+    sig = outstanding._composition_signal(repo, {})
+    # composition_anchor should still be the composition tag (plain tag does
+    # NOT reset the clock), archived_changes_since still counts from it.
+    assert sig["anchor_tag"] == "audit/2026-07-01-composition"
+    assert sig["archived_changes_since"] >= 1
+
+
+def test_composition_anchor_at_head_resets_clock(tmp_path):
+    """Composition anchor at HEAD → counts reset to zero."""
+    repo = _git_init(tmp_path)
+    # Create an archive dir.
+    archive_dir = repo / "openspec" / "changes" / "archive" / "change-a"
+    archive_dir.mkdir(parents=True)
+    (archive_dir / "f.md").write_text("a")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add archive"], repo)
+    # Create composition anchor at HEAD.
+    _git(["tag", "-a", "audit/2026-07-11-composition", "-m", "comp", "HEAD"], repo)
+
+    sig = outstanding._composition_signal(repo, {})
+    assert sig["anchor_tag"] == "audit/2026-07-11-composition"
+    assert sig["archived_changes_since"] == 0
+    assert sig["commits_since"] == 0
+    assert sig["due"] is False
+
+
+def test_composition_thresholds_honored_from_config(tmp_path):
+    """Custom thresholds from config are honored."""
+    repo = _git_init(tmp_path)
+    # Create 1 archive dir. With custom threshold 1, it should be due.
+    archive_dir = repo / "openspec" / "changes" / "archive" / "change-a"
+    archive_dir.mkdir(parents=True)
+    (archive_dir / "f.md").write_text("a")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add archive"], repo)
+
+    config_with_thresholds = {
+        "facts": {
+            "outstanding": {
+                "composition_change_threshold": 1,
+                "composition_commit_threshold": 9999,
+            }
+        }
+    }
+    sig = outstanding._composition_signal(repo, config_with_thresholds)
+    assert sig["due"] is True
+    assert sig["thresholds"]["changes"] == 1
+
+
+def test_composition_or_cofire_commits_trip_with_sparse_archives(tmp_path):
+    """Commits threshold can trip when archive count is low (OR co-fire)."""
+    repo = _git_init(tmp_path)
+    # Composition anchor at initial commit.
+    _git(["tag", "-a", "audit/2026-07-01-composition", "-m", "comp", "HEAD"], repo)
+    # Add many small commits (no archives).
+    for i in range(5):
+        (repo / f"file_{i}.py").write_text(f"x = {i}\n")
+        _git(["add", "-A"], repo)
+        _git(["commit", "-m", f"commit {i}"], repo)
+    import time
+
+    time.sleep(1.1)
+
+    config_low_commits = {
+        "facts": {
+            "outstanding": {
+                "composition_change_threshold": 9999,
+                "composition_commit_threshold": 3,
+            }
+        }
+    }
+    sig = outstanding._composition_signal(repo, config_low_commits)
+    assert sig["due"] is True
+    assert "commits" in sig.get("reason", "")
+
+
+def test_composition_post_archive_edit_does_not_inflate(tmp_path):
+    """Post-archive edit to an existing archive dir does NOT inflate count."""
+    repo = _git_init(tmp_path)
+    archive_root = repo / "openspec" / "changes" / "archive"
+    change_dir = archive_root / "change-a"
+    change_dir.mkdir(parents=True)
+    (change_dir / "f.md").write_text("original\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "add archive"], repo)
+    # Create composition anchor.
+    _git(["tag", "-a", "audit/2026-07-01-composition", "-m", "comp", "HEAD"], repo)
+    # Now edit f.md (modification, not add).
+    (change_dir / "f.md").write_text("edited\n")
+    _git(["add", "-A"], repo)
+    _git(["commit", "-m", "edit archive file"], repo)
+
+    sig = outstanding._composition_signal(repo, {})
+    # Git diff --diff-filter=A sees NO added files — the file was modified but not added.
+    assert sig["archived_changes_since"] == 0
+
+
+def test_composition_no_git_degradation(tmp_path):
+    """No-git scenario → status: no-git, due: false, fact still renders."""
+    repo = tmp_path / "no-git-repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# no git here\n")
+    sig = outstanding._composition_signal(repo, {})
+    assert sig["status"] == "no-git"
+    assert sig["due"] is False

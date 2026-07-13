@@ -1113,5 +1113,101 @@ class RepoLintDelegateTest(AuditBundleTestBase):
         self.assertTrue((out_dir / "repo-lint.json").exists())
 
 
+# ===================================================================
+# Group 3.4 — --include flag tests (AC2)
+# ===================================================================
+
+
+class IncludeFlagTest(AuditBundleTestBase):
+    """Tests for --include flag on --report."""
+
+    def test_include_without_report_exits_3(self):
+        rc, _out = self._capture(["--list", "--include", "jscpd"])
+        self.assertEqual(rc, 3)
+
+    def test_include_unknown_name_exits_3(self):
+        out_dir = self.tmpdir / "out-inc-unknown"
+        rc, _out = self._capture(["--report", "--include", "nonexistent", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+
+    def test_include_disabled_check_runs_with_report(self):
+        """A disabled registered check runs when --include'd."""
+        # jscpd is disabled by default (heavy tier) but the stub is installed.
+        out_dir = self.tmpdir / "out-inc-jscpd"
+        rc, out = self._capture(["--report", "--include", "jscpd", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        self.assertIn("jscpd: ok — 0 findings ->", out)
+
+    def test_include_with_missing_tool_preflight_fails(self):
+        """Missing included tool fails preflight with standard guidance."""
+        # Remove vulture stub.
+        vulture_stub = self.stub_bin / "vulture"
+        if vulture_stub.exists():
+            vulture_stub.unlink()
+        out_dir = self.tmpdir / "out-inc-vulture"
+        rc, _out = self._capture(["--report", "--include", "vulture", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+
+
+# ===================================================================
+# Group 3.4 — composition_anchor inventory tests (AC4)
+# ===================================================================
+
+
+class CompositionAnchorTest(AuditBundleTestBase):
+    """Tests for the composition_anchor sibling in the inventory fact."""
+
+    def _run_inventory(self, out_dir: Path | None = None) -> dict:
+        out_dir = out_dir or self.tmpdir / "out-inv"
+        rc, out = self._capture(["--check", "inventory", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        return json.loads((out_dir / "inventory.json").read_text())
+
+    def test_no_composition_tag_yields_null_anchor(self):
+        data = self._run_inventory()
+        ca = data.get("composition_anchor", {})
+        self.assertIsNone(ca.get("tag"))
+        # commits_since is the full-history commit count when no tag.
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=str(self.repo),
+            capture_output=True,
+            text=True,
+        )
+        full_count = int(result.stdout.strip())
+        self.assertIsInstance(ca.get("commits_since"), int)
+        self.assertEqual(ca.get("commits_since"), full_count)
+
+    def test_composition_anchor_present_after_composition_tag(self):
+        self._git("tag", "-a", "audit/2026-07-11-composition", "-m", "anchor", "HEAD")
+        data = self._run_inventory()
+        ca = data.get("composition_anchor", {})
+        self.assertEqual(ca.get("tag"), "audit/2026-07-11-composition")
+        self.assertEqual(ca.get("commits_since"), 0)
+
+    def test_sibling_anchors_diverge_after_plain_tag(self):
+        """Plain audit tag advances audit_anchor but NOT composition_anchor."""
+        self._git("tag", "-a", "audit/2026-07-11-composition", "-m", "comp", "HEAD")
+        # Add a commit then a plain tag — force distinct creator date.
+        import time
+
+        (self.repo / "b.py").write_text("y = 2\n")
+        self._git("add", "-A")
+        self._git("commit", "-m", "second")
+        time.sleep(1.1)
+        self._git("tag", "-a", "audit/2026-07-12", "-m", "plain", "HEAD")
+
+        data = self._run_inventory()
+        aa = data.get("audit_anchor", {})
+        ca = data.get("composition_anchor", {})
+
+        # audit_anchor reports the latest audit/* tag (the plain one).
+        self.assertEqual(aa.get("tag"), "audit/2026-07-12")
+        # composition_anchor stays on the composition tag.
+        self.assertEqual(ca.get("tag"), "audit/2026-07-11-composition")
+
+
 if __name__ == "__main__":
     unittest.main()

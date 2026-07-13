@@ -340,6 +340,58 @@ class AuditScopeTest(unittest.TestCase):
     # log-line — first-run hint on stderr
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # tag --kind composition
+    # ------------------------------------------------------------------
+
+    def test_tag_composition_creates_annotated_composition_tag(self):
+        rc = audit_scope.main(["tag", "--kind", "composition", "--date", "2026-07-11"])
+        self.assertEqual(rc, 0)
+
+        tag_type = _run(
+            ["git", "cat-file", "-t", "audit/2026-07-11-composition"], self.repo
+        ).strip()
+        self.assertEqual(tag_type, "tag")
+
+    def test_tag_plain_still_byte_identical(self):
+        # Plain tag is still created as audit/<date> without the suffix.
+        rc = audit_scope.main(["tag", "--date", "2026-06-05"])
+        self.assertEqual(rc, 0)
+
+        tag_type = _run(["git", "cat-file", "-t", "audit/2026-06-05"], self.repo).strip()
+        self.assertEqual(tag_type, "tag")
+        # Confirm no -composition suffix leaked.
+        existing = _run(["git", "tag", "--list", "audit/*"], self.repo).strip()
+        self.assertNotIn("composition", existing)
+
+    # ------------------------------------------------------------------
+    # log-line --kind composition
+    # ------------------------------------------------------------------
+
+    def test_log_line_composition_exact_format(self):
+        short_sha = _run(["git", "rev-parse", "--short", "HEAD"], self.repo).strip()
+        rc, out = self._capture(
+            [
+                "log-line",
+                "--kind",
+                "composition",
+                "--date",
+                "2026-07-11",
+                "--essence",
+                "first composition pass",
+            ]
+        )
+        self.assertEqual(rc, 0)
+        expected = f"- **2026-07-11** · audit/2026-07-11-composition · {short_sha} · first composition pass\n"
+        self.assertEqual(out, expected)
+
+    def test_log_line_plain_still_byte_identical(self):
+        short_sha = _run(["git", "rev-parse", "--short", "HEAD"], self.repo).strip()
+        rc, out = self._capture(["log-line", "--date", "2026-06-03", "--essence", "found 3 bugs"])
+        self.assertEqual(rc, 0)
+        expected = f"- **2026-06-03** · audit/2026-06-03 · {short_sha} · found 3 bugs\n"
+        self.assertEqual(out, expected)
+
     def test_log_line_first_run_hint(self):
         short_sha = _run(["git", "rev-parse", "--short", "HEAD"], self.repo).strip()
         expected_stdout = f"- **2026-06-04** · audit/2026-06-04 · {short_sha} · hint test\n"

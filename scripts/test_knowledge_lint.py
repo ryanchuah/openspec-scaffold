@@ -195,7 +195,49 @@ def test_audit_log_present_and_malformed_flags_bad_line(tmp_path):
 
 
 # ===================================================================
-# 2.6 — per-repo config: checks.toml retired_paths merges with defaults
+# 2.6 — composition audit-log line accepted
+# ===================================================================
+
+
+def test_audit_log_composition_line_accepted(tmp_path):
+    """Composition audit-log line is accepted by the linter."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/audit-log.md": (
+                "# Audit Log\n"
+                "\n"
+                "- **2026-07-11** · audit/2026-07-11-composition · abc1234 · first composition pass\n"
+            )
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    audit_findings = [f for f in findings if f.check == "audit-log-registry-format"]
+    assert len(audit_findings) == 0, f"composition line should be accepted, got: {audit_findings}"
+
+
+def test_audit_log_foreign_suffix_rejected(tmp_path):
+    """A suffix other than -composition after the anchor date is flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/audit-log.md": (
+                "# Audit Log\n"
+                "\n"
+                "- **2026-07-11** · audit/2026-07-11-security · abc1234 · security pass\n"
+            )
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    audit_findings = [f for f in findings if f.check == "audit-log-registry-format"]
+    assert len(audit_findings) == 1, "foreign suffix should be flagged"
+    assert audit_findings[0].line == 3
+
+
+# ===================================================================
+# 2.7 — per-repo config: checks.toml retired_paths merges with defaults
 # ===================================================================
 
 

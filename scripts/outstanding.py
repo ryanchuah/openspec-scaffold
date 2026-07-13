@@ -41,12 +41,15 @@ def _load_config(config: dict) -> dict:
     """Extract [facts.outstanding] from the full config dict with graceful defaults.
 
     *config* is the full checks.py config (from checks.toml or {}).
-    Returns a dict with ``findings_globs`` and ``finding_id_pattern``.
+    Returns a dict with ``findings_globs``, ``finding_id_pattern``, and
+    the composition-audit threshold keys.
     """
     fc = config.get("facts", {}).get("outstanding", {})
     return {
         "findings_globs": fc.get("findings_globs", DEFAULT_FINDINGS_GLOBS),
         "finding_id_pattern": fc.get("finding_id_pattern", DEFAULT_FINDING_ID_PATTERN),
+        "composition_change_threshold": fc.get("composition_change_threshold", 10),
+        "composition_commit_threshold": fc.get("composition_commit_threshold", 100),
     }
 
 
@@ -120,6 +123,170 @@ def _rel(root: Path, path: Path) -> str:
         return str(path.relative_to(root))
     except ValueError:
         return str(path)
+
+
+# ---------------------------------------------------------------------------
+# Composition-audit due-signal (D3)
+# ---------------------------------------------------------------------------
+
+
+def _composition_signal(root: Path, config: dict) -> dict:
+    """Compute the composition-audit due-signal from git state.
+
+    Returns a dict with keys: anchor_tag, archived_changes_since,
+    commits_since, thresholds, due, reason, status, computed_from.
+    """
+    fc = _load_config(config)
+    change_threshold = fc.get("composition_change_threshold", 10)
+    commit_threshold = fc.get("composition_commit_threshold", 100)
+
+    result: dict = {
+        "computed_from": "git",
+        "thresholds": {
+            "changes": change_threshold,
+            "commits": commit_threshold,
+        },
+    }
+
+    try:
+        # Discover the latest composition anchor.
+        tag_proc = subprocess.run(
+            ["git", "-C", str(root), "tag", "--list", "audit/*-composition", "--sort=-creatordate"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if tag_proc.returncode != 0:
+            result.update(
+                {
+                    "status": "no-git",
+                    "due": False,
+                    "anchor_tag": None,
+                    "archived_changes_since": 0,
+                    "commits_since": 0,
+                    "reason": "git tag --list failed",
+                }
+            )
+            return result
+
+        lines = [ln for ln in tag_proc.stdout.splitlines() if ln.strip()]
+        anchor_tag = lines[0] if lines else None
+        result["anchor_tag"] = anchor_tag
+
+        # Determine the range spec: anchor or root.
+        if anchor_tag:
+            # Verify the anchor commit is reachable.
+            rev_parse = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--verify", "-q", f"{anchor_tag}^{{commit}}"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if rev_parse.returncode != 0:
+                # Unreachable anchor — degrade to no-anchor.
+                range_spec = None
+                result["reason"] = f"composition anchor {anchor_tag!r} commit is unreachable"
+            else:
+                range_spec = f"{anchor_tag}..HEAD"
+        else:
+            range_spec = None
+
+        # archived_changes_since: count of distinct top-level archive dirs with
+        # at least one file added in the range.
+        if range_spec:
+            diff_proc = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(root),
+                    "diff",
+                    "--name-only",
+                    "--diff-filter=A",
+                    range_spec,
+                    "--",
+                    "openspec/changes/archive/",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if diff_proc.returncode == 0:
+                dirs: set[str] = set()
+                for p in diff_proc.stdout.splitlines():
+                    p = p.strip()
+                    if not p:
+                        continue
+                    # First path component under openspec/changes/archive/<dir>/
+                    rel = p.removeprefix("openspec/changes/archive/")
+                    top = rel.split("/", 1)[0] if "/" in rel else rel
+                    if top:
+                        dirs.add(top)
+                archived_changes_since = len(dirs)
+            else:
+                archived_changes_since = 0
+        else:
+            # No anchor (or degraded): count all top-level archive dirs.
+            archive_root = root / "openspec" / "changes" / "archive"
+            if archive_root.is_dir():
+                archived_changes_since = len([d for d in archive_root.iterdir() if d.is_dir()])
+            else:
+                archived_changes_since = 0
+        result["archived_changes_since"] = archived_changes_since
+
+        # commits_since: rev-list count.
+        if range_spec:
+            rev_proc = subprocess.run(
+                ["git", "-C", str(root), "rev-list", "--count", range_spec],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if rev_proc.returncode == 0:
+                commits_since = int(rev_proc.stdout.strip())
+            else:
+                commits_since = 0
+        else:
+            # No anchor: full history.
+            rev_proc = subprocess.run(
+                ["git", "-C", str(root), "rev-list", "--count", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if rev_proc.returncode == 0:
+                commits_since = int(rev_proc.stdout.strip())
+            else:
+                commits_since = 0
+        result["commits_since"] = commits_since
+
+        # due = OR of thresholds.
+        due = archived_changes_since >= change_threshold or commits_since >= commit_threshold
+        result["due"] = due
+        result["status"] = "ok"
+
+        if due and "reason" not in result:
+            parts = []
+            if archived_changes_since >= change_threshold:
+                parts.append(f"{archived_changes_since} archived changes >= {change_threshold}")
+            if commits_since >= commit_threshold:
+                parts.append(f"{commits_since} commits >= {commit_threshold}")
+            result["reason"] = "; ".join(parts)
+        elif not due and "reason" not in result:
+            result["reason"] = "within thresholds"
+
+    except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
+        result.update(
+            {
+                "status": "no-git",
+                "due": False,
+                "anchor_tag": None,
+                "archived_changes_since": 0,
+                "commits_since": 0,
+                "reason": f"git operation failed: {exc}",
+            }
+        )
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -500,16 +667,43 @@ def _render_md(
     open_work: list[dict],
     untriaged: list[dict],
     md_path: Path,
+    composition_audit: dict | None = None,
 ) -> None:
     """Write the human-readable markdown snapshot."""
     fc = _load_config(config)
     files_scanned, ids_matched = _findings_scan_count(root, config)
+    sig = composition_audit or {}
 
     lines: list[str] = []
     lines.append("# Outstanding Work Snapshot")
     lines.append("")
     lines.append(f"*Generated by {GENERATED_BY}*")
     lines.append("")
+
+    # Composition-audit section: prominent when due, bottom otherwise.
+    comp_due = sig.get("due", False)
+    comp_section: list[str] = []
+    comp_section.append("## Composition audit")
+    comp_section.append("")
+    if sig.get("status") == "no-git":
+        comp_section.append("*git unavailable — composition signal cannot be computed.*")
+    else:
+        anchor = sig.get("anchor_tag", None) or "(none)"
+        archived = sig.get("archived_changes_since", "?")
+        commits = sig.get("commits_since", "?")
+        due_label = "**DUE**" if comp_due else "within thresholds"
+        comp_section.append(f"- **Status**: {due_label}")
+        comp_section.append(f"- **Anchor**: {anchor}")
+        comp_section.append(f"- **Archived changes since anchor**: {archived}")
+        comp_section.append(f"- **Commits since anchor**: {commits}")
+        reason = sig.get("reason", "")
+        if reason:
+            comp_section.append(f"- **Reason**: {reason}")
+    comp_section.append("")
+
+    if comp_due:
+        # Insert composition section directly after the header.
+        lines.extend(comp_section)
 
     # Active config (task 1.6).
     lines.append("## Active Config")
@@ -557,6 +751,10 @@ def _render_md(
         lines.append("*No untriaged findings.*")
     lines.append("")
 
+    # Composition-audit section at bottom when NOT due.
+    if not comp_due:
+        lines.extend(comp_section)
+
     md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -587,6 +785,9 @@ def run(root: Path, config: dict, out_path: Path) -> None:
     # Gather untriaged findings.
     untriaged = extract_untriaged(root, config)
 
+    # Compute composition-audit due-signal.
+    composition_audit = _composition_signal(root, config)
+
     # Build JSON payload.
     fc = _load_config(config)
     payload = {
@@ -595,6 +796,7 @@ def run(root: Path, config: dict, out_path: Path) -> None:
             "findings_globs": fc["findings_globs"],
             "finding_id_pattern": fc["finding_id_pattern"],
         },
+        "composition_audit": composition_audit,
         "open_work": open_work,
         "untriaged": untriaged,
         "summary": {
@@ -608,7 +810,7 @@ def run(root: Path, config: dict, out_path: Path) -> None:
 
     # Write MD sibling (D5).
     md_path = out_path.with_suffix(".md")
-    _render_md(root, config, open_work, untriaged, md_path)
+    _render_md(root, config, open_work, untriaged, md_path, composition_audit)
 
 
 def main(argv: list[str] | None = None) -> int:

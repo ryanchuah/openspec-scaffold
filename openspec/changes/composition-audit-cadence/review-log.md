@@ -233,3 +233,73 @@ All twelve `file:line` cites verified against the live source tree. The inventor
 
 **PASS** — ready to freeze and move to apply. The two 🟡 issues are real but neither would cause rework exceeding ~5 minutes; address them for a cleaner implementation contract, but do not block on them.
 
+---
+
+## Verify phase (2026-07-13, Opus orchestrator)
+
+**Tier:** COMPLEX → self-review → pro behavioral pass → flash lens pass.
+
+**Lens selection:** test-quality / adversarial-oracle lens. Rationale: OW-6 ships four test
+batteries (audit_scope, knowledge_lint, checks `--include`+inventory, outstanding due-signal)
+and has NO data-path-dominant surface, so the data-scale lens does not apply.
+
+**Self-review (orchestrator) — 3 defects found and fixed:**
+- 🔴 `checks.py` `_run_inventory` composition_anchor: `commits_since` was `None` when no
+  `audit/*-composition` tag exists, but spec `composition-signal-is-surfaced-in-inventory`
+  scenario `no-composition-anchor-yields-null-tag` requires the **full-history count**. The
+  AC4 test `test_no_composition_tag_yields_null_anchor` was also too weak (allowed
+  `type(None)`). Re-delegated to a fresh deepseek apply-executor: the no-tag branch now
+  computes `git rev-list --count HEAD`; the test asserts `int` == full-history count.
+  `audit_anchor` left unchanged (out of scope; its own null-when-no-tag behavior — asymmetry
+  recorded as a follow-on).
+- 💡 `.claude/skills/composition-audit/SKILL.md` step 4: delegated a file-WRITE to the
+  read-only `openspec-reviewer` (`edit: deny`). Fixed inline — the reviewer now emits the
+  shortlist as text and the orchestrator writes the `pre-digest.md` checkpoint from the
+  captured output (idiomatic reviewer/verifier pattern).
+- 💡 `knowledge_lint.py` docstring: item-5 list indent drifted 3→4 spaces (apply-executor
+  markdown-indent mangle). Fixed inline.
+
+**Eyeball-real-output (verify step 6):** built a real tmp git repo and exercised the
+due-signal at the threshold boundary, the plain-tag-does-NOT-reset regression, OR co-fire,
+no-git degradation, the inventory composition_anchor (with/without tag), and the
+audit_scope tag/log-line + knowledge_lint round-trip (plain/composition accepted, foreign
+suffix flagged) — all conform to the spec deltas.
+
+**Pro behavioral pass (deepseek-v4-pro):** `VERDICT: READY`, Defects: None. Independently
+built a tmp git repo and confirmed every spec scenario, incl. the fixed composition_anchor
+full-history count.
+
+**Flash test-quality lens pass (deepseek-v4-flash):** `VERDICT: READY`, Defects: None. Read
+all test files in full, ran the new/modified tests, and scrutinized the divergence test's
+`time.sleep(1.1)` (sound — forces distinct creator dates) and the regex test coverage.
+
+**Both multi-model gates READY, no defects. No Sonnet fallback used anywhere this session.**
+
+**Simplicity/quality gate (read-only `/code-review`-style, 3 parallel finder subagents +
+orchestrator verify-from-disk):** all findings are quality-only (no correctness defect
+survived disk-verification). Dispositions:
+- Fixed inline: a never-record-counts slip I introduced in this log (removed a passing test
+  tally — AGENTS.md canonical rule).
+- Parked to `ratchet-lint-cleanup` (behavior-preserving, propagate-later): `outstanding.py`
+  duplicate `rev-list` blocks + duplicate no-git degraded-dict; `checks.py` `composition_anchor`
+  ↔ `audit_anchor` shared-helper extraction (touches pre-existing out-of-scope `audit_anchor`);
+  centralizing the `audit/<date>-composition` literal across the 4 modules that hardcode it;
+  `audit_scope.py` `getattr(args,"kind")` defensive fallback.
+- Recorded as forward-looking advisory-signal edge cases (see notes.md field 5): (a)
+  `archived_changes_since` counts a pre-anchor archive dir if a NEW file is added to it after
+  the anchor (impl matches the spec's literal "dir with ≥1 file added in range"; benign on an
+  advisory never-gating signal; trigger violates the immutable-archive rule) — and design.md's
+  counting-rule note conflates "edit" (correctly excluded) with "add"; (b) the no-anchor branch
+  counts on-disk dirs via `iterdir()` (incl. untracked) while the anchored branch uses git —
+  inconsistent basis, benign-advisory, transient trigger.
+- Noted (no change): SKILL step 6 inlines the spec's ESCALATE indicator triple — acceptable
+  runbook detail since the skill already cites the normative sequence + default K.
+
+No fix re-delegation from the simplicity gate: the change was READY from self-review + both
+independent gates, every cleanup item is behavior-preserving on certified-green code, and
+parking to the designated cleanup lane matches the OW-5 precedent (fold one-liners, park
+restructures). Security gate: NOT triggered (no auth/credentials/persisted-user-data/external-
+network surface; git subprocess uses list-args, no shell). 
+
+### Verify verdict: READY FOR ARCHIVE.
+
