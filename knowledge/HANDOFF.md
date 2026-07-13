@@ -1,6 +1,6 @@
-# HANDOFF — resume the frozen batch at OW-3 (verify-stack-redirect)
+# HANDOFF — resume the frozen batch at OW-5 (correctness-audit-skill)
 
-**Written 2026-07-13, after OW-2 (`lesson-check-ratchet`) shipped and archived.** This is the
+**Written 2026-07-13, after OW-3 (`verify-stack-redirect`) shipped and archived.** This is the
 sanctioned ephemeral mid-session handoff (`knowledge/HANDOFF.md`, per `knowledge/decisions/INDEX.md`
 `knowledge-handoff-file`) — **absorb it, do the next chunk below, then rewrite it for the chunk
 after (or delete it when the batch is done).** Its normal state is absent.
@@ -8,67 +8,50 @@ after (or delete it when the batch is done).** Its normal state is absent.
 The operator granted autonomy for this batch and set a **working pattern**: do **one change per
 session** (apply → verify → archive), **delegate the archive to a Sonnet `archive-executor`
 subagent** (skip the deepseek-first ladder — operator's explicit choice), then **STOP after the
-archive and rewrite this handoff for the next chunk**. Follow that pattern.
+archive and rewrite this handoff for the next chunk**. Follow that pattern. (The operator has been
+present each session to reconfirm; present readiness and proceed under this recorded grant.)
 
 ## What you're doing
 
-Applying, verifying, and archiving the **three remaining already-frozen OpenSpec changes**, in this
-**hard order**: **OW-3 → OW-5 → OW-6**. All three are propose-complete (proposal/design/tasks + spec
-deltas written, pro-reviewed to zero 🔴, frozen). **Nothing needs (re-)designing.** Your job is
-apply → verify → archive per the standard lifecycle skills (`openspec-apply-change`,
-`openspec-verify-change`, `openspec-archive-change`).
+Applying, verifying, and archiving the **two remaining already-frozen OpenSpec changes**, in this
+**hard order**: **OW-5 → OW-6**. Both are propose-complete (proposal/design/tasks + spec deltas
+written, pro-reviewed to zero 🔴, `openspec validate --strict` clean at freeze, frozen). **Nothing
+needs (re-)designing.** Your job is apply → verify → archive per the standard lifecycle skills
+(`openspec-apply-change`, `openspec-verify-change`, `openspec-archive-change`).
 
 **Orchestrator: Opus (you), not Fable.** The design judgment is frozen; apply is delegated to
 deepseek-flash; verifying a well-specified frozen change is within your capability.
 
-**Standard escalation caveat (all three):** implementation bugs found at verify are normal
-defect-path work — diagnose, scope, re-delegate the fix, continue. A **DESIGN-level** defect (a
-frozen contract doesn't fit reality, an interface disagrees with the codebase, a
-census/stopping-rule/lens contract is wrong) → **STOP and escalate to the operator** rather than
-redesigning mid-verify.
+**Standard escalation caveat (both):** implementation bugs found at verify are normal defect-path
+work — diagnose, scope, re-delegate the fix, continue. A **DESIGN-level** defect (a frozen contract
+doesn't fit reality, an interface disagrees with the codebase, a census/stopping-rule/lens contract
+is wrong) → **STOP and escalate to the operator** rather than redesigning mid-verify.
 
-## Why this order (dependency graph)
+## The two changes
 
-- **OW-3 first:** it rewrites the verify stack, so OW-5 and OW-6 should verify under OW-3's *new*
-  lens-diversity shape rather than the old three-same-lens shape.
-- **OW-5 before OW-6:** OW-6's ESCALATE path cites the correctness-audit skill OW-5 ships, and both
-  route close-out findings into **OW-2's ratchet ledger** (now shipped — `knowledge/ratchet-log.md`).
-- OW-7/9/11/14 (a separate, NOT-in-scope wave-2 backlog) edit the same skill files OW-3 rewrites —
-  do not touch them until this batch is fully archived.
-
-## The three changes
-
-### 1. OW-3 — `verify-stack-redirect` (apply NEXT)
-**Dir:** `openspec/changes/verify-stack-redirect/` — tasks.md + 2 spec deltas + notes.md acceptance
-criteria, frozen, direction gate + artifact review both AGREE/PASS, zero 🔴. **MEDIUM tier** (propose
-emitted only tasks.md; acceptance criteria in its `notes.md`). Read `design.md`/`tasks.md` closely —
-this change governs every downstream verify from here on.
-
-**Scope:** redirects the verify stack from breadth (three same-lens model passes) to lens diversity.
-New shape: **MEDIUM** = self→pro; **COMPLEX** = self→pro→**lens pass** (a *prompt*, not a new
-detector — test-quality lens by default, data-scale lens for data-path changes); **SMALL** unchanged.
-Touches the verify skill + AGENTS.md roles + the delegation harness; budgets (780s / `-k 15`) are
-pinned and guarded by a budget-agreement lint.
-
-**Verify note (IMPORTANT self-reference):** OW-3 verifies **itself** under the **pre-change**
-(current) semantics — **self + pro only** (see its `notes.md`), because the new lens semantics don't
-exist until this change ships. Do NOT try to run the new lens pass on OW-3 itself.
-
-### 2. OW-5 — `correctness-audit-skill` (apply after OW-3)
+### 1. OW-5 — `correctness-audit-skill` (apply NEXT)
 **Dir:** `openspec/changes/correctness-audit-skill/` — proposal, design, 2 spec deltas (new
-`correctness-audit` capability + a `knowledge-lint` dossier-lint delta), tasks. 2 pro-review rounds,
-zero 🔴 outstanding, `openspec validate --strict` clean at freeze. **COMPLEX.**
+`correctness-audit` capability + a `knowledge-lint` dossier-lint delta), tasks. 2 pro-review
+rounds, zero 🔴 outstanding, `openspec validate --strict` clean at freeze. **COMPLEX.**
 
 **Scope:** standardizes the audit PROTOCOL (single charter `format: correctness-audit/v1`,
 census-as-stopping-rule, FINDINGS contract with a `Prior:` dedup field + `Class:` slugs shared with
 OW-2's ratchet, refuter-overrule graduation, marker-gated dossier lint, ratchet-routed close-out).
-Severity taxonomy and wave decomposition stay per-repo. Read `design.md` before delegating apply.
+Severity taxonomy and wave decomposition stay per-repo. **Read `design.md` before delegating apply.**
 
-**Verify note:** since OW-3 lands first, OW-5 verifies under OW-3's *new* lens-pass shape (see its
-`notes.md`). **Known follow-on (do NOT do now):** OW-15 amends the capability OW-5 ships and applies
-strictly AFTER it — out of scope for this batch (detail in the roadmap OW-15 entry + `OUTSTANDING-WORK.md`).
+**Verify note (IMPORTANT — the new stack is now live):** OW-3 shipped, so OW-5 verifies under
+OW-3's **new** shape. OW-5 is **COMPLEX** → the verify chain is **self-review → pro behavioral pass
+→ flash LENS pass**. Select the lens and record the selection + one-line rationale in
+`review-log.md` (the verify skill's "Lens pass (COMPLEX)" subsection has the two canonical prompts).
+OW-5 ships an audit skill + `knowledge_lint` dossier-lint check with new tests → the **test-quality /
+adversarial-oracle lens** (the default) is almost certainly the right pick (data-scale lens is for
+data-path-dominant changes; OW-5 is not one) — but judge from the actual diff.
 
-### 3. OW-6 — `composition-audit-cadence` (apply last)
+**Known follow-on (do NOT do now):** OW-15 amends the capability OW-5 ships and applies strictly
+AFTER it — out of scope for this batch (detail in the roadmap OW-15 entry +
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`).
+
+### 2. OW-6 — `composition-audit-cadence` (apply last)
 **Dir:** `openspec/changes/composition-audit-cadence/` — proposal, design, 3 spec deltas (new
 `composition-audit` capability + `outstanding-work-view` + `knowledge-lint` deltas), tasks. Every
 round PASS zero 🔴, `openspec validate --strict` clean, cross-change collision check vs OW-2/OW-5
@@ -79,68 +62,92 @@ deltas confirmed clean. **COMPLEX.**
 `composition-audit` skill (one-shot `checks.py --report --include jscpd/vulture/radon` + baseline
 delta + bounded top-K=5 judgment pass) emitting `COMPOSITION: CLEAN|FINDINGS-ROUTED|ESCALATE`;
 (3) close-out routes into OW-2's ratchet and lays a `audit/<date>-composition` anchor. Read
-`design.md`/`tasks.md` for exact anchors/formats.
+`design.md`/`tasks.md` for exact anchors/formats. OW-6's ESCALATE path cites the correctness-audit
+skill OW-5 ships — that's why OW-5 lands first. **Verify:** COMPLEX → same new self→pro→lens shape;
+test-quality lens is the likely pick.
 
-**Verify note:** runs under OW-3's new stack with lens = test-quality (see its `notes.md`).
+## Lessons carried forward — do not re-derive
 
-## Lessons carried forward from the OW-2 session (so you don't re-derive / re-learn)
+These are the concrete gotchas from the OW-2 and OW-3 sessions. The OW-2 lessons (#1/#3/#5 below)
+are now **guarded in the scaffold** by `lifecycle-skill-hardening`
+(`openspec/changes/archive/2026-07-13-lifecycle-skill-hardening/`); kept for context and the one
+place manual action still matters.
 
-> **Lessons #1, #3, #5 are now GUARDED in the scaffold** by the `lifecycle-skill-hardening` SMALL
-> change shipped this session (`openspec/changes/archive/2026-07-13-lifecycle-skill-hardening/`):
-> the propose skill now runs `openspec validate --strict` at freeze; the apply skill greps the
-> extracted completion report (not the raw jsonl); the archive skill Step 6 runs `knowledge_lint` +
-> repoints moved-dir citations. The lessons are kept for context (understand *why* the skills do
-> this) and for the one place manual action still matters (see #1).
+1. **`openspec validate` needs `--type change` for these change names.** The change name collides
+   with a promoted **spec** name (e.g. `verify-multimodel-gate`), so bare
+   `openspec validate <change> --strict` resolves against specs and errors "Unknown item". Use
+   **`openspec validate <change> --type change --strict`**. Run it before delegating each apply —
+   these changes were frozen before the validate-at-freeze gate existed. (OW-5/OW-6 validated clean
+   at freeze, but re-confirm.)
 
-1. **`openspec validate --strict` parses a requirement's `text` as ONLY its first physical line.**
-   If the normative SHALL/MUST is wrapped onto line 2, validate fails with "must contain SHALL or
-   MUST" even though the word is present. Fix by reordering so the verb is on line 1. **NOW GUARDED**
-   — the propose skill runs `openspec validate --strict` at freeze. **BUT OW-3/5/6 were frozen
-   BEFORE this gate existed**, so still **run `openspec validate <change> --strict` before delegating
-   each of their applies** (OW-2 was frozen with exactly this defect). This class is enforced by
-   validate, so it is deliberately NOT in the ratchet ledger.
+2. **`openspec validate --strict` parses a requirement's `text` as ONLY its first physical line.**
+   A SHALL/MUST wrapped onto line 2 fails "must contain SHALL or MUST". NOW GUARDED at propose
+   freeze; re-run `--type change --strict` anyway before each apply. (Enforced by validate → NOT a
+   ratchet entry.)
 
-2. **Delegation flow that worked cleanly (reuse it):** apply via
-   `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model
-   deepseek/deepseek-v4-flash --format json "<brief>" > /tmp/apply-out.jsonl 2>/tmp/apply-err.log
-   < /dev/null; echo "EXIT=$?" > /tmp/apply-out.exit` (background, EXIT-sentinel). Verify passes:
-   two concurrent `opencode run --agent openspec-verifier` calls (pro then flash), budget
-   `-k 15 780`, read-only. All ran with no fallback. Harness contract:
-   `.claude/skills/_shared/delegation-harness.md`. Canonical verifier prompt:
-   verify-multimodel-gate design D5 (`openspec/changes/archive/2026-06-16-verify-multimodel-gate/design.md`).
+3. **Delegation shapes that ran cleanly this batch (reuse verbatim):**
+   - **apply:** `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model
+     deepseek/deepseek-v4-flash --format json "<brief>" > /tmp/apply-out.jsonl 2>/tmp/apply-err.log
+     < /dev/null; echo "EXIT=$?" > /tmp/apply-out.exit` (background, EXIT-sentinel). For a MEDIUM
+     change with no proposal.md/design.md, point the brief at `notes.md` + the spec deltas +
+     `explore-brief.md`; OW-5/OW-6 are COMPLEX and DO have proposal.md + design.md, so the standard
+     brief applies.
+   - **verify pro pass:** one `opencode run --agent openspec-verifier --model deepseek/deepseek-v4-pro`,
+     budget `-k 15 780`, read-only, background + EXIT-sentinel. **COMPLEX adds a flash LENS pass**
+     (`--model deepseek/deepseek-v4-flash`, the selected lens prompt, diff-scoped — no full-suite
+     rerun). Harness contract: `.claude/skills/_shared/delegation-harness.md`. Both pass prompts are
+     now inlined in the verify SKILL (no more "design D5" pointer — OW-3 removed it).
+   - **archive:** Sonnet `archive-executor` subagent (`Agent` tool, `subagent_type:
+     "archive-executor"`), per operator's choice. Give it a thorough brief (paths, sync=yes/no, the
+     three docs, the notes.md field-5 items, ≤3-cap instruction, flag-only wider sweep). It does NOT
+     commit and does NOT touch HANDOFF.md — you rewrite the handoff, you commit.
 
-3. **False-positive alarm to ignore:** grepping executor output for `### NON-CONVERGENCE BLOCKER`
-   can MATCH the executor echoing the apply-SKILL.md failure-mode docs. **NOW GUARDED** — the apply
-   skill greps the extracted completion report (`jq .part.text`), not the raw jsonl. Still confirm
-   from the actual completion report + `tasks.md` checkboxes, not a raw grep count.
+4. **Extract the completion report, don't trust raw grep.** Confirm success from
+   `grep '"type":"text"' /tmp/<x>-out.jsonl | tail -1 | jq -r '.part.text'` + `tasks.md` checkboxes +
+   `git diff`, not a raw-stream grep (the raw jsonl contains the executor's tool-reads of skill
+   headings and false-positives — e.g. `### NON-CONVERGENCE BLOCKER`). NOW GUARDED in the apply
+   skill.
 
-4. **The apply-executor can mangle markdown list indentation.** In OW-2 it shifted skill-file
-   sub-bullets from 3→4 spaces, mis-nesting peer steps. When apply edits a `.claude/skills/*.md`
-   file, eyeball the list nesting in `git diff` — no test catches skill-md indentation.
+5. **The apply-executor can mangle markdown list indentation.** When apply edits a `.claude/skills/*.md`
+   or `.opencode/agents/*.md` file, eyeball list nesting in `git diff` (3-space vs 4-space drift) —
+   no test catches it. (OW-3 apply was clean on this, but stay alert for OW-5/OW-6's skill files.)
 
-5. **After an archive `git mv`, any doc citing the moved change dir breaks `knowledge_lint`
-   (`broken-prose-path-citation`, exit 1), which runs in the live-tree pytest gate → the
-   commit-test-gate will BLOCK your archive commit.** In OW-2 the culprit was this HANDOFF.md
-   itself. **NOW GUARDED** — the archive skill Step 6 runs `knowledge_lint` and repoints moved-dir
-   citations before committing. When it flags one, repoint to the archive path (or rewrite this
-   file) and re-run `scripts/check.sh` green before committing.
+6. **After the archive `git mv`, repoint/rewrite any doc citing the moved dir before committing** —
+   `knowledge_lint`'s `broken-prose-path-citation` runs in the live-tree pytest gate and the
+   commit-test-gate will BLOCK the archive commit. This HANDOFF.md is the usual culprit; rewriting
+   it for the next chunk (as now) clears it. NOW GUARDED (archive skill Step 6 runs knowledge_lint),
+   but confirm `bash scripts/check.sh` is green before the archive commit.
 
-6. **Simplicity gate on frozen spec-driven code:** the 4 cleanup agents surface real dead-code
-   nits, but do NOT churn frozen-spec validation mid-verify (regression risk on message-asserting
-   tests; deviating from a frozen design decision). Fix only the zero-risk one-liners inline; park
-   the rest. OW-2's parked cleanups → `knowledge/questions/ratchet-lint-cleanup.md`.
+7. **NEW this session (OW-3) — touch-surface research can omit human-facing docs.** OW-3's
+   edit-site inventory scanned skills/agents/AGENTS.md/specs but **missed root `README.md`**, which
+   duplicates agent-facing role/chain descriptions in prose; the pro verifier caught it stale at
+   verify and the primary reconciled it directly (README is NOT scaffold-managed → no downstream
+   sweep). Recorded as a **waiver** in `knowledge/ratchet-log.md` (`touch-surface-omits-readme`,
+   review-by 2026-07-31). **For OW-5/OW-6:** if the change touches any role/chain/skill-name
+   description, grep root `README.md` for the same terms and reconcile it in the same change. Root
+   README is a **primary-direct quick doc edit** (not implementation code → not re-delegated).
 
-7. **Ratchet self-application:** OW-2 added a ratchet-triage step to the archive skill Step 6, so
-   every archive from here runs the 3-question triage over the change's own found-and-fixed defects
-   (real? → generalizable class? → detectable/test-freezable?). One-off implementation slips are
-   Q2=no → no entry. Add a `knowledge/ratchet-log.md` line only for a genuinely generalizable class
-   lacking existing enforcement.
+8. **Ratchet self-application (archive Step 6, primary's job — the executor can't judge
+   generalizability).** Run the 3-question triage over each change's found-and-fixed defects
+   (real? → generalizable class? → detectable/test-freezable?). One-off slips are Q2=no → no entry.
+   Preference check > frozen test > waiver. Add a `knowledge/ratchet-log.md` line only for a
+   genuinely generalizable class lacking existing enforcement.
+
+9. **Simplicity gate on frozen spec-driven changes:** do NOT run an auto-fixing `simplify`/`/code-review`
+   skill on frozen-spec-driven skill prose mid-verify (regression risk; it targets code, not the
+   frozen markdown). Self-review the diff against the gate's checklist (duplication / single-use
+   abstraction / dead code / over-parameterization), fix only zero-risk one-liners inline, park the
+   rest. OW-5/OW-6 ship real Python (checks, skill scaffolding) so the simplicity gate has actual
+   code surface there — run it properly on the code, judiciously on the prose.
 
 ## Process reminders (standard)
 
 - Tests green before any commit; you (orchestrator) commit in small reviewed checkpoints — executors
-  never commit. Apply didn't auto-commit in OW-2, so the pre-archive checkpoint commit (Step 5.0)
-  doubled as the implementation commit (`git add` the new files + `git commit -a`).
+  never commit. Apply did not auto-commit this batch, so the pre-archive checkpoint commit (archive
+  Step 5.0) doubles as the implementation commit (`git commit -am`, NOT `-A` — concurrent propose
+  work is untracked and must be excluded). Commit-message convention: repo style
+  `<Verb> <thing> (<id>): <essence>` + the `Co-Authored-By` / `Claude-Session` trailers (see recent
+  `git log`).
 - Write each change's own `tasks.md`/`notes.md`/`review-log.md` continuously (change-local scratch).
   Do NOT touch `knowledge/STATUS.md` / `knowledge/decisions/INDEX.md` / `knowledge/questions/INDEX.md`
   mid-work — reconciled once per change at archive by the delegated Sonnet archive-executor, then you
@@ -151,13 +158,17 @@ delta + bounded top-K=5 judgment pass) emitting `COMPOSITION: CLEAN|FINDINGS-ROU
 
 ## What's after this batch (do not start without fresh confirmation)
 
-Per `OUTSTANDING-WORK.md` Disposition: once OW-3/5/6 are archived → OW-9 → OW-14 → OW-1 → OW-4 →
-OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12 (wave-2, all Opus-tier, none proposed — each needs its
-own tier+plan confirmation). OW-15/OW-16 slot in independently (OW-15 after OW-5). Flag this to the
-operator when the batch is done rather than auto-continuing.
+Once OW-5 → OW-6 are archived, the frozen batch is DONE. Per
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` Disposition: next is the
+wave-2 backlog (OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12, all
+Opus-tier, **none proposed** — each needs its own tier+plan confirmation). OW-15 slots in after OW-5
+(amends OW-5's capability); OW-16 is independent. Flag completion to the operator rather than
+auto-continuing.
 
 ## Full source-of-truth if anything here is unclear
 
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` sections OW-3, OW-5, OW-6 have
-the complete original scoping/evidence/park-verdict reasoning. OW-2's shipped record (the reference
-for "the ratchet"): `openspec/changes/archive/2026-07-13-lesson-check-ratchet/`.
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` sections OW-5, OW-6 (and
+OW-15) have the complete original scoping/evidence/park-verdict reasoning. OW-3's shipped record
+(the reference for the new verify stack): `openspec/changes/archive/2026-07-13-verify-stack-redirect/`.
+OW-2's ratchet (the close-out routing OW-5/OW-6 depend on):
+`openspec/changes/archive/2026-07-13-lesson-check-ratchet/` + `knowledge/ratchet-log.md`.

@@ -1,13 +1,29 @@
 # Status
 
 ## Current state
-Project initialised from openspec-scaffold. Delegated-work governance hardened: the apply-executor now stops and reports on non-convergence instead of looping, the reviewer has a raised budget with incremental output and partial-salvage on timeout, and a Claude `PreToolUse` commit-test-gate deterministically blocks commits when tests are not green. Instruction surface hardened: a tier-confirmation gate prevents non-autonomous agents from self-classifying and executing without operator confirmation, and six stale/hazardous instruction sites were reconciled to shipped behavior. Delegation robustness hardened: all delegated `opencode run` invocations now close stdin to prevent permission-prompt hangs, per-agent permissions contain write-capable executors, the non-convergence canary is rebuilt as a non-gameable impl-module+frozen-test, and the commit-test-gate ships a smoke fixture with documented hook-wiring procedure. Verify hardened: independent multi-model verification passes (platform-specific chains; Claude self→pro→flash, OpenCode self→flash) now run as hard gates after the orchestrator's self-review, layered before the artifact checklist, so the final release-quality gate is never decided by a single model's blind spots. The shared `opencode run` delegation harness (invocation hardening, assert-real-agent-ran, surgical-kill, EXIT-sentinel completion detection, timeout budgets) is now single-sourced in `.claude/skills/_shared/delegation-harness.md`, with the four delegating skills reduced to citations plus per-phase specifics — extraction, not redesign, with all behavior and budgets preserved byte-for-byte. The verify gate is tier-scaled: multi-model passes apply to MEDIUM/COMPLEX only; a simplicity/quality gate and a conditional security gate (for sensitive-surface changes) were added, layered after the verifier passes; the archive-executor bodies were hardened to handle RENAMED spec requirements; and a new `scripts/test_executor_body_agreement.py` guard byte-compares each `.claude`/`.opencode` executor-pair body, failing when the two drift. The `knowledge/questions/INDEX.md` always-loaded surface is now bounded by a horizon split: it holds ONLY active items (blockers, operator-decision items, in-flight backlogs); the deferred/monitored long tail lives in the Parked section of `knowledge/questions/` (with per-item files for individual items). Instruction-surface rule-restatements single-sourced: five rule-families previously duplicated 3–5× across the instruction surface each assigned one canonical home with all other sites reduced to per-context specifics + a citation — extraction, not redesign, with every rule preserved verbatim. The canonical homes and the cite-don't-restate convention live in `knowledge/lessons.md` §2. The
+Project initialised from openspec-scaffold. Delegated-work governance hardened: the apply-executor now stops and reports on non-convergence instead of looping, the reviewer has a raised budget with incremental output and partial-salvage on timeout, and a Claude `PreToolUse` commit-test-gate deterministically blocks commits when tests are not green. Instruction surface hardened: a tier-confirmation gate prevents non-autonomous agents from self-classifying and executing without operator confirmation, and six stale/hazardous instruction sites were reconciled to shipped behavior. Delegation robustness hardened: all delegated `opencode run` invocations now close stdin to prevent permission-prompt hangs, per-agent permissions contain write-capable executors, the non-convergence canary is rebuilt as a non-gameable impl-module+frozen-test, and the commit-test-gate ships a smoke fixture with documented hook-wiring procedure. Verify hardened: independent multi-model verification passes (tier-keyed, platform-uniform chain — MEDIUM self→pro behavioral, COMPLEX self→pro→flash lens) now run as hard gates after the orchestrator's self-review, layered before the artifact checklist, so the final release-quality gate is never decided by a single model's blind spots. The shared `opencode run` delegation harness (invocation hardening, assert-real-agent-ran, surgical-kill, EXIT-sentinel completion detection, timeout budgets) is now single-sourced in `.claude/skills/_shared/delegation-harness.md`, with the four delegating skills reduced to citations plus per-phase specifics — extraction, not redesign, with all behavior and budgets preserved byte-for-byte. The verify gate is tier-scaled: multi-model passes apply to MEDIUM/COMPLEX only; a simplicity/quality gate and a conditional security gate (for sensitive-surface changes) were added, layered after the verifier passes; the archive-executor bodies were hardened to handle RENAMED spec requirements; and a new `scripts/test_executor_body_agreement.py` guard byte-compares each `.claude`/`.opencode` executor-pair body, failing when the two drift. The `knowledge/questions/INDEX.md` always-loaded surface is now bounded by a horizon split: it holds ONLY active items (blockers, operator-decision items, in-flight backlogs); the deferred/monitored long tail lives in the Parked section of `knowledge/questions/` (with per-item files for individual items). Instruction-surface rule-restatements single-sourced: five rule-families previously duplicated 3–5× across the instruction surface each assigned one canonical home with all other sites reduced to per-context specifics + a citation — extraction, not redesign, with every rule preserved verbatim. The canonical homes and the cite-don't-restate convention live in `knowledge/lessons.md` §2. The
 scaffold's own `knowledge/` tree now passes `scripts/knowledge_lint.py` clean under a live-tree
 pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill removed as a standing
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — lesson-check-ratchet SHIPPED (2026-07-13)
+## Latest change — verify-stack-redirect SHIPPED (2026-07-13)
+
+Shipped the verify-stack redirect (OW-3, MEDIUM): the multi-model verify gate is now
+tier-keyed and platform-uniform — MEDIUM runs self-review then one pro behavioral pass;
+COMPLEX adds a third pass that is a **lens** (test-quality/adversarial-oracle default, or
+data-scale for data-path-dominant changes) instead of a third same-checklist pass, closing
+the zero-yield redundancy the empirical evidence showed. One `openspec-verifier` agent now
+serves both the behavioral and lens prompts via prompt/`--model` selection. Two specs
+promoted: `verify-multimodel-gate`, `noninteractive-delegation-safety` (dropped the
+abandoned OpenCode Task-tool exemption). As-built delta: root `README.md`'s stale
+verify-chain description was also reconciled directly (not scaffold-managed, no downstream
+sweep owed). Verify: full gate green from disk; self-review and pro behavioral pass both
+READY, no defects. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-verify-stack-redirect/`.
+
+## Prior change — lesson-check-ratchet SHIPPED (2026-07-13)
 
 Shipped the finding-closure ratchet (OW-2): a lint-enforced closure contract so a
 generalizable bug class, once found, cannot silently recur. New `knowledge/ratchet-log.md`
@@ -36,31 +52,21 @@ self-review only, ran clean (multi-model pro pass operator-waived). Decisions:
 `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-outstanding-and-continuity-hardening/`.
 
-## Prior change — outstanding-work-collector SHIPPED (2026-07-09)
-
-Shipped a deterministic outstanding-work gather: a `facts.py` fact (`outstanding`) enumerates
-every configured source — `knowledge/questions/` Active+Parked, open `tasks.md` checkboxes, live
-`plans/`, non-closed roadmap entries, and audit `FINDINGS*` files — into one
-`output/facts/outstanding.{md,json}` snapshot with `source:line` provenance and a separate
-untriaged-findings bucket. Extractors handle both bullet and table-form `INDEX.md` files. The fact
-regenerates on use (never stale) and degrades on malformed input rather than crashing (D2). Three
-new `knowledge_lint.py` drift checks — duplicate-block detection, closed-but-unpruned flagging, and
-untriaged-age accumulation — catch rot automatically via the existing live-tree gate. A pull-only
-`outstanding-work-review` skill drives LLM judgment from the snapshot. All scaffold-managed, zero
-boot-context cost. Verify: self-review + pro + flash multi-model passes READY, all behavioral
-contracts confirmed on fixtures, full suite green including scaffold SEAL and live-tree lint gate.
-Decisions in `knowledge/decisions/INDEX.md`; follow-ons parked in `knowledge/questions/`. Archive:
-`openspec/changes/archive/2026-07-09-outstanding-work-collector/`.
-
 ## Immediate next action
-`lesson-check-ratchet` (OW-2) is now **SHIPPED**. Three changes remain **propose-complete and
-deliberately paused at apply** (operator-mandated batching), applied in this hard order:
-`verify-stack-redirect` (OW-3) → `correctness-audit-skill` (OW-5) → `composition-audit-cadence`
-(OW-6). Next session (Opus orchestrator) applies them in that order, then works the remaining
-backlog per `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source:
-OW-1..14 items, routing, session order). The Fable-tier design backlog is closed (2026-07-11
-workflow audit: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is
+`verify-stack-redirect` (OW-3) is now **SHIPPED**. There is no proactive build in flight. Two
+changes remain **propose-complete and deliberately paused at apply** (operator-mandated
+batching), applied in this hard order: `correctness-audit-skill` (OW-5) →
+`composition-audit-cadence` (OW-6). Next session (Opus orchestrator) applies them in that order,
+then works the remaining backlog per
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
+items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow
+audit: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is
 Opus-tier. Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+
+**verify-stack-redirect SHIPPED (2026-07-13)** — scaffold-only; downstream propagation of the
+edited manifest-tracked skill/agent/AGENTS.md files is **operator-gated and deferred**, not
+synced without fresh authorization. Root `README.md` (not scaffold-managed) was also reconciled
+directly during verify and needs no downstream sweep. Next work is unchanged: OW-5 → OW-6.
 
 **lesson-check-ratchet SHIPPED (2026-07-13)** — downstream propagation of its scaffold changes
 (`repo_lint.py`, `knowledge_lint.py` ratchet checks, the two skill triage steps) is **operator-gated
