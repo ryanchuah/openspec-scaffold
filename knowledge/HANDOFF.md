@@ -85,12 +85,20 @@ delta + bounded top-K=5 judgment pass) emitting `COMPOSITION: CLEAN|FINDINGS-ROU
 
 ## Lessons carried forward from the OW-2 session (so you don't re-derive / re-learn)
 
+> **Lessons #1, #3, #5 are now GUARDED in the scaffold** by the `lifecycle-skill-hardening` SMALL
+> change shipped this session (`openspec/changes/archive/2026-07-13-lifecycle-skill-hardening/`):
+> the propose skill now runs `openspec validate --strict` at freeze; the apply skill greps the
+> extracted completion report (not the raw jsonl); the archive skill Step 6 runs `knowledge_lint` +
+> repoints moved-dir citations. The lessons are kept for context (understand *why* the skills do
+> this) and for the one place manual action still matters (see #1).
+
 1. **`openspec validate --strict` parses a requirement's `text` as ONLY its first physical line.**
    If the normative SHALL/MUST is wrapped onto line 2, validate fails with "must contain SHALL or
-   MUST" even though the word is present. Fix by reordering so the verb is on line 1. **Run
-   `openspec validate <change> --strict` before delegating apply** — the freeze step does not
-   guarantee it. (This class is already enforced by validate, so it is deliberately NOT in the
-   ratchet ledger — see OW-2 archive notes triage.)
+   MUST" even though the word is present. Fix by reordering so the verb is on line 1. **NOW GUARDED**
+   — the propose skill runs `openspec validate --strict` at freeze. **BUT OW-3/5/6 were frozen
+   BEFORE this gate existed**, so still **run `openspec validate <change> --strict` before delegating
+   each of their applies** (OW-2 was frozen with exactly this defect). This class is enforced by
+   validate, so it is deliberately NOT in the ratchet ledger.
 
 2. **Delegation flow that worked cleanly (reuse it):** apply via
    `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model
@@ -102,8 +110,9 @@ delta + bounded top-K=5 judgment pass) emitting `COMPOSITION: CLEAN|FINDINGS-ROU
    verify-multimodel-gate design D5 (`openspec/changes/archive/2026-06-16-verify-multimodel-gate/design.md`).
 
 3. **False-positive alarm to ignore:** grepping executor output for `### NON-CONVERGENCE BLOCKER`
-   can MATCH the executor echoing the apply-SKILL.md failure-mode docs. Confirm from the actual
-   completion report + `tasks.md` checkboxes, not the raw grep count.
+   can MATCH the executor echoing the apply-SKILL.md failure-mode docs. **NOW GUARDED** — the apply
+   skill greps the extracted completion report (`jq .part.text`), not the raw jsonl. Still confirm
+   from the actual completion report + `tasks.md` checkboxes, not a raw grep count.
 
 4. **The apply-executor can mangle markdown list indentation.** In OW-2 it shifted skill-file
    sub-bullets from 3→4 spaces, mis-nesting peer steps. When apply edits a `.claude/skills/*.md`
@@ -112,8 +121,9 @@ delta + bounded top-K=5 judgment pass) emitting `COMPOSITION: CLEAN|FINDINGS-ROU
 5. **After an archive `git mv`, any doc citing the moved change dir breaks `knowledge_lint`
    (`broken-prose-path-citation`, exit 1), which runs in the live-tree pytest gate → the
    commit-test-gate will BLOCK your archive commit.** In OW-2 the culprit was this HANDOFF.md
-   itself. Fix all citations to the moved dir (repoint to the archive path, or rewrite this file)
-   BEFORE committing the archive, then re-run `scripts/check.sh` green.
+   itself. **NOW GUARDED** — the archive skill Step 6 runs `knowledge_lint` and repoints moved-dir
+   citations before committing. When it flags one, repoint to the archive path (or rewrite this
+   file) and re-run `scripts/check.sh` green before committing.
 
 6. **Simplicity gate on frozen spec-driven code:** the 4 cleanup agents surface real dead-code
    nits, but do NOT churn frozen-spec validation mid-verify (regression risk on message-asserting

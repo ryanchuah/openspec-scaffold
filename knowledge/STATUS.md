@@ -75,6 +75,14 @@ is coupled to a downstream cleanup (extrends' ~27 and psc-monitor's handoff-name
 renamed/archived first), since syncing the widened lint before that cleanup would redden both
 repos' pytest gates. See `knowledge/questions/continuity-file-downstream-cleanup.md`.
 
+**lifecycle-skill-hardening SHIPPED (2026-07-13)** — scaffold-only (SMALL): fixed three defects
+found live during the OW-2 session in the propose/apply/archive lifecycle skills — propose now
+gates on `openspec validate --strict` before freeze, apply's non-convergence check now greps the
+extracted completion report instead of the raw jsonl (which false-positived on the skill's own
+doc heading), and archive's pre-commit lint step now also runs `knowledge_lint` and repoints any
+moved-dir citation. Archive: `openspec/changes/archive/2026-07-13-lifecycle-skill-hardening/`.
+Next work is unchanged: OW-3 → OW-5 → OW-6.
+
 **Downstream propagation — extrends AND psc-monitor FULLY SYNCED.** On 2026-07-04 the operator
 authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full
 shared-lint-layer batch — `checks-facts-split` (audit_bundle→checks/facts), `clarify-audit-tooling-surface`
