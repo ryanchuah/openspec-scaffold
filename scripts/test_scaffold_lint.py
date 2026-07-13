@@ -233,6 +233,21 @@ def test_manifest_completeness_oneoff_sh_excluded(tmp_path):
     assert manifest_findings == []
 
 
+def test_manifest_completeness_propagate_scaffold_skill_excluded(tmp_path):
+    """The propagate-scaffold skill is authoring-side (propagation runs only from
+    the golden source) and is deliberately not synced — it must NOT be flagged by
+    manifest-completeness even though it is absent from scaffold_manifest.txt."""
+    tree = _clean_tree()
+    tree[".claude/skills/propagate-scaffold/SKILL.md"] = (
+        "---\nname: propagate-scaffold\n---\nBody.\n"
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    manifest_findings = [f for f in findings if f.startswith("manifest-completeness:")]
+    assert manifest_findings == []
+
+
 # ===================================================================
 # manifest-no-conflict
 # ===================================================================

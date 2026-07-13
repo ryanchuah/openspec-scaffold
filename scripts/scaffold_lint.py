@@ -150,6 +150,10 @@ _MANIFEST_EXCLUDE_EXACT: frozenset[str] = frozenset(
         "scripts/scaffold_lint.py",
         "scripts/test_scaffold_lint.py",
         "scripts/test-cmd",
+        # Scaffold-only: propagation is always run FROM the golden source, so the
+        # propagate-scaffold skill is authoring-side (like sync_scaffold.py) and is
+        # deliberately NOT synced downstream.
+        ".claude/skills/propagate-scaffold/SKILL.md",
     }
 )
 _MANIFEST_EXCLUDE_GLOB = "scripts/_*_oneoff.*"
