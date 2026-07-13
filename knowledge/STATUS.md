@@ -7,7 +7,19 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — delegation-wrapper-telemetry SHIPPED (2026-07-13)
+## Latest change — apply-throughput-resume SHIPPED (2026-07-14)
+
+Shipped green-path targeted-test cadence in both apply-executor bodies (byte-synced): per-task
+scope-narrowed check using the same test tool, then the full documented suite once before
+completion — replacing the old unconditional full-suite-per-task. Added a four-point
+fresh-executor resume contract to the apply skill's failure ladder (skip `[x]` tasks, resume at
+first `[ ]`, reconcile the in-flight task, carry distilled state). Promoted a MODIFIED
+apply-convergence-guard delta: scope-narrowing the same tool is permitted; the full suite gates
+before completion; two new scenarios. Verify: self-review PASS → pro behavioral READY; check.sh
+green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
+Archive: `openspec/changes/archive/2026-07-14-apply-throughput-resume/`.
+
+## Prior change — delegation-wrapper-telemetry SHIPPED (2026-07-13)
 
 Shipped the ingest wrapper (`scripts/opencode_delegate.py`) that mechanizes post-processing across 8 delegation sites — fallback detection, text extraction, status classification, verdict capture, and marker assertion — without altering the literal `timeout … opencode run … < /dev/null` invocation at any site, so the budget-agreement and delegation-safety guards remain fully intact. Each post-processed run appends one telemetry line to an untracked ledger (`output/delegation-log.jsonl`) with a pinned minimum schema, feeding the two scheduled evidence-gated decisions (premise-gate downgrade at ~50 reviews, MEDIUM pro-pass downgrade at ~20 verifies). Promoted the new `delegation-wrapper` capability. Verify: self-review PASS → pro behavioral READY; wrapper dogfooded on the verifier run. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive: `openspec/changes/archive/2026-07-13-delegation-wrapper-telemetry/`.
 
@@ -26,29 +38,13 @@ Sonnet fallback. One real defect (hidden-dir scan in `_iter_py_files`) found and
 Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-defect-prevention-detectors/`.
 
-## Prior change — instruction-surface-coherence SHIPPED (2026-07-13)
-
-Shipped the instruction-surface coherence sweep (OW-9 + OW-14, MEDIUM): resolved the
-autonomy-grant-vs-phase-gate contradiction with a single canonical
-`<!-- CANONICAL: autonomy-phase-advance -->` rule in `AGENTS.md` backed by a new
-`tier-confirmation-gate` spec requirement, so the four lifecycle skills now cite one source
-instead of each asserting an unconditional STOP. Added the haiku tier to the model-assignment
-matrix and a canonical `delegation-by-default` rule (run-and-extract → subagent,
-read-and-judge → orchestrator) with point-of-action delegation cues in the verify/apply/archive
-skills; legitimized Sonnet-first pre-routing for apply via the notes.md convention; and
-resolved six smaller instruction-surface contradictions (self-review wording, propose
-freeze-branch de-dup, archive EXIT-sentinel, assumption-batching, boot-read displacement).
-Verify: full MEDIUM gate green — self-review PASS, pro behavioral READY, zero defects, no
-Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-instruction-surface-coherence/`.
-
 ## Immediate next action
-`defect-prevention-detectors` (OW-1 + OW-4) and `delegation-wrapper-telemetry` (OW-7) are now **SHIPPED**, joining
-`instruction-surface-coherence` (OW-9 + OW-14, SHIPPED earlier this session). The frozen OW-2→3→5→6
-batch and the paired OW-9/14 sweep are both complete. There is no proactive build in flight.
-The wave-2 remainder — OW-10 → OW-11 → OW-8 → OW-13 → OW-12 (in-progress order) — plus the late
-additions OW-15 and OW-16 are still open; work is in progress this session. Single source:
+`apply-throughput-resume` (OW-10) is now **SHIPPED**, joining `delegation-wrapper-telemetry` (OW-7),
+`defect-prevention-detectors` (OW-1 + OW-4), and `instruction-surface-coherence` (OW-9 + OW-14, all
+SHIPPED earlier this session). The frozen OW-2→3→5→6 batch and the paired OW-9/14 sweep are both
+complete. There is no proactive build in flight. The wave-2 remainder — OW-11 → OW-8 → OW-13 → OW-12
+(in-progress order) — plus the late additions OW-15 and OW-16 are still open; work is in progress this
+session. Single source:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`. The Fable-tier design
 backlog is closed (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.

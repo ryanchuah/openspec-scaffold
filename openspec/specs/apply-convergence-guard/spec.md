@@ -5,15 +5,7 @@ Stop the apply-executor from looping on a stuck failure by giving it an objectiv
 ## Requirements
 
 ### Requirement: The apply-executor stops on non-convergence
-The apply-executor SHALL continue healthy `write → test → fix` iteration, but SHALL stop editing and
-report a blocker when it detects non-convergence, defined as ANY of: (a) the same failing test still
-fails with the same normalized error signature after 2 consecutive fix attempts aimed at it; (b) it
-has edited the same file a 3rd time to resolve the same failure; (c) the fix requires
-information or a decision absent from the artifacts, requires editing `proposal.md`/`design.md`, or
-an external API behaves contrary to `design.md`. For its test runs the executor SHALL prefer the
-same per-repo test command as the commit-test-gate (`scripts/test-cmd`), falling back to the
-project's standard/documented test command when `scripts/test-cmd` is absent — never an improvised
-command. After emitting a blocker the executor SHALL end the run and SHALL NOT start any remaining task.
+The apply-executor SHALL continue healthy `write → test → fix` iteration, but SHALL stop editing and report a blocker when it detects non-convergence, defined as ANY of: (a) the same failing test still fails with the same normalized error signature after 2 consecutive fix attempts aimed at it; (b) it has edited the same file a 3rd time to resolve the same failure; (c) the fix requires information or a decision absent from the artifacts, requires editing `proposal.md`/`design.md`, or an external API behaves contrary to `design.md`. For its test runs the executor SHALL use the same per-repo test **tool** as the commit-test-gate (`scripts/test-cmd`, falling back to the project's standard/documented test command when `scripts/test-cmd` is absent) — never an *improvised* command that could select the wrong venv or flags. It MAY scope-narrow that same tool to the task's touched modules for the per-task green-path check (e.g. running the documented tool against the test file(s) covering the files this task changed), and on the red path it re-runs the failing test's module; scope-narrowing the same tool is NOT an improvised command. The executor SHALL run the full documented command (unnarrowed) at least once before completing its assignment, so a cross-module regression is still gated within the apply invocation rather than escaping to verify. After emitting a blocker the executor SHALL end the run and SHALL NOT start any remaining task.
 
 #### Scenario: Stalled failure (rule a)
 - **WHEN** the same test fails with the same normalized error signature after 2 consecutive fix attempts
@@ -47,6 +39,16 @@ command. After emitting a blocker the executor SHALL end the run and SHALL NOT s
 - **THEN** the executor stops and emits a declared blocker with trigger `a` naming the ceiling,
   even if the oscillation detection missed the pattern — this is the final guarantee that the run
   ends in a declared blocker rather than a wall-clock timeout
+
+#### Scenario: Green-path per-task check may be scope-narrowed
+- **WHEN** the executor finishes a task's edit and runs its green-path check
+- **THEN** it MAY run the same documented test tool narrowed to the test(s) covering the files this task changed, rather than the whole suite
+- **AND** this scope-narrowing is not treated as an "improvised command", because it is the same tool/venv/flags with a narrowed target
+
+#### Scenario: Full suite gates the assignment before completion
+- **WHEN** the executor has completed the last task in its assignment
+- **THEN** it runs the full documented command (unnarrowed) once and only reports success if it passes
+- **AND** if that full run is red, the run enters the normal red-path convergence handling rather than completing
 
 #### Scenario: Stopping ends the run
 - **WHEN** the executor emits a `### NON-CONVERGENCE BLOCKER` for a task

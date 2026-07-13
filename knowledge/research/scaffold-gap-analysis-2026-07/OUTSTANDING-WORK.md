@@ -208,6 +208,7 @@ gate); add the Sonnet-first pre-route line to the model-assignment matrix. **Dep
 batch. Do first among wave 2 — these are live contradictions.
 
 ## OW-10 · Apply-executor throughput + resume contract  ·  Tier: MEDIUM  ·  Orch: **Opus**
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-apply-throughput-resume/`).
 Green path = targeted tests per task + full suite once per slice (today: full suite after EVERY
 task, which is what makes the 600s ceiling bind); retry/fresh-executor brief gains the explicit
 resume contract (skip `[x]`, resume at first `[ ]`, reconcile the half-edited in-flight task) +
@@ -387,8 +388,8 @@ anywhere after the frozen batch. Standard escalation caveat.
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
-  **Update 2026-07-13: OW-9, OW-14, OW-1, OW-4, OW-7 are DONE** (SHIPPED — see per-item STATUS lines
-  above); remaining order is **OW-10 → OW-11 → OW-8 → OW-13 → OW-12**.
+  **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10 are DONE** (SHIPPED — see per-item
+  STATUS lines above); remaining order is **OW-11 → OW-8 → OW-13 → OW-12**.
   **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
   capability, so it pairs naturally with OW-5's verify session or the first real audit run.
   **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the
