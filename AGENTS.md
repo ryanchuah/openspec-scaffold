@@ -326,6 +326,8 @@ Two tiers of state, with deliberately different write rules:
   it explicitly in its tracker rather than leaving a stale entry.
 - Plan non-trivial work before executing; ask the user when genuinely unsure rather than
   guessing.
+- To find what work is outstanding, invoke the pull-only `outstanding-work-review` skill
+  — deliberately never boot-wired into any auto-run path.
 
 ## Web research convention
 

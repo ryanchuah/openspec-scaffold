@@ -519,33 +519,45 @@ def _check_audit_log(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
-# Check 6 — root-level handoff files
+# Check 6 — handoff-named files (repo-wide)
 # ---------------------------------------------------------------------------
 
 
-def _check_root_handoff_files(root: Path) -> list[Finding]:
-    """Flag any ``HANDOFF*`` / ``HANDOVER*`` file at the repository root,
-    exempting the sanctioned ``knowledge/HANDOFF.md`` (which is inside the
-    knowledge tree, not at the root, so it is never returned by ``iterdir()``
-    — the exemption is for clarity / defensive programming)."""
+def _check_handoff_files(root: Path, is_ignored: Callable[[str], bool]) -> list[Finding]:
+    """Flag any non-gitignored file anywhere in the repository whose name
+    contains ``handoff`` or ``handover`` (case-insensitive substring match),
+    exempting only the sanctioned ``knowledge/HANDOFF.md``. This widens the
+    original root-only prefix check to a repo-wide, case-insensitive-substring
+    scope."""
+
     findings: list[Finding] = []
     try:
-        for entry in root.iterdir():
-            if not entry.is_file():
-                continue
-            if not entry.name.startswith(("HANDOFF", "HANDOVER")):
-                continue
-            rel = _relpath(root, entry)
-            if rel == "knowledge/HANDOFF.md":
-                continue  # sanctioned in-tree handoff (defensive)
-            findings.append(
-                Finding(
-                    "root-handoff-file",
-                    rel,
-                    None,
-                    f"root-level handoff file {entry.name}; use knowledge/HANDOFF.md instead",
-                )
-            )
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Prune directories: skip .git and gitignored dirs (mirrors
+            # _check_orphan_duplicate's pruning).
+            dirnames[:] = [
+                d
+                for d in dirnames
+                if d not in _SKIP_DIRS and not is_ignored(_relpath(root, Path(dirpath) / d))
+            ]
+            for filename in filenames:
+                rel = _relpath(root, Path(dirpath) / filename)
+                # Sole sanctioned exemption.
+                if rel == "knowledge/HANDOFF.md":
+                    continue
+                # Skip gitignored files.
+                if is_ignored(rel):
+                    continue
+                # Case-insensitive substring match for handoff/handover.
+                if "handoff" in filename.lower() or "handover" in filename.lower():
+                    findings.append(
+                        Finding(
+                            "handoff-file",
+                            rel,
+                            None,
+                            f"handoff-named file {rel}; the only sanctioned handoff file is knowledge/HANDOFF.md",
+                        )
+                    )
     except OSError:
         pass
     return findings
@@ -942,7 +954,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_broken_citations(root, content_check_md))
     findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
     findings.extend(_check_audit_log(root))
-    findings.extend(_check_root_handoff_files(root))
+    findings.extend(_check_handoff_files(root, is_ignored))
     findings.extend(_check_duplicate_blocks(root, is_ignored))
     findings.extend(_check_closed_unpruned(root))
     findings.extend(_check_untriaged_age(root))

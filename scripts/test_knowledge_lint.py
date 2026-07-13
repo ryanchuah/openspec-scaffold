@@ -724,13 +724,14 @@ def test_lint_planned_marker_does_not_affect_other_lines(tmp_path):
 
 
 # ===================================================================
-# 7.1 — Root-handoff file check: files matching HANDOFF* / HANDOVER*
-# at the repo root are flagged; knowledge/HANDOFF.md is exempt.
+# 7.1 — Handoff-file check: any non-gitignored file whose name contains
+# handoff/handover (case-insensitive) anywhere in the repo is flagged;
+# knowledge/HANDOFF.md is exempt; gitignored paths are not scanned.
 # ===================================================================
 
 
 def test_root_handoff_file_flagged(tmp_path):
-    """Root-level ``HANDOFF-x.md`` and ``HANDOVER.md`` are flagged."""
+    """Root-level ``HANDOFF-x.md`` and ``HANDOVER.md`` are flagged (repo-wide)."""
     _write_tree(
         tmp_path,
         {
@@ -739,15 +740,14 @@ def test_root_handoff_file_flagged(tmp_path):
         },
     )
     findings = knowledge_lint.collect_findings(tmp_path)
-    handoff_findings = [f for f in findings if f.check == "root-handoff-file"]
+    handoff_findings = [f for f in findings if f.check == "handoff-file"]
     assert len(handoff_findings) == 2
     assert any("HANDOFF-x.md" in f.path for f in handoff_findings)
     assert any("HANDOVER.md" in f.path for f in handoff_findings)
 
 
 def test_knowledge_handoff_not_flagged(tmp_path):
-    """The sanctioned ``knowledge/HANDOFF.md`` (inside the knowledge tree,
-    not at the root) is NOT flagged."""
+    """The sanctioned ``knowledge/HANDOFF.md`` (sole exemption) is NOT flagged."""
     _write_tree(
         tmp_path,
         {
@@ -756,7 +756,7 @@ def test_knowledge_handoff_not_flagged(tmp_path):
         },
     )
     findings = knowledge_lint.collect_findings(tmp_path)
-    assert not any(f.check == "root-handoff-file" for f in findings)
+    assert not any(f.check == "handoff-file" for f in findings)
 
 
 def test_root_handoff_clean_tree_no_findings(tmp_path):
@@ -768,7 +768,66 @@ def test_root_handoff_clean_tree_no_findings(tmp_path):
         },
     )
     findings = knowledge_lint.collect_findings(tmp_path)
-    assert not any(f.check == "root-handoff-file" for f in findings)
+    assert not any(f.check == "handoff-file" for f in findings)
+
+
+def test_nested_handoff_file_flagged(tmp_path):
+    """A nested ``plans/foo-handoff.md`` is flagged (repo-wide scope)."""
+    _write_tree(
+        tmp_path,
+        {
+            "plans/foo-handoff.md": "# Handoff plan\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    handoff_findings = [f for f in findings if f.check == "handoff-file"]
+    assert len(handoff_findings) == 1
+    assert "plans/foo-handoff.md" in handoff_findings[0].path
+
+
+def test_nested_handover_case_insensitive_flagged(tmp_path):
+    """A nested ``docs/HANDOVER.md`` (uppercase) is flagged
+    (case-insensitive substring match)."""
+    _write_tree(
+        tmp_path,
+        {
+            "docs/HANDOVER.md": "# Handover doc\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    handoff_findings = [f for f in findings if f.check == "handoff-file"]
+    assert len(handoff_findings) == 1
+    assert "docs/HANDOVER.md" in handoff_findings[0].path
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git not available in this environment")
+def test_gitignored_handoff_file_not_flagged(tmp_path):
+    """A handoff-named file under a gitignored directory is NOT flagged."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@test"], cwd=tmp_path)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path)
+    _write_tree(
+        tmp_path,
+        {
+            ".gitignore": "output/\n",
+            "output/x-handoff.md": "# Ignored handoff\n",
+            # A non-gitignored handoff elsewhere still flags.
+            "plans/session-handoff.md": "# Real handoff\n",
+        },
+    )
+    # Must stage .gitignore for git to recognize the ignore rules.
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    handoff_findings = [f for f in findings if f.check == "handoff-file"]
+
+    # output/x-handoff.md is gitignored -> not flagged.
+    ignored = [f for f in handoff_findings if "output/x-handoff.md" in f.path]
+    assert ignored == []
+
+    # plans/session-handoff.md is not gitignored -> flagged.
+    non_ignored = [f for f in handoff_findings if "plans/session-handoff.md" in f.path]
+    assert len(non_ignored) == 1
 
 
 # ===================================================================

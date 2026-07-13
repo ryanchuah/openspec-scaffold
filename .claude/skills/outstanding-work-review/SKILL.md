@@ -47,22 +47,31 @@ Python interpreter. Resolve it in this try-order:
    `output/facts/outstanding.md` for the prose orientation.
 
 3. **Judge (orchestrator).** Apply human/LLM judgment:
-   - **Triage the untriaged bucket.** For each newly surfaced finding, decide:
-     promote it into `knowledge/questions/INDEX.md` (or a per-item question
-     file) if it represents real work to track; otherwise note why it was
-     dismissed (refuted, duplicate, not actionable).
-   - **Prioritize open work.** Review the triaged bucket: which items are
-     stale, blocked, or need attention? Update `knowledge/roadmap.md` with
-     any priority shifts.
-   - **Record durable decisions.** Write triage outcomes into
-     `knowledge/questions/INDEX.md` (and per-item files as needed) and
-     priority/status changes into `knowledge/roadmap.md`.
+    - **Residual sweep.** The deterministic gather (`facts.py --check
+      outstanding`) enumerates point-level items from questions, plans, and
+      FINDINGS* files. It does NOT read prose *bodies* — the detailed context
+      inside `plans/*.md` and `knowledge/questions/*.md` (open each and
+      classify as consumed / live / orphaned), in-code `TODO`/`FIXME` (a
+      deliberate no-op in `outstanding.py`), or stray research docs. Convert
+      the occasional human/LLM sweep of these residual sources into a
+      documented, repeatable step here — do not change what the deterministic
+      collector enumerates.
+    - **Triage the untriaged bucket.** For each newly surfaced finding, decide:
+      promote it into `knowledge/questions/INDEX.md` (or a per-item question
+      file) if it represents real work to track; otherwise note why it was
+      dismissed (refuted, duplicate, not actionable).
+    - **Prioritize open work.** Review the triaged bucket: which items are
+      stale, blocked, or need attention? Update `knowledge/roadmap.md` with
+      any priority shifts.
+    - **Record durable decisions.** Write triage outcomes into
+      `knowledge/questions/INDEX.md` (and per-item files as needed) and
+      priority/status changes into `knowledge/roadmap.md`.
 
-   Durable reconciliation of `knowledge/questions/INDEX.md`,
-   `knowledge/decisions/INDEX.md`, and `knowledge/roadmap.md` **normally
-   happens at archive** (by the archive-executor). The judge step here is
-   the *content* pass — what work to track and at what priority — not the
-   structural reconciliation. Archive will reify the structural changes.
+    Durable reconciliation of `knowledge/questions/INDEX.md`,
+    `knowledge/decisions/INDEX.md`, and `knowledge/roadmap.md` **normally
+    happens at archive** (by the archive-executor). The judge step here is
+    the *content* pass — what work to track and at what priority — not the
+    structural reconciliation. Archive will reify the structural changes.
 
 4. **Verify.** After judging, re-run the snapshot to confirm buckets reflect
    your triage:

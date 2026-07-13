@@ -8,7 +8,7 @@ semantic drift a deterministic check cannot see. Both are detect-only — neithe
 tracked prose — and both are scaffold-managed, propagating byte-identical to every downstream repo
 via `sync_scaffold.py`. The deterministic linter's citation matcher is hardened against
 false-positives on legitimate notation, a `<!-- lint:planned -->` marker suppresses forward-reference
-citations, a root-handoff-file check mechanizes the handoff-file convention, and the linter is gated
+citations, a repo-wide handoff-file check mechanizes the handoff-file convention, and the linter is gated
 on the live repository tree via pytest.
 ## Requirements
 ### Requirement: deterministic-knowledge-linter-detects-drift
@@ -19,7 +19,7 @@ per-repo knowledge drift **without modifying any file**. It SHALL scan the markd
 SHALL exit `0` when it finds no drift and exit `1` when it finds drift, printing one report line
 per finding (path, and line number where the check is line-anchored). The checks are: orphan/duplicate
 canonical files; retired-path tokens; broken prose path citations; dangling archive pointers; a
-guarded `knowledge/audit-log.md` registry-line format check; and a root-handoff-file check.
+guarded `knowledge/audit-log.md` registry-line format check; and a handoff-file check.
 
 #### Scenario: orphan-or-duplicate-canonical-file-flagged
 - **WHEN** a canonical filename from the linter's fixed single-home canonical set (`STATUS.md → knowledge/STATUS.md`, `lessons.md → knowledge/lessons.md`, `roadmap.md → knowledge/roadmap.md`, `audit-log.md → knowledge/audit-log.md`) exists as a file **outside** its taxonomy home (e.g. a root `STATUS.md`), or a second copy of a canonical file exists
