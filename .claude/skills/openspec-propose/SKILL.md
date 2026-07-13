@@ -255,6 +255,23 @@ I'll create artifacts with review:
       - Use **AskUserQuestion tool** to clarify
       - Then continue with creation
 
+    f. **Run structural validation before declaring ready for apply**
+       After all artifacts are frozen and before declaring the change ready for
+       implementation, run the structural validator:
+
+       ```bash
+       openspec validate "<name>" --strict
+       ```
+
+       This command MUST exit 0. The most common failure is a requirement whose
+       normative `SHALL`/`MUST` is not on its first physical line — openspec parses
+       requirement text as the first line only.
+
+       **On failure:** fix the structural error and re-validate before handing off.
+       If the fix is purely structural (e.g., line-wrapping to put `SHALL` on line 1),
+       re-validate and proceed. If the fix changes the requirement's semantics,
+       re-freeze the affected artifact.
+
 5. **Show final status**
    ```bash
    openspec status --change "<name>"

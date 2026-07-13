@@ -259,6 +259,13 @@ Archive a completed change in the experimental workflow.
      violations it reports (the executor's `#### 3d` step should already have cleaned
      these; this is the primary's gate). If a retained legacy entry trips the budget,
      trim it to a ≤150-word headline (dropping the surplus prose) — before committing.
+     Then run `python scripts/knowledge_lint.py` and, before committing, repoint any
+     prose citation to the just-moved change dir to its new
+     `archive/<date>-<name>/` path (the most common culprit is
+     `knowledge/HANDOFF.md`, plus any `knowledge/STATUS.md` or
+     `knowledge/decisions/INDEX.md` line citing the old dir). This is necessary because
+     `knowledge_lint`'s broken-citation check runs in the live-tree pytest gate; an
+     unrepointed citation blocks the archive commit.
    - **Commit once satisfied** (the executor never commits; the primary always owns
      the commit):
      ```

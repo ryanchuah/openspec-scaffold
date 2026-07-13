@@ -167,9 +167,13 @@ Implement tasks from an OpenSpec change.
         says it got stuck / output shows it gave up.
         **Distinguish** whether the completion report contains a declared blocker
         by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
+        (Grep the extracted completion report, never the raw jsonl — the raw stream
+        contains the executor's tool-reads of this SKILL.md, including the heading,
+        and would false-positive.)
 
         ```bash
-        if grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-out.jsonl 2>/dev/null \
+        extracted_text=$(grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text' 2>/dev/null) || extracted_text=""
+        if echo "$extracted_text" | grep -q "### NON-CONVERGENCE BLOCKER" 2>/dev/null \
            || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
           echo "DECLARED_BLOCKER"
         else
