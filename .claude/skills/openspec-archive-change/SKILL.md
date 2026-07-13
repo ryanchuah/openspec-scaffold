@@ -11,7 +11,7 @@ metadata:
 
 Archive a completed change in the experimental workflow.
 
-**PHASE GATE — archive is the FINAL phase.** When archive completes (move + reconciliation + commit), you are DONE. Do NOT start any new work, propose a new change, or invoke any other workflow skill without an explicit user request. Show the completion summary and stop.
+**PHASE GATE — archive is the FINAL phase.** When archive completes (move + reconciliation + commit), you are DONE — this holds regardless of any autonomy grant. Per the `autonomy-phase-advance` canonical rule (AGENTS.md), a grant permits auto-advancing propose→apply→verify→archive; it does NOT authorize inventing a next change or continuing into new work. Do NOT start any new work, propose a new change, or invoke any other workflow skill without an explicit user request. Show the completion summary and stop.
 
 > **MANDATORY — delegation override. Read before Step 5; it changes who executes.**
 > After the interactive gates (Steps 1–4), the primary does **not** perform the archive inline.
@@ -131,8 +131,7 @@ Archive a completed change in the experimental workflow.
         stdout and stderr to separate files.
         Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation): `< /dev/null`
         + `--dir <repoRoot>`. Budget 600s with `-k 30` per the table in §e.
-        Note: the archive invocation **omits the EXIT-sentinel** — this is a
-        pre-existing drift documented in §d and left as-is.
+        Note: the archive invocation now carries the **EXIT-sentinel** (§d), matching apply's shape.
 
         ```bash
         timeout -k 30 600 opencode run \
@@ -153,19 +152,25 @@ Archive a completed change in the experimental workflow.
            bodies. Do not commit. End with a brief completion \
            report (what was moved, which specs synced, which docs reconciled, any \
            wider-sweep findings, anything the primary should double-check)." \
-          > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null
+          > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null; \
+        echo "EXIT=$?" > /tmp/archive-out.exit
         ```
 
         - The OpenCode agent edits files in the **same working tree** as Claude, so
           its moves and doc edits land directly on disk — verify by reading back.
-       - **Bounded wait + surgical kill.** Per `.claude/skills/_shared/delegation-harness.md` §c
-         (surgical kill — never `pkill`). Because reconciliation can run several
-         minutes, run this Bash call with `run_in_background: true`. Exit 124 (or 137
-         if SIGKILL was needed) = operational crash (step 4 of the ladder).
+       - **Bounded wait + surgical kill + EXIT-sentinel (§c–d).** Per `.claude/skills/_shared/delegation-harness.md`
+         §c (surgical kill — never `pkill`) and §d (EXIT-sentinel). Because reconciliation can run
+         several minutes, run this Bash call with `run_in_background: true`; detect completion via
+         `[ -f /tmp/archive-out.exit ]` (or the harness's background-completion notification), never
+         by polling process state. Exit 124 (or 137 if SIGKILL was needed) in the exit file =
+         operational crash (step 4 of the ladder).
 
     2. **Assert the real executor ran:** Per `.claude/skills/_shared/delegation-harness.md` §b
        (grep stderr for `Falling back to default agent`, extract `part.text` via
        `jq`, confirm parseable). Empty/unparseable → operational crash.
+       **Delegation cue** (cites `delegation-by-default`, AGENTS.md): this jsonl-parse/extract is
+       run+extract work delegable to a haiku/Sonnet subagent — OW-7 will later mechanize it
+       entirely; this cue is the interim rule.
 
    3. **Judge success from disk** (not just the report):
 
@@ -324,4 +329,4 @@ When a fallback to Sonnet occurred, replace the **Executor** / **Fallback used**
 - If sync is requested, pass that decision to the archive-executor (it performs the sync)
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - **Reconciliation is NOT optional** — it is the load-bearing half of archive. A directory move without reconciliation leaves the next session blind. The archive-executor performs reconciliation with fresh context from the change artifacts; the primary reviews and repairs before committing. If source files are absent, the executor produces minimal entries noting the gap — the primary confirms this is acceptable before committing.
-- **PHASE GATE**: Archive is the final phase. When complete, show the summary and STOP. Do not start any new workflow without an explicit user request. This is a hard rule.
+- **PHASE GATE**: Archive is the final phase. When complete, show the summary and STOP regardless of any autonomy grant — per the `autonomy-phase-advance` rule (AGENTS.md), a grant auto-advances propose→apply→verify→archive but does not authorize starting new work. Do not start any new workflow without an explicit user request.

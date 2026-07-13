@@ -18,7 +18,7 @@ I'll create artifacts with review:
 
 **CRITICAL — Do NOT batch-create all artifacts.** Create proposal, review it, fix it, freeze it. Only then create design (using the frozen proposal as context). Repeat for tasks. Downstream artifacts written before upstream ones are frozen will contain stale decisions, requiring extra review rounds to correct. Each unnecessary review round costs real money.
 
-**PHASE GATE — STOP after proposing.** Once all artifacts are frozen, you MUST NOT automatically proceed to implementation. Tell the user "All artifacts created, reviewed, and frozen. Ready for implementation. Say 'apply <name>' when you want me to start." Then WAIT. Never invoke implementation without an explicit user request. Crossing phases without permission is a hard rule.
+**PHASE GATE — STOP after proposing.** Once all artifacts are frozen, without an explicit autonomy grant this is a hard STOP: tell the user "All artifacts created, reviewed, and frozen. Ready for implementation. Say 'apply <name>' when you want me to start." Then WAIT. Under an autonomy grant, auto-advance to apply is permitted per the `autonomy-phase-advance` canonical rule (AGENTS.md) EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate — halt and surface to the operator instead of advancing in those cases.
 
 ---
 
@@ -109,7 +109,35 @@ I'll create artifacts with review:
 
     c. **Invoke `@openspec-reviewer` to audit the artifact.**
 
-       The path forks based on which agent platform you are:
+       **Shared freeze ladder (both platforms).** Once the reviewer output is captured — by
+       whichever platform-specific invocation runs below — apply this common gate to it:
+       - Append the review output to `review-log.md` (with round number and date, if applicable).
+       - When a fix is required, make it a **concrete, implementable decision**, not a paraphrase
+         of the problem. E.g., instead of "return value semantics differ" (paraphrase), decide:
+         "returns 0 — zero Document rows inserted" (concrete). If a reviewer flags a gap, close it
+         with a specific choice.
+       - If 🔴 blocking issues exist → fix them in the artifact → **re-review is MANDATORY**
+         (return to the platform-specific invocation step for a fresh pass). A fix you made to
+         clear a 🔴 is never self-certified — you may NOT freeze the artifact on the strength of
+         your own fix. Only a review round that comes back with zero 🔴 can freeze it. (Max 3
+         reviewer passes total; escalate to the user if still unresolved after 3.)
+       - If no 🔴 issues → the freeze condition depends on the artifact:
+         - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
+         - **`proposal.md`**: check the premise verdict:
+           - `PREMISE: AGREE` → the artifact is frozen; move to the next one.
+           - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) to the
+             operator via **AskUserQuestion** with three options:
+             1. **Re-frame the proposal** — address the dissent's concern and revise the proposal, then re-review.
+             2. **Re-scope** — narrow/change scope and revise, then re-review.
+             3. **Override-to-proceed** — operator accepts the dissent and wants to proceed anyway.
+             Record the operator's choice and rationale in `review-log.md`. On override (option 3),
+             freeze the proposal on zero 🔴 only — the DISSENT is the operator's call and is not
+             re-litigated on re-review. On re-frame/re-scope (options 1/2), loop back to revise the
+             proposal and re-review.
+
+       The platforms diverge only on **invocation** (how the reviewer is run and how its output is
+       asserted-real) and **failure handling** (crash/timeout salvage vs. halt-and-escalate) — the
+       freeze ladder above is identical on both.
 
        ---
        ### If you are Claude Code (claude-cli)
@@ -167,29 +195,8 @@ I'll create artifacts with review:
              `PREMISE: AGREE` or `PREMISE: DISSENT`. If neither is present, the premise
              verdict was omitted — do NOT freeze or proceed; re-run the review (D2a).
 
-         3. Process the review:
-            - Append the review text to `review-log.md` with round number
-              and date
-            - When a fix is required in the artifact, make it a **concrete,
-              implementable decision**, not a paraphrase of the problem. E.g.,
-              instead of "return value semantics differ" (paraphrase), decide:
-              "returns 0 — zero Document rows inserted" (concrete). If a
-              reviewer flags a gap, close it with a specific choice.
-            - If 🔴 blocking issues exist → fix them in the artifact → **go back
-              to step 1 for a fresh review pass. Re-review is MANDATORY.** A fix
-              you made to clear a 🔴 is never self-certified — you may NOT freeze
-              the artifact on the strength of your own fix. Only a review round
-              that comes back with zero 🔴 can freeze it. (Max 3 reviewer passes
-              total; escalate to user if still unresolved after 3.)
-            - If no 🔴 issues → the freeze condition depends on the artifact:
-              - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
-              - **`proposal.md`**: check the premise verdict:
-                - `PREMISE: AGREE` → the artifact is frozen; move to the next one.
-                - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) to the operator via **AskUserQuestion** with three options:
-                  1. **Re-frame the proposal** — address the dissent's concern and revise the proposal, then re-review.
-                  2. **Re-scope** — narrow/change scope and revise, then re-review.
-                  3. **Override-to-proceed** — operator accepts the dissent and wants to proceed anyway.
-                  Record the operator's choice and rationale in `review-log.md`. On override (option 3), freeze the proposal on zero 🔴 only — the DISSENT is the operator's call and is not re-litigated on re-review. On re-frame/re-scope (options 1/2), loop back to revise the proposal and re-review (step 1).
+         3. **Apply the shared freeze ladder** (above) to the review text extracted in step 2. On
+            a 🔴-required re-review, return to step 1 for a fresh pass.
 
          4. If `opencode run` fails (non-zero exit, timeout, or no review text):
             do NOT self-review. Salvage whatever review text was emitted:
@@ -210,25 +217,11 @@ I'll create artifacts with review:
        ---
        ### If you are OpenCode
 
-       Use the Task tool with `subagent_type: "openspec-reviewer"` to audit
-       the artifact:
+       Use the Task tool with `subagent_type: "openspec-reviewer"` to audit the artifact, then
+       **apply the shared freeze ladder** (above) to its output. On a 🔴-required re-review,
+       invoke the reviewer again (re-review is MANDATORY; a self-certified fix may never freeze
+       the artifact).
 
-       - Append the review output to `review-log.md`
-       - When a fix is required, make it a **concrete, implementable
-         decision**, not a paraphrase of the problem. E.g., instead of
-         "return value semantics differ" (paraphrase), decide: "returns 0 —
-         zero Document rows inserted" (concrete). If a reviewer flags a gap,
-         close it with a specific choice.
-        - If 🔴 blocking issues exist → fix them in the artifact → **re-review is
-          MANDATORY** — invoke the reviewer again. A fix you made to clear a 🔴 is
-          never self-certified: you may NOT freeze the artifact on the strength of
-          your own fix. Only a review round that comes back with zero 🔴 can freeze
-          it. (Max 3 reviewer passes; escalate to user if still unresolved after 3.)
-        - If no 🔴 issues → the freeze condition depends on the artifact:
-          - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
-          - **`proposal.md`**: check the premise verdict:
-            - `PREMISE: AGREE` → freeze; move to the next one.
-            - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) via **AskUserQuestion** (re-frame / re-scope / override-to-proceed), record in `review-log.md`. On override, freeze on zero 🔴 only (dissent not re-litigated). On re-frame/re-scope, loop back to revise and re-review.
        - **If the reviewer subagent fails for any reason** (model not found,
          provider error, timeout, etc.): do NOT self-review as a replacement.
          Halt immediately and escalate to the user with the exact error.
@@ -304,4 +297,4 @@ After completing all artifacts and reviews, summarize:
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
 - If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next
-- **PHASE GATE**: When proposing is complete, STOP. Inform the user and prompt them for the next step. Never invoke the apply/implementation phase without an explicit user request. This is a hard rule.
+- **PHASE GATE**: When proposing is complete, without an autonomy grant this is a hard STOP — inform the user and prompt them for the next step. Under a grant, auto-advance to apply per the `autonomy-phase-advance` rule (AGENTS.md), EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate.

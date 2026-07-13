@@ -163,7 +163,7 @@ When the change touches auth, credentials/secrets, persisted data, or an externa
 
 This is a **hard gate for COMPLEX** changes on those surfaces and a **recommended** pass for MEDIUM changes on those surfaces. Changes touching none of those surfaces do not trigger it. Confirmed findings use the existing defect re-delegation path.
 
-**PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, you MUST NOT automatically proceed to archive. Tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Never invoke archive without an explicit user request. Crossing phases without permission is a hard rule.
+**PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, without an explicit autonomy grant this is a hard STOP: tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Under an autonomy grant, auto-advance to archive is permitted per the `autonomy-phase-advance` canonical rule (AGENTS.md) EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate — the NEEDS-REVISION carve-out is especially relevant here: a verdict this skill's own defect loop could not clear halts the grant and surfaces to the operator instead of auto-advancing to archive.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -207,6 +207,11 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
 5. **Re-run the FULL test suite yourself**
 
    Prefer `scripts/test-cmd`, falling back to the project's documented test command when absent — never an improvised command; e.g. `.venv/bin/python -m pytest -q`. It must be green (pre-existing skips OK). A green exit is **necessary but not sufficient.**
+
+   **Point-of-action delegation cue** (cites `delegation-by-default`, AGENTS.md): the *run+extract*
+   of the suite — producing the green/fail signal — is delegable to a haiku/Sonnet subagent; the
+   behavioral **judgment** that follows — does the output match the oracle — is Steps 4–8's
+   mandatory, **NON-delegable** core and stays with the orchestrator.
 
 6. **Eyeball the real output the code produces**
 
@@ -436,4 +441,4 @@ Use clear markdown with:
 - Code references in format: `file.ts:123`
 - Specific, actionable recommendations
 - No vague suggestions like "consider reviewing"
-- **PHASE GATE**: When verification is complete, STOP. Inform the user and prompt them for the next step. Never invoke archive without an explicit user request. This is a hard rule.
+- **PHASE GATE**: When verification is complete, without an autonomy grant this is a hard STOP — inform the user and prompt them for the next step. Under a grant, auto-advance to archive per the `autonomy-phase-advance` rule (AGENTS.md), EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate (the NEEDS-REVISION carve-out is especially relevant here).

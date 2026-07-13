@@ -18,7 +18,7 @@ Implement tasks from an OpenSpec change.
 >
 > Step 6 below ("Make the code changes required") therefore describes what the **apply-executor** does — not the primary. The primary's job is to delegate, then review the executor's completion report and proceed to verify (its own behavioral review). The primary must not write implementation code itself (trivial typo / one-line exception only).
 
-**PHASE GATE — STOP after implementation.** Once all tasks are checked off, you MUST NOT automatically proceed to verification. Tell the user "All tasks complete. Say 'verify <name>' when you want me to review the implementation." Then WAIT. Never invoke verification without an explicit user request. Crossing phases without permission is a hard rule.
+**PHASE GATE — STOP after implementation.** Once all tasks are checked off, without an explicit autonomy grant this is a hard STOP: tell the user "All tasks complete. Say 'verify <name>' when you want me to review the implementation." Then WAIT. Under an autonomy grant, auto-advance to verify is permitted per the `autonomy-phase-advance` canonical rule (AGENTS.md) EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate — halt and surface to the operator instead of advancing in those cases.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -140,6 +140,9 @@ Implement tasks from an OpenSpec change.
         If your diff-read finds a defect in slice N, fold the scoped fix as the **first item
         of slice N+1's brief** instead of a separate fix run (sequential, no concurrent
         writers, one fewer invocation).
+        **Delegation cue** (cites `delegation-by-default`, AGENTS.md): the between-slice
+        git-diff read + targeted-test smoke is run+extract work delegable to a haiku/Sonnet
+        subagent — the primary still judges the distilled result.
 
     2. After the executor (deepseek or Sonnet) finishes, read `tasks.md` and
        `git diff` to confirm all tasks are checked off and changes are on disk.
@@ -180,6 +183,11 @@ Implement tasks from an OpenSpec change.
           echo "OPAQUE_GIVE_UP"
         fi
         ```
+
+        **Delegation cue** (cites `delegation-by-default`, AGENTS.md): the jsonl-parse/extract
+        steps above (completion-report extraction, blocker-heading grep) are run+extract work
+        delegable to a haiku/Sonnet subagent — OW-7 will later mechanize this entirely; this cue
+        is the interim rule.
 
    3. **Failure ladder:**
 
@@ -308,7 +316,7 @@ What would you like to do?
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - **Before marking a task done, run `ruff check --fix` and `ruff format` on every Python file the executor created or edited (the executor autofix habit — see the apply-executor agent rules).**
-- **PHASE GATE**: When implementation is complete, STOP. Inform the user and prompt them for the next step. Never invoke verification without an explicit user request. This is a hard rule.
+- **PHASE GATE**: When implementation is complete, without an autonomy grant this is a hard STOP — inform the user and prompt them for the next step. Under a grant, auto-advance to verify per the `autonomy-phase-advance` rule (AGENTS.md), EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate.
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names

@@ -32,7 +32,8 @@
 > agent needs to orient — project purpose, constraints, process decisions. Current
 > status, recent progress, and changeable decisions belong in `knowledge/STATUS.md`,
 > `openspec/changes/`, and `knowledge/` respectively. Stability means this file caches
-> well across sessions.
+> well across sessions. Adding a new mandatory boot read SHALL displace or shrink an
+> existing one — the boot set is a fixed budget, not a growing list.
 >
 > If `knowledge/STATUS.md` or `knowledge/` do not exist, create them before doing anything else.
 
@@ -137,6 +138,14 @@ propagation" and "Working process" below — do not weaken it.
   tier-keyed (MEDIUM: self → pro behavioral; COMPLEX: self → pro behavioral → flash lens),
   with no same-checklist third pass. Both platforms invoke the verifier via hardened
   `opencode run --agent openspec-verifier` with a `--model` flag per pass.
+- **The haiku tier is the cheapest mechanical-delegation rung.** It runs pure
+  run-and-extract subagent work — grep/build/probe/JSONL-parse — where no judgment is
+  needed; **Sonnet** is the tier for extraction/judgment-adjacent passes; the
+  apply/archive executors are unchanged (deepseek-driven, Sonnet-fallback). This only
+  names the previously-absent haiku rung — no existing agent is re-tiered.
+- **The operator MAY pre-route a specific change's apply to Sonnet-first**, recorded in
+  that change's `notes.md` (e.g. for judgment-heavy prose surgery). This legitimizes
+  existing practice; the deepseek-flash-first default for apply is otherwise unchanged.
 
 ## OpenSpec workflow
 
@@ -168,6 +177,13 @@ implementation code, or mutating project state) — producing the plan is NOT ga
 autonomy grant, self-classify and proceed. If the operator
 is unavailable, do NOT execute — report the proposed tier and plan and wait. Scale process weight
 to risk:
+
+<!-- CANONICAL: autonomy-phase-advance — cite, do not restate -->
+**Phase auto-advance under autonomy.** Under an explicit grant, the orchestrator MAY auto-advance
+lifecycle phases (propose→apply→verify→archive) without a fresh per-phase request, EXCEPT it halts
+and surfaces to the operator across (a) a premise **DISSENT**, (b) an unresolved verify
+**NEEDS-REVISION**, or (c) any **operator-named gate** (downstream propagation, push-to-remote).
+Without a grant, each phase boundary remains a hard STOP. Governing capability: `tier-confirmation-gate`.
 
 - **SMALL** — skip the full OpenSpec lifecycle, but still: (1) write a plan checkpointed to a standard
   dir (the change dir or `plans/`), (2) the orchestrator runs the **SMALL premise pass** below,
@@ -285,7 +301,10 @@ Two tiers of state, with deliberately different write rules:
   decompose long jobs into steps that each complete and return. Granularity buys
   resumability. Long-running batches must be resumable from a checkpoint and **stop on
   first failure** rather than continuing with partial state.
-- **Use subagents for independent work.** Parallelize independent research/extraction
+<!-- CANONICAL: delegation-by-default — cite, do not restate -->
+- **Use subagents for independent work.** **Run-and-extract → subagent** (haiku
+  mechanical / Sonnet extraction); **read-and-judge → orchestrator**; plan the slices
+  before delegating. Parallelize independent research/extraction
   across subagents freely; prefer a cheaper model (e.g. Sonnet) for extraction. Always
   apply your own judgment to their reports — they have been wrong before — and have each
   subagent checkpoint findings to disk so the work survives interruption. **Do not fan out
@@ -329,6 +348,10 @@ Two tiers of state, with deliberately different write rules:
   it explicitly in its tracker rather than leaving a stale entry.
 - Plan non-trivial work before executing; ask the user when genuinely unsure rather than
   guessing.
+- **Batch non-blocking ambiguities; escalate blocking ones immediately.** A
+  **non-blocking** ambiguity gets a recorded default in the change's `notes.md`
+  `Assumptions` block and is batch-surfaced at the next operator gate; only a
+  **blocking** ambiguity interrupts immediately.
 - To find what work is outstanding, invoke the pull-only `outstanding-work-review` skill
   — deliberately never boot-wired into any auto-run path.
 - **Finding closure ratchet:** a generalizable finding is not closed until

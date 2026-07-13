@@ -58,7 +58,8 @@ See §e for per-phase budgets and kill-grace values.
 ## (d) EXIT-sentinel completion detection
 
 **Applies only to `opencode run` calls launched with `run_in_background: true`** — apply executor,
-verify's fix-executor, and verify's verifier passes (behavioral pro pass + COMPLEX-only lens flash pass).
+archive executor, verify's fix-executor, and verify's verifier passes (behavioral pro pass +
+COMPLEX-only lens flash pass).
 
 Append `; echo "EXIT=$?" > /tmp/<phase>-out.exit` to the wrapped command. Detect completion by
 `[ -f /tmp/<phase>-out.exit ]` in a bounded sleep loop (or simply wait for the harness
@@ -75,8 +76,8 @@ jsonl mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows nonz
 - **Propose's reviewer call is synchronous** (the `opencode run` command blocks until it returns) —
   no sentinel needed or present. This is correct by design.
 - **Archive's executor is launched with `run_in_background: true`** (because reconciliation can run
-  several minutes) but its invocation **omits the `echo "EXIT=$?"` sentinel** — this is a
-  pre-existing drift, documented here and left as-is (extraction, not redesign).
+  several minutes) and its invocation now carries the `echo "EXIT=$?"` sentinel — archive matches
+  this §d contract like the other three delegating skills.
 
 ---
 
@@ -101,7 +102,9 @@ the `reviewer-budget` capability spec.
 
 ## Carve-out: verify's in-process self-review
 
-Verify's **in-process self-review pass** (the primary agent's own review) is a Task-tool spawn,
-not `opencode run` — there is no separate process and no TTY-stdin. It is therefore **exempt**
-from the `< /dev/null` / `--dir` hardening (§a) and the bounded-wait/surgical-kill wrapper (§c).
-The delegated verifier passes (behavioral pro pass for MEDIUM and COMPLEX; lens flash pass for COMPLEX only, identical on both platforms) use `opencode run` and are NOT exempt.
+Verify's **in-process self-review pass** is the **orchestrator's own review pass, performed
+inline by the primary** (Steps 4–8: "run `git diff` yourself," "re-run the FULL suite yourself") —
+it is neither an `opencode run` delegation nor a Task-tool spawn; there is no separate process and
+no TTY-stdin. It is therefore **exempt** from the `< /dev/null` / `--dir` hardening (§a) and the
+bounded-wait/surgical-kill wrapper (§c) — those exist to harden a *separate delegated process*,
+which this pass simply is not. The delegated verifier passes (behavioral pro pass for MEDIUM and COMPLEX; lens flash pass for COMPLEX only, identical on both platforms) use `opencode run` and are NOT exempt.
