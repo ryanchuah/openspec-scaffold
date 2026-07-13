@@ -27,3 +27,22 @@ in the ratchet-lint implementation; none changes observable behavior if fixed co
 **Disposition suggestion (not pre-decided — leave to whoever picks this up):** a `check:` or
 `test:` disposition once cleaned up, or fold into the next `knowledge_lint.py`-touching change
 as incidental cleanup. Low priority; revisit opportunistically.
+
+**Added from `composition-audit-cadence` (OW-6) verify, 2026-07-13** (source:
+`openspec/changes/archive/2026-07-13-composition-audit-cadence/notes.md`, field 5) — same
+behavior-preserving, non-blocking shape as items 1-4 above:
+
+5. **`outstanding.py` duplicate `rev-list` blocks and duplicate no-git degraded-dict.** The
+   composition-signal and existing due-signal code paths each re-implement the same
+   `git rev-list --count` invocation and the same no-git degraded-response dict; collapse to one
+   shared helper each.
+6. **`checks.py` `composition_anchor`↔`audit_anchor` shared-helper extraction.** The two inventory
+   blocks compute the same shape (latest matching tag + commits-since) against different tag
+   globs; a shared helper parameterized on the glob would remove the duplication. Touches the
+   pre-existing, out-of-scope `audit_anchor` code, so treat as its own reviewed step.
+7. **Centralize the `audit/<date>-composition` literal.** The exact tag-suffix string is
+   hardcoded across 4 modules (`audit_scope.py`, `checks.py`, `outstanding.py`,
+   `knowledge_lint.py`); pull it into one shared constant so a future rename touches one site.
+8. **`audit_scope.py`'s defensive `getattr(args, "kind")` fallback.** A defensive
+   `getattr(args, "kind", "plain")` guards against an argparse wiring gap that shouldn't be
+   reachable; simplify once confirmed dead, or leave with a comment explaining why it's there.

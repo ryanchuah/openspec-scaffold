@@ -16,7 +16,7 @@ Copy this repo to start a new project. Fill in the placeholder files and you're 
 | `knowledge/questions/INDEX.md` | Unresolved questions and user-action items |
 | `openspec/config.yaml` | OpenSpec project config — injected into every artifact prompt; carries the `tasks` (delegate apply), `verify` (behavioral review), and `archive` (reconcile-as-handoff) rules |
 | `openspec/changes/`, `openspec/specs/` | Planning home for in-flight changes and promoted capability specs (ship empty, with `.gitkeep`) |
-| `.claude/skills/openspec-*/` | The 7 workflow skills (explore/propose/apply/verify/archive/sync/onboard) — pre-built and ready; loaded by both Claude Code and OpenCode |
+| `.claude/skills/openspec-*/` | The 6 workflow skills (explore/propose/apply/verify/archive/sync) — pre-built and ready; loaded by both Claude Code and OpenCode |
 | `.opencode/agents/apply-executor.md` | DeepSeek V4 Flash apply-phase executor (driven via `opencode run`) |
 | `.opencode/agents/archive-executor.md` | DeepSeek V4 Pro archive executor — moves change dir, syncs delta specs, reconciles project docs (driven via `opencode run`) |
 | `.opencode/agents/openspec-reviewer.md` | DeepSeek V4 Pro reviewer agent — reviews proposal artifacts before implementation (project-local; driven via `opencode run`) |

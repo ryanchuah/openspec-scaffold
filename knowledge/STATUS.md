@@ -7,7 +7,25 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — correctness-audit-skill SHIPPED (2026-07-13)
+## Latest change — composition-audit-cadence SHIPPED (2026-07-13)
+
+Shipped the composition-audit cadence (OW-6, COMPLEX): a deterministic, advisory
+composition-audit due-signal (archived-changes and commits since the last composition
+anchor, OR co-fire) surfaced in the `outstanding` fact, plus an operator-invoked
+`composition-audit` skill — a one-shot heavy-detector sweep (`checks.py --include`) plus
+a bounded LLM composition pass over top-ranked hotspots — yielding a machine-
+discriminable verdict (`COMPOSITION: CLEAN | FINDINGS-ROUTED | ESCALATE`) whose close-out
+routes findings into the OW-2 ratchet. A new composition-anchor tag family
+(`audit/<date>-composition`, a superset of plain `audit/*`) is the sole event resetting
+the cadence clock. Three specs promoted: `composition-audit` (new), `outstanding-work-view`
+and `knowledge-lint` (modified). Verify: full gate green — self-review, pro behavioral,
+and flash test-quality lens passes all READY; self-review defects found and fixed (chiefly a missing-tag
+commits-since gap); no Sonnet fallback anywhere. Downstream propagation is
+operator-gated and DEFERRED (scaffold-only ship). Decisions: `knowledge/decisions/INDEX.md`;
+follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-composition-audit-cadence/`.
+
+## Prior change — correctness-audit-skill SHIPPED (2026-07-13)
 
 Shipped the deep-audit protocol (OW-5, COMPLEX) as one scaffold-owned, operator-invoked/
 pull-only `correctness-audit` skill: charter/census/FINDINGS artifact contract, refuter-
@@ -37,42 +55,28 @@ READY, no defects. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
 `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-verify-stack-redirect/`.
 
-## Prior change — lesson-check-ratchet SHIPPED (2026-07-13)
-
-Shipped the finding-closure ratchet (OW-2): a lint-enforced closure contract so a
-generalizable bug class, once found, cannot silently recur. New `knowledge/ratchet-log.md`
-registry ledger records exactly one disposition per class (check/frozen-test/waiver/open/
-grandfathered, preference check > test > waiver), enforced by guarded `knowledge_lint.py`
-checks (dangling pointers, stale waivers, aged `open`, malformed lines). New per-repo
-`checks/*.py` invariant framework (stdlib `scripts/repo_lint.py`, sibling of `data_lint.py`),
-registered in `checks.py`. Both close-out gates (archive, run-audit) gained the bounded
-3-question triage. Verify: full suite green incl. the live-tree lint gate over the
-bootstrapped ledger and `scaffold_lint` SEAL; both pro+flash multi-model verifier passes
-READY, no defects outstanding. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-lesson-check-ratchet/`.
-
 ## Immediate next action
-`correctness-audit-skill` (OW-5) is now **SHIPPED**. There is no proactive build in flight. One
-change remains **propose-complete and deliberately paused at apply** (operator-mandated
-batching): `composition-audit-cadence` (OW-6) — the **last** item of the frozen batch. Next
-session (Opus orchestrator) applies OW-6; once it ships the frozen batch is done and the
-remaining wave-2 backlog is worked per
+`composition-audit-cadence` (OW-6) is now **SHIPPED** — the frozen **OW-2→3→5→6 batch is
+COMPLETE**. There is no proactive build in flight. Next is the wave-2 backlog: no session is yet
+proposed for it (each item needs its own tier+plan confirmation) per
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
-items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow
-audit: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is
-Opus-tier. Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+items, routing, session order), plus two late additions that slot in anywhere after the frozen
+batch — `OW-15` (amends OW-5's capability; its gate is now clear) and `OW-16` (chain-independent,
+greenfield). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
+`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
+Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
 
 **correctness-audit-skill SHIPPED (2026-07-13)** — scaffold-only; downstream propagation of the
 new skill/lint files is **operator-gated and deferred**, not synced without fresh authorization
 (arrives INERT on the next sync: the marker-gated dossier lint no-ops until a repo authors a
-marked dossier). Next work is unchanged: `composition-audit-cadence` (OW-6) is the last frozen
-item, then the wave-2 backlog.
+marked dossier). `composition-audit-cadence` (OW-6) has since shipped 2026-07-13, completing the
+frozen batch; see the wave-2 backlog in "Immediate next action" above.
 
 **verify-stack-redirect SHIPPED (2026-07-13)** — scaffold-only; downstream propagation of the
 edited manifest-tracked skill/agent/AGENTS.md files is **operator-gated and deferred**, not
 synced without fresh authorization. Root `README.md` (not scaffold-managed) was also reconciled
-directly during verify and needs no downstream sweep. Next work is unchanged: OW-5 → OW-6.
+directly during verify and needs no downstream sweep. OW-5 and OW-6 have since both shipped,
+completing the frozen batch.
 
 **lesson-check-ratchet SHIPPED (2026-07-13)** — downstream propagation of its scaffold changes
 (`repo_lint.py`, `knowledge_lint.py` ratchet checks, the two skill triage steps) is **operator-gated
@@ -81,7 +85,7 @@ per-repo ledger → auto-disabled, lint-guarded), and per-repo adoption is separ
 work. See `knowledge/questions/INDEX.md` Parked.
 
 **outstanding-and-continuity-hardening SHIPPED (2026-07-13)** — scaffold-only; the frozen
-OW-3→5→6 batch above remains the stated next work, unchanged by this change. Downstream
+OW-3→5→6 batch (now complete) was the stated next work at the time, unchanged by this change. Downstream
 propagation of the widened handoff-file lint is **deliberately DEFERRED and operator-gated**: it
 is coupled to a downstream cleanup (extrends' ~27 and psc-monitor's handoff-named files must be
 renamed/archived first), since syncing the widened lint before that cleanup would redden both
@@ -93,7 +97,7 @@ gates on `openspec validate --strict` before freeze, apply's non-convergence che
 extracted completion report instead of the raw jsonl (which false-positived on the skill's own
 doc heading), and archive's pre-commit lint step now also runs `knowledge_lint` and repoints any
 moved-dir citation. Archive: `openspec/changes/archive/2026-07-13-lifecycle-skill-hardening/`.
-Next work is unchanged: OW-3 → OW-5 → OW-6.
+OW-3, OW-5, and OW-6 have since all shipped, completing the frozen batch.
 
 **Downstream propagation — extrends AND psc-monitor FULLY SYNCED.** On 2026-07-04 the operator
 authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full
