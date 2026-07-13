@@ -69,3 +69,83 @@ describes the abandoned OpenCode Task-tool verifier path. Precedent: archived ME
   remains unexercised repo-wide. This change deliberately avoided debuting it (kept original
   requirement headers, modified bodies only). Someone should exercise RENAMED on a LOW-stakes
   change before it is ever needed in anger.
+
+## Verify outcome — 2026-07-13 (orchestrator: Opus)
+
+**Tier/shape:** MEDIUM, verified under CURRENT (pre-change) semantics = **self-review + one pro
+behavioral pass**, no flash/lens pass — as pre-decided at freeze (review-log.md lens-selection
+note) and per the self-reference note above. The new lens shape does not exist until this change
+ships, so it is correctly NOT run on this change itself.
+
+1. **Verdict: READY for archive.** All 14 tasks `[x]`; full gate green from disk
+   (`bash scripts/check.sh`: ruff + format + pytest incl. the `scaffold_lint` SEAL and its
+   budget-agreement check). Multi-model passes: **self-review → READY**; **pro pass
+   (`deepseek/deepseek-v4-pro`) → READY, Defects: None** (real agent asserted ran, fallback-count 0,
+   verdict block extracted from disk). Simplicity gate (MEDIUM): docs-only diff, self-reviewed
+   against the checklist — the change *reduces* duplication (two invocation subsections collapsed
+   into one); no findings. Security gate: not triggered (no auth/credential/data/external-API
+   surface).
+
+2. **Live output eyeballed (behavior, not counts):** the new tier-keyed chain renders consistently
+   across all edited files; `scaffold_lint` budget-agreement parses the renamed §e verifier rows
+   cleanly (`-k 15 780` unchanged, only labels changed); the two verify-skill invocation blocks
+   target `/tmp/verify-pro-out.*` and `/tmp/verify-lens-out.*` (no stale `verify-flash-out`); the
+   cited harness anchors §a/§d/§e all resolve; residual old-chain vocabulary
+   ("self→pro→flash", "pro + flash", "flash-only", "Three independent views", "two invocations",
+   "design D5") is **zero** across the edited files.
+
+3. **Defects found and fixed:**
+   - *Trivial (self-review, primary inline):* the newly-inlined behavioral prompt read
+     "a always-present" → fixed to "an always-present" (SKILL.md). Trivial-typo inline exception.
+   - *Real drift (pro pass, primary direct doc-edit):* root **`README.md`** described the verify
+     chain in the OLD shape and cited the retired OpenCode `subagent_type` verifier-spawn path
+     (L23, L180, L195, L205–206). Root `README.md` was **not** in the frozen touch-surface
+     inventory, so the apply left it stale — exactly the drift this change exists to remove.
+     Reconciled directly by the primary to the new tier-keyed platform-uniform chain + `opencode
+     run --agent openspec-verifier` invocation (per AGENTS.md "quick doc edits done by the primary
+     directly; do not over-delegate trivia" — this is human-facing documentation, not
+     implementation code). Re-verified from disk: zero residual old-chain terms, gate still green.
+
+4. **As-built delta (archive-executor MUST know):** this change's diff now touches **six** files,
+   not the five in the frozen `tasks.md` — root `README.md` was added at verify (see defect above).
+   `README.md` is **NOT scaffold-managed** (absent from `scripts/scaffold_manifest.txt`; only
+   `knowledge/README.md` is listed) → it does **NOT** propagate downstream, so no per-repo README
+   sweep is owed. No other scope change; the two delta specs and the five originally-planned files
+   are byte-faithful to the frozen contract.
+
+5. **Forward-looking items (fold into `knowledge/questions/INDEX.md` / `decisions` at archive):**
+   - *(Carried from propose — still live)* Prune the 2-of-5 stale/superseded items in
+     `knowledge/questions/verify-multimodel-gate-follow-ons.md` (the OpenCode Task-tool path and
+     the "denylist deferred" line — both now resolved by this change + `tier-review-tightening`).
+   - *(Carried from propose)* Close/update the `knowledge/roadmap.md` OW-3 pointer entry.
+   - *(Carried from propose)* OW-1 / OW-4 detectors now have a defined consumer: when they ship,
+     their tasks must update the corresponding lens prompt's **detector-handoff sentence** in the
+     verify SKILL from "when a detector ships" to the concrete `scripts/checks.py` invocation.
+   - *(Carried from propose)* The RENAMED spec-promotion path is still unexercised repo-wide —
+     exercise it on a LOW-stakes change before it is needed in anger.
+   - **NEW (verify) — generalizable process gap for the archive ratchet triage:** the chain-shape
+     touch-surface research inventoried skills/agents/AGENTS.md/specs but **omitted root
+     `README.md`**, which duplicates agent-facing rules in human-facing prose. Class:
+     "a vocabulary/chain-shape change leaves stale duplicated descriptions in un-inventoried
+     human-facing docs (esp. root `README.md`)." A deterministic detector is hard (semantic
+     cross-prose consistency), so this is most likely a **waiver-with-re-review-trigger** or a
+     lessons entry, not a check — route through the archive Step 6 3-question ratchet triage and
+     record the disposition in `knowledge/ratchet-log.md`.
+
+**Still owned by archive (do NOT do at verify — reconciled by the delegated archive-executor,
+then primary-reviewed):**
+- `git mv` the change dir → `openspec/changes/archive/2026-07-13-verify-stack-redirect/`.
+- Promote the two delta specs into `openspec/specs/verify-multimodel-gate/spec.md` and
+  `openspec/specs/noninteractive-delegation-safety/spec.md` (both are MODIFIED/ADDED, no RENAMED).
+  These promoted specs are currently STALE vs. the new chain — that is expected; promotion is what
+  reconciles them.
+- Reconcile `knowledge/STATUS.md` (add the shipped section, honor the ≤3-cap; its historical
+  "self-review + pro + flash … READY" vocabulary in prior sections is a shipped record, left as-is),
+  `knowledge/decisions/INDEX.md` (new registry line for this change; the `tier-review-tightening`
+  L35 line carries old chain vocabulary as historical record — leave it), and
+  `knowledge/questions/INDEX.md` (fold in the field-5 items above).
+- Run the archive Step 6 ratchet triage over this change's found-and-fixed defects (the NEW
+  process-gap item above is the ratchet candidate; the two doc-edit fixes are one-off slips → no
+  entry).
+- Downstream propagation of the five scaffold-managed edited files is **operator-gated and
+  deferred** — do not sync without fresh authorization. (`README.md` is not scaffold-managed.)

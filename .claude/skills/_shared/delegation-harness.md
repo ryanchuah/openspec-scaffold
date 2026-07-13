@@ -58,7 +58,7 @@ See §e for per-phase budgets and kill-grace values.
 ## (d) EXIT-sentinel completion detection
 
 **Applies only to `opencode run` calls launched with `run_in_background: true`** — apply executor,
-verify's fix-executor, and verify's verifier passes.
+verify's fix-executor, and verify's verifier passes (behavioral pro pass + COMPLEX-only lens flash pass).
 
 Append `; echo "EXIT=$?" > /tmp/<phase>-out.exit` to the wrapped command. Detect completion by
 `[ -f /tmp/<phase>-out.exit ]` in a bounded sleep loop (or simply wait for the harness
@@ -87,8 +87,8 @@ jsonl mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows nonz
 | apply | apply-executor | `-k 30 600` | 600 | 30s | Full `tasks.md` can run several minutes; extra grace reduces SIGKILL risk during a legitimate slow step. |
 | archive | archive-executor | `-k 30 600` | 600 | 30s | Multi-step reconciliation; same rationale as apply. |
 | verify | fix-executor | `-k 30 600` | 600 | 30s | Scoped single-defect fix; 10-minute floor matches the apply/archive budget. |
-| verify | verifier (pro pass) | `-k 15 780` | 780 | 15s | Independent verification pass; both platforms use this budget. |
-| verify | verifier (flash pass) | `-k 15 780` | 780 | 15s | Same as pro pass; both platforms. |
+| verify | verifier (behavioral pass, pro) | `-k 15 780` | 780 | 15s | Independent verification pass; both platforms use this budget. |
+| verify | verifier (lens pass, flash — COMPLEX only) | `-k 15 780` | 780 | 15s | Same budget; COMPLEX-only lens pass. |
 | propose | reviewer | `-k 15 780` | 780 | 15s | Per the `reviewer-budget` capability spec — cross-referenced, not duplicated here. |
 | explore | direction gate (pro) | `-k 15 780` | 780 | 15s | Keyed by stage because it runs outside the named phases — the explore skill's premise gate on a load-bearing brief. |
 | SMALL | premise reviewer (flash) | `-k 15 780` | 780 | 15s | Keyed by tier because it runs outside the named phases — the pre-apply SMALL premise pass. |
@@ -104,4 +104,4 @@ the `reviewer-budget` capability spec.
 Verify's **in-process self-review pass** (the primary agent's own review) is a Task-tool spawn,
 not `opencode run` — there is no separate process and no TTY-stdin. It is therefore **exempt**
 from the `< /dev/null` / `--dir` hardening (§a) and the bounded-wait/surgical-kill wrapper (§c).
-The delegated verifier passes (pro + flash, both platforms) use `opencode run` and are NOT exempt.
+The delegated verifier passes (behavioral pro pass for MEDIUM and COMPLEX; lens flash pass for COMPLEX only, identical on both platforms) use `opencode run` and are NOT exempt.

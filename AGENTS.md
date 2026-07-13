@@ -124,16 +124,19 @@ propagation" and "Working process" below — do not weaken it.
   `subagent_type: "openspec-reviewer"`.
 - **The `openspec-verifier` (deepseek, read-only, bash-capable)** is an independent
   multi-model verification pass invoked during **verify** for **all changes**: SMALL changes run
-  a single flash pass outside the verify skill; MEDIUM and COMPLEX changes run pro + flash via
-  the verify skill (layered after the orchestrator's self-review and before the artifact/spec
-  mapping checklist). It runs the same behavioral review (read diffs, re-run the full suite,
-  eyeball real output, run live smoke) but is **read-only by role** (bash restricted to a
-  destructive-command denylist, `edit: deny` — a best-effort guard, not a hard filesystem sandbox) —
-  it reports defects, never fixes them. It emits a machine-discriminable verdict the orchestrator
-  judges from disk. The pass chain is identical on both platforms: **Claude Code** orchestrator →
-  self → pro → flash; **OpenCode** orchestrator → self → pro → flash. Both platforms invoke the
-  verifier via hardened `opencode run --agent openspec-verifier` (two invocations:
-  `--model deepseek/deepseek-v4-pro` then `--model deepseek/deepseek-v4-flash`).
+  a single flash pass outside the verify skill (unchanged); MEDIUM changes run self-review →
+  `deepseek/deepseek-v4-pro` behavioral verifier pass via the verify skill; COMPLEX changes run
+  self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass → `deepseek/deepseek-v4-flash`
+  lens verifier pass (a different fixed checklist — test-quality or data-scale — selected by
+  the orchestrator and recorded in `review-log.md`), layered after the orchestrator's self-review
+  and before the artifact/spec mapping checklist. It runs the review its invocation prompt
+  specifies (behavioral by default; lens for the lens pass) but is **read-only by role** (bash
+  restricted to a destructive-command denylist, `edit: deny` — a best-effort guard, not a hard
+  filesystem sandbox) — it reports defects, never fixes them. It emits a machine-discriminable
+  verdict the orchestrator judges from disk. The pass chain is identical on both platforms and
+  tier-keyed (MEDIUM: self → pro behavioral; COMPLEX: self → pro behavioral → flash lens),
+  with no same-checklist third pass. Both platforms invoke the verifier via hardened
+  `opencode run --agent openspec-verifier` with a `--model` flag per pass.
 
 ## OpenSpec workflow
 
@@ -171,7 +174,7 @@ to risk:
   (3) delegate execution to **deepseek-v4-flash** via `opencode run --agent apply-executor`,
   (4) do your own verification per this SMALL bullet.  SMALL does **not** invoke the verify skill,
   is **not** subject to its multi-model passes or verify phase-gate STOP, and SHALL run a single
-  `deepseek/deepseek-v4-flash` verifier pass (same invocation shape as in the verify skill's flash pass).
+  `deepseek/deepseek-v4-flash` verifier pass (same invocation shape as the verify skill's behavioral verifier pass, run at the `deepseek/deepseek-v4-flash` model tier).
 
   **Plan minimum:** the SMALL plan SHALL contain at minimum a **problem statement**, a **proposed
   approach/fix**, and an explicit **out-of-scope** note. This is a contract, not enforced tooling —

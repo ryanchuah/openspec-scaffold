@@ -38,12 +38,14 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
 After your own self-review (above) and **before** the artifact/spec mapping checklist Steps below, you MUST run independent multi-model verification passes. These passes are additional independent confirmations; they do NOT replace your own self-review — the "do not delegate this" rule above still governs the self-review.
 
-The pass sequence depends on which platform you are running on:
+The pass sequence is identical on both platforms (Claude Code and OpenCode) and depends on tier:
 
-- **Claude Code orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-pro` verifier pass → `deepseek/deepseek-v4-flash` verifier pass. Three independent views — a Claude (Anthropic) model gains maximum diversity from both deepseek tiers.
-- **OpenCode orchestrator:** self-review (you, above) → `deepseek/deepseek-v4-flash` verifier pass only. An OpenCode orchestrator already runs on deepseek-v4-pro, so a second pro pass adds little model diversity; the cheaper flash tier provides the independent second pair of eyes.
+- **MEDIUM:** self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass.
+- **COMPLEX:** self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass → `deepseek/deepseek-v4-flash` lens verifier pass (see the lens-pass subsection below).
 
-The verifier agent is defined in `.opencode/agents/openspec-verifier.md` (default `model: deepseek/deepseek-v4-flash`; `bash: a destructive-command denylist (catch-all allow)`, `edit: deny`). It runs the same behavioral review you performed in the self-review (read diffs, re-run the full suite, eyeball real output, run live smoke for external-API changes), but it **never modifies files** — it reports defects and emits a machine-discriminable verdict block of this form:
+No pass repeats the behavioral checklist a third time — the recorded three-repo evidence showed zero non-trivial unique catches from a same-checklist third pass.
+
+The verifier agent is defined in `.opencode/agents/openspec-verifier.md` (default `model: deepseek/deepseek-v4-flash`; `bash: a destructive-command denylist (catch-all allow)`, `edit: deny`). The verifier runs the review its invocation prompt specifies (behavioral by default; lens for the lens pass), but it **never modifies files** — it reports defects and emits a machine-discriminable verdict block of this form:
 
 ```
 ## Verify Pass — <model-id>
@@ -52,45 +54,75 @@ VERDICT: READY            # or exactly: VERDICT: NEEDS REVISION
 - 🔴 <file:line> — <what is wrong and the evidence>     # `- None` when clean; the section is always present
 ```
 
-#### Claude Code invocation (two passes)
+#### Invocation (both platforms)
 
 For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `.claude/skills/_shared/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above):
 
-**Pro pass:**
+**Behavioral pro pass (MEDIUM and COMPLEX):**
 ```bash
 timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
-  --model deepseek/deepseek-v4-pro --format json "<the fixed verifier prompt from design D5>" \
+  --model deepseek/deepseek-v4-pro --format json "<behavioral verifier prompt>" \
   > /tmp/verify-pro-out.jsonl 2> /tmp/verify-pro-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-pro-out.exit
 ```
 
-**Flash pass:**
+**Lens pass (COMPLEX only):**
 ```bash
 timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
-  --model deepseek/deepseek-v4-flash --format json "<the fixed verifier prompt from design D5>" \
-  > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
+  --model deepseek/deepseek-v4-flash --format json "<lens prompt>" \
+  > /tmp/verify-lens-out.jsonl 2> /tmp/verify-lens-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-lens-out.exit
 ```
 
 Both invocations follow the hardened invocation and EXIT-sentinel patterns per `.claude/skills/_shared/delegation-harness.md` §a and §d.
 
-#### OpenCode invocation (pro + flash, same chain as Claude Code)
+#### Behavioral verifier prompt
 
-Under OpenCode, invoke the verifier via `opencode run` with the same hardened pattern as Claude
-Code — both platforms now run the identical pro → flash chain. Apply the full delegation harness
-(`.claude/skills/_shared/delegation-harness.md` §a–d) to both calls:
+Use this prompt for the behavioral pro pass:
 
-**Pro pass:**
-```bash
-timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
-  --model deepseek/deepseek-v4-pro --format json "<the verifier prompt from design D5>" \
-  > /tmp/verify-pro-out.jsonl 2> /tmp/verify-pro-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-pro-out.exit
+```text
+You are the OpenSpec Change Verifier. Perform the behavioral verification review:
+
+1. Read the git diff and changed files. Open every file the executor touched. Trust the code, not any summary.
+2. Re-run the FULL test suite via the per-repo command — prefer `scripts/test-cmd`; when absent, use the project's documented test command (e.g. check `pyproject.toml` for pytest config, `Makefile` for a `test` target, or `package.json` for a `test` script). Never improvise an ad-hoc `pytest` or other command that may pick the wrong venv/flags.
+3. Eyeball a concrete real-output sample — the actual records, rows, text, or values the change produces. Do not just confirm tests pass.
+4. For any external-API surface, run the live smoke against the real endpoint. A skipped live smoke is not a passed one. If the change has no live smoke, that is itself a critical gap.
+
+Emit your verdict in the ## Verify Pass — <model-id> block format, with VERDICT: READY or VERDICT: NEEDS REVISION and an always-present ### Defects section.
 ```
 
-**Flash pass:**
-```bash
-timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
-  --model deepseek/deepseek-v4-flash --format json "<the verifier prompt from design D5>" \
-  > /tmp/verify-flash-out.jsonl 2> /tmp/verify-flash-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-flash-out.exit
+#### Lens pass (COMPLEX)
+
+This subsection applies to COMPLEX changes only (and optionally to MEDIUM changes at the orchestrator's discretion). The lens pass runs the `deepseek/deepseek-v4-flash` model with a fixed prompt asking questions the behavioral checklist does not ask — a different checklist, not a third run of the same one.
+
+The orchestrator SHALL select one lens per change and record the selection with a one-line rationale in `review-log.md`. The lens pass is **diff-scoped**: it is NOT required to re-run the full test suite (the pro behavioral pass already did) and MAY run targeted probes scoped to its lens questions. Its findings are leads the orchestrator confirms from disk. It retains the hard-gate and recovery semantics of the other passes.
+
+**Default — test-quality/adversarial-oracle lens:**
+```text
+You are the OpenSpec Change Verifier performing a test-quality lens pass. Focus on test integrity:
+
+For each test the change adds or modifies, would the test fail if the behavior it claims to cover broke? Name the assertion that would trip. Specifically flag:
+- Tautological or forced-green assertions (e.g. `assert True`, `assert 1 == 1`)
+- Empty test bodies or tests that never reach their assertion
+- Mocks that replace the module under test (self-mocking)
+- Discarded return values or flags (e.g. calling a function but ignoring its return)
+- Unfrozen clocks in time-sensitive tests
+
+Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ### Defects block.
 ```
+
+**Data-scale lens (for data-path-dominant changes):**
+```text
+You are the OpenSpec Change Verifier performing a data-scale lens pass. Focus on data-path safety:
+
+- Which input domains are unbounded in production?
+- Does the change fully materialize the result of an unbounded query (e.g. `fetchall()` on an unbounded query)?
+- Does the change need an at-scale run or a recorded bounded-domain argument in `notes.md`?
+
+Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ### Defects block.
+```
+
+**Selection rule:** select the test-quality lens by default. Select the data-scale lens when the change's dominant risk is data-path behavior (unbounded inputs, query volume, large-scale processing). The orchestrator MAY additionally run a lens pass on a MEDIUM change when its risk profile warrants it, under the same contract and recording rules.
+
+**Forward-compatibility:** when a corresponding deterministic detector ships (e.g. a test-quality or data-scale check in `scripts/checks.py`), the lens prompt SHALL direct the verifier to run and confirm the detector's findings rather than rediscover them.
 
 #### Assert the real verifier ran
 
@@ -108,7 +140,7 @@ Treat every verifier finding as a **lead to confirm from disk**, not gospel. Use
 Each pass is a **hard gate**. When a pass returns `VERDICT: NEEDS REVISION` and you confirm the defect from disk:
 
 1. **Fix** via the **existing** defect re-delegation path already documented in this skill (re-delegate a self-contained fix-spec to the apply-executor; one attempt; escalate to a Sonnet subagent on operational or quality failure; disclose if Sonnet was used).
-2. **Re-run the pass that failed and every pass after it**, in sequence — never the passes before it. (For an OpenCode orchestrator with only one delegated pass, re-run only that pass. For a Claude Code orchestrator, if the pro pass fails: fix, re-run pro, then re-run flash. If the flash pass fails: fix, re-run flash only.)
+2. **Re-run the pass that failed and every pass after it**, in sequence — never the passes before it. (MEDIUM: if the pro pass fails, re-run only the pro pass — it is the only and last delegated pass. COMPLEX: if the pro pass fails, fix, re-run pro then the lens pass; if the lens pass fails, fix, re-run just the lens pass.)
 3. **Loop bound:** if the **same** pass returns NEEDS REVISION across **3** fix cycles without clearing, STOP and escalate to the operator with the accumulated verdicts.
 
 If your own self-review (pass 1, above) finds a defect, follow the existing behavioral-review-fails path: fix, re-run from pass 1 (the self-review).
@@ -275,7 +307,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
 16. **Generate Verification Report**
 
     **Multi-model passes**:
-    - After the self-review and any delegated verifier passes (see the multi-model passes section above), record each pass's verdict in the report: pass number, model that ran it, verdict, and which defects (if any) it surfaced.
+    - After the self-review and any delegated verifier passes (see the multi-model passes section above), record each pass's verdict in the report: pass number, model that ran it, verdict, and which defects (if any) it surfaced. For a lens pass, also record which lens was selected and the orchestrator's one-line rationale.
     - For any pass that was re-run after a fix, record BOTH the original NEEDS REVISION verdict and the final READY verdict.
 
     **Summary Scorecard**:
@@ -325,7 +357,7 @@ This is a **hard gate for COMPLEX** changes on those surfaces and a **recommende
        surfaced the expected <terms>"). The eyeball itself stays mandatory; only the figures are
        barred — **never** test, doc, or row counts, not even as history (see AGENTS.md);
     3. any **defect found and how it was fixed** (and who fixed it — re-delegated executor vs trivial
-       inline), attributed to the pass/model that surfaced it (self-review, pro pass, or flash pass);
+       inline), attributed to the pass/model that surfaced it (self-review, pro pass, or lens pass);
     4. any **as-built delta discovered during verify** that the artifacts don't already record;
     5. **forward-looking items for the project docs — the load-bearing, easily-missed one.** Enumerate
        every **open question, tuning item, deferred-scope decision, follow-on, or monitored risk** that
