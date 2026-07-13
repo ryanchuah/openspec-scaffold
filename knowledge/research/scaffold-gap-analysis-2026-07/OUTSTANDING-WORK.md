@@ -181,6 +181,9 @@ propose/apply/verify → stop, escalate to operator/Fable). **Sequencing constra
 the same skill files OW-3 rewrites — land the frozen OW-2→3→5→6 batch FIRST.**
 
 ## OW-7 · Delegation wrapper + run-telemetry ledger  ·  Tier: MEDIUM  ·  Orch: **Opus**
+**STATUS 2026-07-13: SHIPPED** (`openspec/changes/archive/2026-07-13-delegation-wrapper-telemetry/`).
+Design call: post-processing-only ("ingest") wrapper, NOT full-invocation — keeps the literal
+`timeout`/`opencode`/`< /dev/null` invocation scannable by budget-agreement + delegation-safety guards.
 `scripts/opencode_delegate.py` mechanizing the harness post-processing hand-rolled in 6 skills
 (timeout, fallback-grep, jq extraction, marker assert, EXIT-sentinel, exit-code interpretation) +
 one JSONL ledger line per run (agent, model, phase, change, duration, exit, fallback?, verdict,
@@ -384,8 +387,8 @@ anywhere after the frozen batch. Standard escalation caveat.
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
-  **Update 2026-07-13: OW-9, OW-14, OW-1, OW-4 are DONE** (SHIPPED — see per-item STATUS lines
-  above); remaining order is **OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12**.
+  **Update 2026-07-13: OW-9, OW-14, OW-1, OW-4, OW-7 are DONE** (SHIPPED — see per-item STATUS lines
+  above); remaining order is **OW-10 → OW-11 → OW-8 → OW-13 → OW-12**.
   **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
   capability, so it pairs naturally with OW-5's verify session or the first real audit run.
   **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the

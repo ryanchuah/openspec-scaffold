@@ -7,7 +7,11 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — defect-prevention-detectors SHIPPED (2026-07-13)
+## Latest change — delegation-wrapper-telemetry SHIPPED (2026-07-13)
+
+Shipped the ingest wrapper (`scripts/opencode_delegate.py`) that mechanizes post-processing across 8 delegation sites — fallback detection, text extraction, status classification, verdict capture, and marker assertion — without altering the literal `timeout … opencode run … < /dev/null` invocation at any site, so the budget-agreement and delegation-safety guards remain fully intact. Each post-processed run appends one telemetry line to an untracked ledger (`output/delegation-log.jsonl`) with a pinned minimum schema, feeding the two scheduled evidence-gated decisions (premise-gate downgrade at ~50 reviews, MEDIUM pro-pass downgrade at ~20 verifies). Promoted the new `delegation-wrapper` capability. Verify: self-review PASS → pro behavioral READY; wrapper dogfooded on the verifier run. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive: `openspec/changes/archive/2026-07-13-delegation-wrapper-telemetry/`.
+
+## Prior change — defect-prevention-detectors SHIPPED (2026-07-13)
 
 Shipped two universal in-process defect-prevention detectors in `scripts/checks.py` (OW-1 + OW-4,
 MEDIUM): `test-quality` — six AST-based rules flagging forced-green assertions, empty test bodies,
@@ -39,29 +43,11 @@ Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
 `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-instruction-surface-coherence/`.
 
-## Prior change — composition-audit-cadence SHIPPED (2026-07-13)
-
-Shipped the composition-audit cadence (OW-6, COMPLEX): a deterministic, advisory
-composition-audit due-signal (archived-changes and commits since the last composition
-anchor, OR co-fire) surfaced in the `outstanding` fact, plus an operator-invoked
-`composition-audit` skill — a one-shot heavy-detector sweep (`checks.py --include`) plus
-a bounded LLM composition pass over top-ranked hotspots — yielding a machine-
-discriminable verdict (`COMPOSITION: CLEAN | FINDINGS-ROUTED | ESCALATE`) whose close-out
-routes findings into the OW-2 ratchet. A new composition-anchor tag family
-(`audit/<date>-composition`, a superset of plain `audit/*`) is the sole event resetting
-the cadence clock. Three specs promoted: `composition-audit` (new), `outstanding-work-view`
-and `knowledge-lint` (modified). Verify: full gate green — self-review, pro behavioral,
-and flash test-quality lens passes all READY; self-review defects found and fixed (chiefly a missing-tag
-commits-since gap); no Sonnet fallback anywhere. Downstream propagation is
-operator-gated and DEFERRED (scaffold-only ship). Decisions: `knowledge/decisions/INDEX.md`;
-follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-composition-audit-cadence/`.
-
 ## Immediate next action
-`defect-prevention-detectors` (OW-1 + OW-4) is now **SHIPPED**, joining
+`defect-prevention-detectors` (OW-1 + OW-4) and `delegation-wrapper-telemetry` (OW-7) are now **SHIPPED**, joining
 `instruction-surface-coherence` (OW-9 + OW-14, SHIPPED earlier this session). The frozen OW-2→3→5→6
 batch and the paired OW-9/14 sweep are both complete. There is no proactive build in flight.
-The wave-2 remainder — OW-7, OW-8, OW-10, OW-11, OW-12, OW-13 — plus the late
+The wave-2 remainder — OW-10 → OW-11 → OW-8 → OW-13 → OW-12 (in-progress order) — plus the late
 additions OW-15 and OW-16 are still open; work is in progress this session. Single source:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`. The Fable-tier design
 backlog is closed (2026-07-11 workflow audit:
