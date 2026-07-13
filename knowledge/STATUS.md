@@ -7,7 +7,21 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — verify-stack-redirect SHIPPED (2026-07-13)
+## Latest change — correctness-audit-skill SHIPPED (2026-07-13)
+
+Shipped the deep-audit protocol (OW-5, COMPLEX) as one scaffold-owned, operator-invoked/
+pull-only `correctness-audit` skill: charter/census/FINDINGS artifact contract, refuter-
+overrule graduation discipline, per-wave-gate triage-file append, and close-out routing
+into OW-2's finding-closure ratchet. New marker-gated `_check_audit_dossier` in
+`knowledge_lint.py` (fires only on a `format: correctness-audit/v1` charter) plus fixture
+tests. Two specs promoted: `correctness-audit` (new) and `knowledge-lint` (modified).
+Verify: full gate green — self-review, pro behavioral, and flash lens passes all READY;
+4 pro-pass warnings and 2 simplicity cleanups folded in, no Sonnet fallback used anywhere.
+Downstream propagation is operator-gated and DEFERRED (scaffold-only ship). Decisions:
+`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-correctness-audit-skill/`.
+
+## Prior change — verify-stack-redirect SHIPPED (2026-07-13)
 
 Shipped the verify-stack redirect (OW-3, MEDIUM): the multi-model verify gate is now
 tier-keyed and platform-uniform — MEDIUM runs self-review then one pro behavioral pass;
@@ -38,30 +52,22 @@ READY, no defects outstanding. Decisions: `knowledge/decisions/INDEX.md`; follow
 `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-lesson-check-ratchet/`.
 
-## Prior change — outstanding-and-continuity-hardening SHIPPED (2026-07-13)
-
-Widened the `knowledge_lint.py` handoff-file check from a root-only, case-sensitive
-`HANDOFF*`/`HANDOVER*` prefix match to a repo-wide, case-insensitive substring match over the
-whole tree, respecting gitignore, with `knowledge/HANDOFF.md` as the sole sanctioned exemption —
-closing the gap where nested handoff-named files (e.g. `plans/*-handoff.md`) escaped the
-single-canonical-handoff enforcement. AGENTS.md's Working process now signposts the pull-only
-`outstanding-work-review` skill as the canonical outstanding-work entry point (deliberately not
-boot-wired), and that skill's Judge step names a "Residual sweep" sub-step for what the
-deterministic gather can't see (prose bodies, in-code TODOs, orphaned research docs). Verify:
-self-review only, ran clean (multi-model pro pass operator-waived). Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-outstanding-and-continuity-hardening/`.
-
 ## Immediate next action
-`verify-stack-redirect` (OW-3) is now **SHIPPED**. There is no proactive build in flight. Two
-changes remain **propose-complete and deliberately paused at apply** (operator-mandated
-batching), applied in this hard order: `correctness-audit-skill` (OW-5) →
-`composition-audit-cadence` (OW-6). Next session (Opus orchestrator) applies them in that order,
-then works the remaining backlog per
+`correctness-audit-skill` (OW-5) is now **SHIPPED**. There is no proactive build in flight. One
+change remains **propose-complete and deliberately paused at apply** (operator-mandated
+batching): `composition-audit-cadence` (OW-6) — the **last** item of the frozen batch. Next
+session (Opus orchestrator) applies OW-6; once it ships the frozen batch is done and the
+remaining wave-2 backlog is worked per
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
 items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow
 audit: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is
 Opus-tier. Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+
+**correctness-audit-skill SHIPPED (2026-07-13)** — scaffold-only; downstream propagation of the
+new skill/lint files is **operator-gated and deferred**, not synced without fresh authorization
+(arrives INERT on the next sync: the marker-gated dossier lint no-ops until a repo authors a
+marked dossier). Next work is unchanged: `composition-audit-cadence` (OW-6) is the last frozen
+item, then the wave-2 backlog.
 
 **verify-stack-redirect SHIPPED (2026-07-13)** — scaffold-only; downstream propagation of the
 edited manifest-tracked skill/agent/AGENTS.md files is **operator-gated and deferred**, not
