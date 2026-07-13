@@ -7,7 +7,22 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — outstanding-and-continuity-hardening SHIPPED (2026-07-13)
+## Latest change — lesson-check-ratchet SHIPPED (2026-07-13)
+
+Shipped the finding-closure ratchet (OW-2): a lint-enforced closure contract so a
+generalizable bug class, once found, cannot silently recur. New `knowledge/ratchet-log.md`
+registry ledger records exactly one disposition per class (check/frozen-test/waiver/open/
+grandfathered, preference check > test > waiver), enforced by guarded `knowledge_lint.py`
+checks (dangling pointers, stale waivers, aged `open`, malformed lines). New per-repo
+`checks/*.py` invariant framework (stdlib `scripts/repo_lint.py`, sibling of `data_lint.py`),
+registered in `checks.py`. Both close-out gates (archive, run-audit) gained the bounded
+3-question triage. Verify: full suite green incl. the live-tree lint gate over the
+bootstrapped ledger and `scaffold_lint` SEAL; both pro+flash multi-model verifier passes
+READY, no defects outstanding. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-lesson-check-ratchet/`.
+
+## Prior change — outstanding-and-continuity-hardening SHIPPED (2026-07-13)
 
 Widened the `knowledge_lint.py` handoff-file check from a root-only, case-sensitive
 `HANDOFF*`/`HANDOVER*` prefix match to a repo-wide, case-insensitive substring match over the
@@ -37,32 +52,24 @@ contracts confirmed on fixtures, full suite green including scaffold SEAL and li
 Decisions in `knowledge/decisions/INDEX.md`; follow-ons parked in `knowledge/questions/`. Archive:
 `openspec/changes/archive/2026-07-09-outstanding-work-collector/`.
 
-## Prior change — shared-lint-layer SHIPPED (2026-07-03)
-
-Shipped a shared lint/green layer: a scaffold-managed `ruff.toml` (selects E,F,I,B + enforced format;
-E501 ignored) and `scripts/check.sh` as the single definition of green (ruff check + `ruff format
---check` + per-repo `scripts/test-cmd`), with `test-gate.sh` rewired to call `check.sh` so
-hook/CI/human share one gate; `knowledge_lint`'s citation matcher hardened plus a
-`<!-- lint:planned -->` opt-out marker; doc-lints (`knowledge_lint`/`status_lint`) now gated on the
-live tree via pytest; a new root-handoff-file check; the commit-hook matcher tightened to fire only
-on real commits; and security-scanner provisioning descoped to a `go install` helper +
-`knowledge/reference/security-scanners.md` reference (CI = official actions, per-repo D1/D2).
-Verify: self-review + behavioral verify READY, multi-model passes operator-waived, suite green.
-Archive: `openspec/changes/archive/2026-07-03-shared-lint-layer/`. Decisions in
-`knowledge/decisions/INDEX.md`; forward items parked in `knowledge/questions/`.
-
 ## Immediate next action
-Four changes are **propose-complete and deliberately paused at apply** (operator-mandated batching):
-`lesson-check-ratchet` (OW-2), `verify-stack-redirect` (OW-3), `correctness-audit-skill` (OW-5),
-`composition-audit-cadence` (OW-6). Next session (Opus orchestrator) applies them in hard order
-OW-2→3→5→6, then works the remaining backlog per
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
-items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
-`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
-Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+`lesson-check-ratchet` (OW-2) is now **SHIPPED**. Three changes remain **propose-complete and
+deliberately paused at apply** (operator-mandated batching), applied in this hard order:
+`verify-stack-redirect` (OW-3) → `correctness-audit-skill` (OW-5) → `composition-audit-cadence`
+(OW-6). Next session (Opus orchestrator) applies them in that order, then works the remaining
+backlog per `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source:
+OW-1..14 items, routing, session order). The Fable-tier design backlog is closed (2026-07-11
+workflow audit: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is
+Opus-tier. Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+
+**lesson-check-ratchet SHIPPED (2026-07-13)** — downstream propagation of its scaffold changes
+(`repo_lint.py`, `knowledge_lint.py` ratchet checks, the two skill triage steps) is **operator-gated
+and deferred**: the framework arrives INERT on the next authorized sync (no `checks/*.py`, no
+per-repo ledger → auto-disabled, lint-guarded), and per-repo adoption is separate downstream SMALL
+work. See `knowledge/questions/INDEX.md` Parked.
 
 **outstanding-and-continuity-hardening SHIPPED (2026-07-13)** — scaffold-only; the frozen
-OW-2→3→5→6 batch above remains the stated next work, unchanged by this change. Downstream
+OW-3→5→6 batch above remains the stated next work, unchanged by this change. Downstream
 propagation of the widened handoff-file lint is **deliberately DEFERRED and operator-gated**: it
 is coupled to a downstream cleanup (extrends' ~27 and psc-monitor's handoff-named files must be
 renamed/archived first), since syncing the widened lint before that cleanup would redden both

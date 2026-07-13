@@ -8,6 +8,7 @@ source; if a script changes its codes, update this table.
 |---|---|---|
 | `checks.py` | 0 / 2 / 3 | clean / findings present / infra failure or abort |
 | `data_lint.py` | 0 / 2 / 3 | pass (or no checks) / violating rows / infra failure |
+| `repo_lint.py` | 0 / 2 / 3 | pass (or no `checks/*.py`) / check findings / infra failure (nonzero exit, non-JSON, or timeout — stops on the FIRST one) |
 | `audit_scope.py` | 0 / 3 | ran clean or tag created / git-or-radon failure (or tag exists). **Never 2** |
 | `index_coverage.py` | 0 / 3 | ran (leads are informational, never gate) / infra failure. **Never 2** |
 | `knowledge_lint.py` | 0 / 1 | no findings / drift found (1, not 2, to stay distinct from argparse's own exit 2) |

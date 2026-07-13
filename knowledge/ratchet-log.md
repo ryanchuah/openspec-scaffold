@@ -15,7 +15,7 @@ Disposition is one of:
 
 Preference ordering: check > frozen test > waiver; `open` is temporary.
 
-See `openspec/changes/lesson-check-ratchet/specs/finding-closure-ratchet/spec.md` for the full requirement. <!-- lint:planned -->
+See `openspec/specs/finding-closure-ratchet/spec.md` for the full requirement.
 
 - **2026-07-10** · ratchet-ledger-format · check:scripts/knowledge_lint.py::_check_ratchet_log — self-referential bootstrap; the ledger's own format check.
 - **2026-07-10** · delegation-timeout-budget-drift · check:scripts/scaffold_lint.py::budget-agreement — pre-existing exemplar of lesson→check conversion (mechanize-invariants, 2026-07-02).

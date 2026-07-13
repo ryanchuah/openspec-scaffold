@@ -39,3 +39,5 @@
 - plans/ gather scope: keep recursive, align spec+lint (buried, unexecuted handoff — SMALL, ready to run) → `plans/plans-scope-alignment.md`
 - lessons.md prescriptions never wired in (reviewer read-only preamble; git-worktree convention) → `knowledge/questions/lessons-md-implementation-gaps.md`
 - research-industry-standards-2026-06 Tier-3 items — no closing APPLY/DROP verdict (low priority) → `knowledge/questions/research-synthesis-tier3-residue.md`
+- lesson-check-ratchet follow-ons (outstanding.py `open:` surfacing deferral; OW-1 detector-packaging deferral; OW-2 downstream propagation + adoption seeds) → `knowledge/questions/lesson-check-ratchet-follow-ons.md`
+- ratchet-lint-cleanup (knowledge_lint.py/repo_lint.py code-quality follow-on, behavior-preserving, low priority) → `knowledge/questions/ratchet-lint-cleanup.md`
