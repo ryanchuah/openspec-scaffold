@@ -13,19 +13,49 @@ See the `noninteractive-delegation-safety` capability spec for the full rational
 
 ---
 
-## (b) Assert the real agent ran
+## (b) Assert the real agent ran (post-processing via ``scripts/opencode_delegate.py``)
 
 Do this BEFORE trusting any output — `opencode run` exits 0 even on silent agent fallback.
 
-- `grep -q "Falling back to default agent" /tmp/<phase>-err.log` — if it matches, the
-  intended agent was **not** loaded. Do NOT use the output — treat as an **operational crash**.
-- Confirm `/tmp/<phase>-out.jsonl` is non-empty and parseable, and extract the completion text:
-  ```bash
-  grep '"type":"text"' /tmp/<phase>-out.jsonl | tail -1 | jq -r '.part.text'
-  ```
-  Empty/unparseable → operational crash.
-- Confirm the extracted text carries the agent's own output format (phase-specific — see each skill
-  for what format to confirm).
+Fallback-detection, completion-text extraction, status classification, verdict capture,
+and the telemetry-ledger append are performed by a single deterministic tested script —
+**`scripts/opencode_delegate.py`** (the canonical post-processor).  See its ``--help``
+for the full contract; this section documents what it does conceptually.
+
+The wrapper is invoked with the run's ``--out`` (stdout JSONL), ``--err`` (stderr log),
+and exit source (``--exit`` for synchronous calls or ``--exit-file`` for background
+calls).  It:
+
+- Detects silent agent fallback: reads stderr for the literal string
+  ``Falling back to default agent`` — if found, the intended agent was **not** loaded.
+- Extracts the completion text: parses stdout as JSON-lines, collects every
+  ``type:"text"`` part, and returns the **last** one's ``part.text`` (mirroring the
+  historical ``grep | tail | jq`` chain, but as a tested Python function).
+- Classifies the run status: ``ok``, ``fallback``, ``timeout``, ``crash``, or
+  ``marker-missing`` — respecting the exit-code lie (non-zero-but-not-timeout with
+  present text is NOT ``crash``).
+- Asserts optional ``--require-marker`` regex(es) against the extracted text, and
+  optionally captures a verdict token via ``--verdict-regex``.
+- Appends one JSONL telemetry line to ``output/delegation-log.jsonl`` (see Ledger
+  note below).
+- Writes the extracted text to ``--text-out`` and a machine-readable result to
+  ``--result-out``.
+- Exits 0 iff ``status == "ok"``.
+
+Each skill that delegates an ``opencode run`` replaces its hand-rolled
+post-processing (fallback-grep, ``jq`` extraction, marker assert, exit-code
+interpretation) with one wrapper call, passing the phase-specific
+``--require-marker`` / ``--verdict-regex`` flags.  The failure ladder, disk-state
+success judgment, and salvage/re-run rules remain in the skill prose — the wrapper
+owns neither.
+
+**Conceptual reference** (what the wrapper replaces — the historical hand-rolled
+sequence that was identical across all delegating skills):
+
+```bash
+grep -q "Falling back to default agent" /tmp/<phase>-err.log
+grep '"type":"text"' /tmp/<phase>-out.jsonl | tail -1 | jq -r '.part.text'
+```
 
 **Cross-repo `--dir` gotcha (root cause of silent fallback):** `opencode run --agent <name>`
 discovers the agent from `.opencode/agents/` **relative to `--dir`**. For cross-repo changes it
@@ -72,9 +102,36 @@ mid-execution jsonl snapshot** — deepseek-v4-flash/pro can legitimately take >
 jsonl mid-run is NORMAL. Conclude crash/timeout ONLY if the exit file shows nonzero (124 = timeout,
 137 = SIGKILL), OR no opencode PID remains AND no exit file was ever written (genuine truncation).
 
+**Post-processing note:** once the exit-file exists, the orchestrator invokes
+`scripts/opencode_delegate.py` with ``--exit-file /tmp/<phase>-out.exit`` (or
+``--exit <int>`` for synchronous calls), together with ``--out`` and ``--err``.
+The wrapper reads the exit-file, interprets the exit code via its
+`parse_exit_file` helper, and feeds the result into `classify_status` (which
+recognizes 124/137 as ``timeout``).
+
+**Ledger.** Each post-processed run appends exactly one JSONL line to
+``output/delegation-log.jsonl`` (untracked, append-only, created on demand).
+The line carries at minimum: ``ts``, ``phase``, ``agent``, ``model``, ``change``,
+``exit``, ``fallback``, ``status``, ``marker_ok``, ``verdict``, ``retry``, and
+``duration_s``, plus any ``--tag k=v`` extras.  This is local operational
+telemetry — the durable per-change record remains ``review-log.md`` / ``notes.md``.
+
+**Canonical wrapper invocation example** (background site with exit-file):
+
+```bash
+scripts/opencode_delegate.py \
+  --phase verify-pro --agent openspec-verifier --model deepseek/deepseek-v4-pro --change demo \
+  --out /tmp/verify-pro-out.jsonl --err /tmp/verify-pro-err.log \
+  --exit-file /tmp/verify-pro-out.exit \
+  --require-marker "## Verify Pass" --require-marker "VERDICT:" \
+  --verdict-regex "VERDICT: (READY|NEEDS REVISION)" \
+  --quiet
+```
+
 **Scope notes:**
 - **Propose's reviewer call is synchronous** (the `opencode run` command blocks until it returns) —
-  no sentinel needed or present. This is correct by design.
+  no sentinel needed or present. This is correct by design. Synchronous sites use ``--exit $?``
+  instead of ``--exit-file``.
 - **Archive's executor is launched with `run_in_background: true`** (because reconciliation can run
   several minutes) and its invocation now carries the `echo "EXIT=$?"` sentinel — archive matches
   this §d contract like the other three delegating skills.

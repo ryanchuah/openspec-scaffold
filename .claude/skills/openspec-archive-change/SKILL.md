@@ -165,12 +165,20 @@ Archive a completed change in the experimental workflow.
          by polling process state. Exit 124 (or 137 if SIGKILL was needed) in the exit file =
          operational crash (step 4 of the ladder).
 
-    2. **Assert the real executor ran:** Per `.claude/skills/_shared/delegation-harness.md` §b
-       (grep stderr for `Falling back to default agent`, extract `part.text` via
-       `jq`, confirm parseable). Empty/unparseable → operational crash.
-       **Delegation cue** (cites `delegation-by-default`, AGENTS.md): this jsonl-parse/extract is
-       run+extract work delegable to a haiku/Sonnet subagent — OW-7 will later mechanize it
-       entirely; this cue is the interim rule.
+    2. **Assert the real executor ran (§b) + extract completion text via wrapper:**
+       Invoke `scripts/opencode_delegate.py` for post-processing, which detects fallback,
+       extracts the completion text, and classifies status (see the harness §b contract):
+       ```bash
+       scripts/opencode_delegate.py \
+         --phase archive --agent archive-executor --model deepseek/deepseek-v4-pro --change <name> \
+         --out /tmp/archive-out.jsonl --err /tmp/archive-err.log \
+         --exit-file /tmp/archive-out.exit \
+         --quiet
+       ```
+       Read the extracted text from `/tmp/archive-out.jsonl.text.txt`. Empty/unparseable →
+       operational crash (step 4 of the ladder).
+       **Delegation cue** (cites `delegation-by-default`, AGENTS.md): the wrapper call is
+       a single deterministic command; the orchestrator reads back the result file directly.
 
    3. **Judge success from disk** (not just the report):
 

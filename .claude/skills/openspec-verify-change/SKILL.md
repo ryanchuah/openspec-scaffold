@@ -25,7 +25,18 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 - **Claude Code:** the fresh fix executor is the deepseek `apply-executor` driven via `opencode run` (same invocation shape as in the apply skill's Step 6, but the prompt is the **self-contained fix-spec** for the specific defect, not the whole `tasks.md`). **One attempt.**
 - **Wrap the call in `timeout -k 30 600 opencode run --dir <repoRoot> --agent apply-executor --model deepseek/deepseek-v4-flash --format json <fix-spec> > /tmp/fix-out.jsonl 2> /tmp/fix-err.log < /dev/null`** (a scoped single-defect fix has a 10-minute budget matching the apply/archive floor). Per `.claude/skills/_shared/delegation-harness.md` §a (hardened invocation) and §c (surgical kill — never `pkill`); budget 600s with `-k 30` per the table in §e. A `timeout` kill (exit 124, or 137 if SIGKILL was needed) counts as the operational failure in the next bullet → escalate to Sonnet.
 - **Completion detection.** Per `.claude/skills/_shared/delegation-harness.md` §d (EXIT-sentinel): append `; echo "EXIT=$?" > /tmp/fix-out.exit`, detect completion by `[ -f /tmp/fix-out.exit ]`. Never poll with pgrep or judge from a mid-execution snapshot. Also note: scoped fix runs have repeatedly completed their work and still exited 1 at session teardown — judge success from disk (`git diff`, tests), not the exit code alone.
-- **Assert the real agent ran (§b):** Follow the checks in `.claude/skills/_shared/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract `part.text` via `jq`, confirm parseable).
+- **Assert the real agent ran (§b) + extract completion text via wrapper:**
+  Invoke `scripts/opencode_delegate.py` for post-processing, which detects fallback,
+  extracts the completion text, and classifies status (see the harness §b contract):
+  ```bash
+  scripts/opencode_delegate.py \
+    --phase verify-fix --agent apply-executor --model deepseek/deepseek-v4-flash --change <name> \
+    --out /tmp/fix-out.jsonl --err /tmp/fix-err.log \
+    --exit-file /tmp/fix-out.exit \
+    --quiet
+  ```
+  Read the extracted text from `/tmp/fix-out.jsonl.text.txt`. Confirm parseable;
+  empty/unparseable → operational crash (escalate to Sonnet).
 
 **Escalation rungs:**
 - **Escalate to a Sonnet subagent** if that one attempt yields **either**: (a) an operational failure (crash / no usable output), **or** (b) a quality failure — i.e. the orchestrator's re-verification (re-run from MANDATORY step 1) still finds the defect, or finds a newly-introduced one.
@@ -129,12 +140,40 @@ Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ##
 
 **Forward-compatibility (fulfilled):** the corresponding deterministic detectors now exist (`checks.py --check test-quality` and `checks.py --check data-scale`). Each lens prompt above directs the verifier to run and confirm the detector's findings rather than rediscover them.
 
-#### Assert the real verifier ran
+#### Assert the real verifier ran (post-processing via wrapper)
 
-Before trusting any pass output (both platforms), confirm the real verifier ran per
-`.claude/skills/_shared/delegation-harness.md` §b (grep stderr for `Falling back to default agent`, extract
-`part.text` via `jq`, confirm parseable). Then confirm the extracted output contains a
-`## Verify Pass` heading AND a `VERDICT:` line.
+Before trusting any pass output (both platforms), invoke `scripts/opencode_delegate.py`
+for post-processing, which detects fallback, extracts the completion text, classifies
+status, and asserts markers (see the harness §b contract):
+
+**Behavioral pro pass:**
+```bash
+scripts/opencode_delegate.py \
+  --phase verify-pro --agent openspec-verifier --model deepseek/deepseek-v4-pro --change <name> \
+  --out /tmp/verify-pro-out.jsonl --err /tmp/verify-pro-err.log \
+  --exit-file /tmp/verify-pro-out.exit \
+  --require-marker "## Verify Pass" --require-marker "VERDICT:" \
+  --verdict-regex "VERDICT: (READY|NEEDS REVISION)" \
+  --quiet
+```
+
+**Lens pass (COMPLEX only):**
+```bash
+scripts/opencode_delegate.py \
+  --phase verify-lens --agent openspec-verifier --model deepseek/deepseek-v4-flash --change <name> \
+  --out /tmp/verify-lens-out.jsonl --err /tmp/verify-lens-err.log \
+  --exit-file /tmp/verify-lens-out.exit \
+  --require-marker "## Verify Pass" --require-marker "VERDICT:" \
+  --verdict-regex "VERDICT: (READY|NEEDS REVISION)" \
+  --tag lens=<test-quality|data-scale> \
+  --quiet
+```
+
+Read the extracted text from the respective `--text-out` default (`verify-pro-out.jsonl.text.txt`
+or `verify-lens-out.jsonl.text.txt`). Confirm parseable; empty/unparseable → operational crash.
+Then confirm the extracted output contains a `## Verify Pass` heading AND a `VERDICT:` line
+(the wrapper's `--require-marker` flags already assert these; this is the orchestrator's
+own confirmation).
 
 #### Judge findings from disk
 

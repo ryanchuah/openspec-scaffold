@@ -152,42 +152,49 @@ Implement tasks from an OpenSpec change.
 
    If the run doesn't cleanly land every task, triage it:
 
-   1. **Assert the real executor ran (§b):** grep `/tmp/apply-err.log` for
-      `Falling back to default agent` — if found, treat as an **operational crash**
-      (ladder below). Extract the completion report:
-      `grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text'`
-      Empty/unparseable → operational crash. Confirm the extracted text is a non-empty
-      completion summary (not a fallback message).
+    1. **Assert the real executor ran (§b) + extract completion text via wrapper:**
+       Invoke `scripts/opencode_delegate.py` for post-processing, which detects fallback,
+       extracts the completion text, and classifies status (see the harness §b contract):
+       ```bash
+       scripts/opencode_delegate.py \
+         --phase apply --agent apply-executor --model deepseek/deepseek-v4-flash --change <name> \
+         --out /tmp/apply-out.jsonl --err /tmp/apply-err.log \
+         --exit-file /tmp/apply-out.exit \
+         --quiet
+       ```
+       The wrapper exits 0 iff `status == "ok"`. If the wrapper reports fallback, timeout, crash,
+       or marker-missing, treat it as an **operational crash** per the ladder below.
+       Read the extracted text from `/tmp/apply-out.jsonl.text.txt` (the `--text-out` default).
+       Confirm it is a non-empty completion summary (not a fallback message).
 
-   2. **Determine success vs. failure** by reading back from disk (not just the report):
+    2. **Determine success vs. failure** by reading back from disk (not just the report):
 
-      - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
-        the completion report does not declare an unresolved blocker.
-      - **Operational crash** = non-zero exit (including a `timeout` kill — exit
-        124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
-        fallback-warning match from the assert-ran step.
-      - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
-        says it got stuck / output shows it gave up.
-        **Distinguish** whether the completion report contains a declared blocker
-        by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
-        (Grep the extracted completion report, never the raw jsonl — the raw stream
-        contains the executor's tool-reads of this SKILL.md, including the heading,
-        and would false-positive.)
+       - **Success** = the real agent ran AND every task in `tasks.md` is `[x]` AND
+         the completion report does not declare an unresolved blocker.
+       - **Operational crash** = non-zero exit (including a `timeout` kill — exit
+         124, or 137 if SIGKILL was needed), empty/unparseable stdout, or the
+         fallback-warning match from the assert-ran step.
+       - **Non-crash failure** = real agent ran, but tasks remain `[ ]` / the report
+         says it got stuck / output shows it gave up.
+         **Distinguish** whether the completion report contains a declared blocker
+         by grepping for the literal heading `### NON-CONVERGENCE BLOCKER`:
+         (Grep the extracted text from the wrapper's `--text-out`, never the raw jsonl —
+         the raw stream contains the executor's tool-reads of this SKILL.md, including
+         the heading, and would false-positive.)
 
-        ```bash
-        extracted_text=$(grep '"type":"text"' /tmp/apply-out.jsonl | tail -1 | jq -r '.part.text' 2>/dev/null) || extracted_text=""
-        if echo "$extracted_text" | grep -q "### NON-CONVERGENCE BLOCKER" 2>/dev/null \
-           || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
-          echo "DECLARED_BLOCKER"
-        else
-          echo "OPAQUE_GIVE_UP"
-        fi
-        ```
+         ```bash
+         extracted_text=$(cat /tmp/apply-out.jsonl.text.txt 2>/dev/null) || extracted_text=""
+         if echo "$extracted_text" | grep -q "### NON-CONVERGENCE BLOCKER" 2>/dev/null \
+            || grep -q "### NON-CONVERGENCE BLOCKER" /tmp/apply-err.log 2>/dev/null; then
+           echo "DECLARED_BLOCKER"
+         else
+           echo "OPAQUE_GIVE_UP"
+         fi
+         ```
 
-        **Delegation cue** (cites `delegation-by-default`, AGENTS.md): the jsonl-parse/extract
-        steps above (completion-report extraction, blocker-heading grep) are run+extract work
-        delegable to a haiku/Sonnet subagent — OW-7 will later mechanize this entirely; this cue
-        is the interim rule.
+         **Delegation cue** (cites `delegation-by-default`, AGENTS.md): the blocker-heading grep
+         (the ``cat ... .text.txt | grep ...`` line) is run+extract work delegable to a haiku/Sonnet
+         subagent — it is a mechanical string match on the pre-extracted file, not a jsonl parse.
 
    3. **Failure ladder:**
 

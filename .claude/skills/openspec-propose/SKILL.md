@@ -184,35 +184,68 @@ I'll create artifacts with review:
              (or 137 if SIGKILL was needed) — treat it per step 4's salvage path
              (do NOT simply escalate).
 
-         2. **Assert the real reviewer actually ran:** Per `.claude/skills/_shared/delegation-harness.md`
-             §b (grep stderr for `Falling back to default agent`, extract `part.text` via
-             `jq`, confirm parseable). Then add the reviewer-specific format check:
-             confirm the extracted text contains a `## Review Round` heading AND at least
-             one severity marker (🔴/🟡/💡). If either is missing, the output did not come
-             from the reviewer prompt: do NOT proceed, escalate with the raw output.
+          2. **Assert the real reviewer actually ran (§b) + extract via wrapper:**
+              Invoke `scripts/opencode_delegate.py` for post-processing, which detects fallback,
+              extracts the completion text, asserts markers, captures the verdict, and
+              classifies status (see the harness §b contract).
 
-             **For `proposal.md` only**, also assert the extracted text contains a line
-             `PREMISE: AGREE` or `PREMISE: DISSENT`. If neither is present, the premise
-             verdict was omitted — do NOT freeze or proceed; re-run the review (D2a).
+              **All artifacts (design.md / tasks.md):**
+              ```bash
+              scripts/opencode_delegate.py \
+                --phase propose-review --agent openspec-reviewer --model deepseek/deepseek-v4-pro \
+                --change <name> \
+                --out /tmp/review-out.jsonl --err /tmp/review-err.log \
+                --exit $? \
+                --require-marker "## Review Round" --require-marker "(🔴|🟡|💡)" \
+                --quiet
+              ```
+              Read the extracted text from `/tmp/review-out.jsonl.text.txt` and confirm
+              it carries the reviewer's own output format (minimum: `## Review Round` heading
+              + at least one severity marker).
+
+              **For `proposal.md` only**, also include the premise-verdict regex:
+              ```bash
+              scripts/opencode_delegate.py \
+                --phase propose-review --agent openspec-reviewer --model deepseek/deepseek-v4-pro \
+                --change <name> \
+                --out /tmp/review-out.jsonl --err /tmp/review-err.log \
+                --exit $? \
+                --require-marker "## Review Round" --require-marker "(🔴|🟡|💡)" \
+                --verdict-regex "PREMISE: (AGREE|DISSENT)" \
+                --quiet
+              ```
+              If the wrapper reports fallback, timeout, crash, or marker-missing,
+              do NOT proceed — escalate with the raw output.  If the premise verdict
+              was omitted (no `PREMISE: AGREE` or `PREMISE: DISSENT` in the extracted
+              text), do NOT freeze or proceed; re-run the review (D2a).
 
          3. **Apply the shared freeze ladder** (above) to the review text extracted in step 2. On
             a 🔴-required re-review, return to step 1 for a fresh pass.
 
-         4. If `opencode run` fails (non-zero exit, timeout, or no review text):
-            do NOT self-review. Salvage whatever review text was emitted:
-            - Extract partial review text from the jsonl:
-              ```bash
-              grep '"type":"text"' /tmp/review-out.jsonl | jq -r '.part.text' \
-                > /tmp/review-partial.txt 2>/dev/null || true
-              ```
-            - If partial text exists, append it to `review-log.md` marked with
-              `**PARTIAL — reviewer timed out**` at the top of the block.
-            - **Decide: re-run or escalate.** If the partial review contains at
-              least one finding (🔴/🟡/💡) OR the reviewer ran for more than
-              120s before being killed → re-run ONCE at full budget (go back to
-              step 1 of the invocation). If the partial has zero findings and
-              was killed in under 120s → escalate to the user with the partial
-              output, exit code, and stderr.
+          4. If `opencode run` fails (non-zero exit, timeout, or no review text):
+             do NOT self-review. Salvage whatever review text was emitted:
+             - Run the wrapper to extract partial text:
+               ```bash
+               scripts/opencode_delegate.py \
+                 --phase propose-review --agent openspec-reviewer --model deepseek/deepseek-v4-pro \
+                 --change <name> \
+                 --out /tmp/review-out.jsonl --err /tmp/review-err.log \
+                 --exit $? \
+                 --quiet > /dev/null 2>&1 || true
+               ```
+               This writes the last text part to `/tmp/review-out.jsonl.text.txt` (or
+               empty if unparseable). The wrapper does not crash on partial/corrupt input.
+             - Read the partial text from `/tmp/review-out.jsonl.text.txt` (or, if the
+               wrapper produced none, fall back to the raw file:
+               `cat /tmp/review-out.jsonl.text.txt 2>/dev/null || true`).
+             - If partial text exists, append it to `review-log.md` marked with
+               `**PARTIAL — reviewer timed out**` at the top of the block.
+             - **Decide: re-run or escalate.** If the partial review contains at
+               least one finding (🔴/🟡/💡) OR the reviewer ran for more than
+               120s before being killed → re-run ONCE at full budget (go back to
+               step 1 of the invocation). If the partial has zero findings and
+               was killed in under 120s → escalate to the user with the partial
+               output, exit code, and stderr.
 
        ---
        ### If you are OpenCode

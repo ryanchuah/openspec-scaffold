@@ -31,11 +31,27 @@ On that explicit choice:
       ### Premise Verdict block (PREMISE: AGREE|DISSENT)." \
      > /tmp/explore-review-out.jsonl 2> /tmp/explore-review-err.log < /dev/null
    ```
-   This is a **synchronous** call (blocks until return). On timeout/crash, apply the same salvage rule as the propose reviewer: extract partial text; if at least one finding or >120s elapsed, re-run once; otherwise escalate.
+   This is a **synchronous** call (blocks until return). On timeout/crash, apply the same salvage rule as the propose reviewer: run the wrapper to extract partial text; if at least one finding or >120s elapsed, re-run once; otherwise escalate.
 
-   **Assert the real reviewer ran** (per §b of the harness): grep stderr for `Falling back to default agent`; confirm output contains `### Premise Verdict` heading.
+   **Post-process via wrapper** (per §b of the harness):
+   ```bash
+   scripts/opencode_delegate.py \
+     --phase explore-gate --agent openspec-reviewer --model deepseek/deepseek-v4-pro \
+     --change <slug> \
+     --out /tmp/explore-review-out.jsonl --err /tmp/explore-review-err.log \
+     --exit $? \
+     --require-marker "### Premise Verdict" \
+     --verdict-regex "PREMISE: (AGREE|DISSENT)" \
+     --quiet
+   ```
+   Read the extracted text from `/tmp/explore-review-out.jsonl.text.txt` and confirm
+   it contains `### Premise Verdict`. The wrapper reports `status: ok` when the marker
+   matches and a verdict is captured; if it reports fallback/timeout/crash/marker-missing,
+   treat as an operational crash and apply the salvage rule.
 
-3. **Extract the verdict** — the reviewer is `edit: deny`, so extract the `### Premise Verdict` block from stdout and write it to `plans/<slug>/premise-review.md`. On salvage, mark the file `PARTIAL`.
+3. **Extract the verdict** — the reviewer is `edit: deny`, so read the extracted text from
+   `/tmp/explore-review-out.jsonl.text.txt`, extract the `### Premise Verdict` block, and write
+   it to `plans/<slug>/premise-review.md`. On salvage, mark the file `PARTIAL`.
 
 4. **Handle a `DISSENT`** — present the cited concerns to the operator via **AskUserQuestion** with three options:
    - **Re-think direction** — revise the brief to address the concern

@@ -216,10 +216,22 @@ Without a grant, each phase boundary remains a hard STOP. Governing capability: 
   If a verified `explore-brief.md` exists, also reference it in the prompt: *"Also read the
   verified explore-brief at <path> — flag any drift per D10 (reframed problem, ruled-out
   approach, scope expansion that was not vetted)."*
-  The orchestrator extracts the `### Premise Verdict` block from stdout and writes it to
-  `premise-review.md` (in the plan dir). On timeout/crash: if partial output exists (≥1 finding
-  or >120s elapsed), re-run once; otherwise escalate. Partial output is written to
-  `premise-review.md` marked `PARTIAL`.
+  **Post-process via wrapper** — invoke `scripts/opencode_delegate.py` to detect fallback,
+  extract the completion text, assert markers, and capture the premise verdict:
+  ```bash
+  scripts/opencode_delegate.py \
+    --phase small-premise --agent openspec-reviewer --model deepseek/deepseek-v4-flash \
+    --change <planPath> \
+    --out /tmp/small-premise-out.jsonl --err /tmp/small-premise-err.log \
+    --exit $? \
+    --require-marker "### Premise Verdict" \
+    --verdict-regex "PREMISE: (AGREE|DISSENT)" \
+    --quiet
+  ```
+  The orchestrator reads the extracted text from `/tmp/small-premise-out.jsonl.text.txt`,
+  extracts the `### Premise Verdict` block and writes it to `premise-review.md` (in the plan
+  dir). On timeout/crash: if partial output exists (≥1 finding or >120s elapsed), re-run once;
+  otherwise escalate. Partial output is written to `premise-review.md` marked `PARTIAL`.
 
   **Verdict routing:**
   - **Without an autonomy grant:** the orchestrator presents the verdict inside the operator
