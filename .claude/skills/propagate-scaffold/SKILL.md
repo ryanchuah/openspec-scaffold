@@ -128,7 +128,41 @@ targeted `# noqa: I001` (the shared `ruff.toml` does not select RUF100, so an un
 harmless upstream) with a comment explaining why it is load-bearing — then **re-sync**
 (Step 3). Verify both the scaffold's own suite and the downstream's `ruff check .` go green.
 
-## Step 7 — Commit (downstream, and upstream if you fixed anything)
+## Step 7 — Prune stale/done entries (operator-prompted, same rigor — see the disclaimer)
+
+Before committing, look for knowledge-tree entries/files (in the downstream repo AND/OR the
+scaffold source) that are now **genuinely done** and can be pruned — but hold every candidate to
+the **same strict readiness bar as the disclaimer: never delete or bury information.** Prune only
+what is *unambiguously* finished, whose full record is durably preserved elsewhere.
+
+Typical candidates and their readiness tests:
+- **A completed roadmap entry** (`✅ COMPLETE` / `DONE`) — prunable *only if* the full record is
+  durably held elsewhere (archive + `STATUS.md`) **and** every pointer it carries resolves
+  independently (verify the targets are reachable without it). Otherwise retain with `lint:keep`
+  (Step 5).
+- **An executed handoff file** (`knowledge/HANDOFF.md`) — prunable *only once its work is actually
+  applied/verified/archived*. If the changes it hands off are still in `openspec/changes/`
+  (un-archived) or their `tasks.md` are unchecked, the work is **NOT done — KEEP it.** Verify;
+  never infer "done" from the file's presence or age.
+- **A resolved follow-on** (`knowledge/questions/*.md` whose INDEX line is resolved and whose work
+  shipped) — prunable if its outcome/rationale is recorded elsewhere (`decisions/INDEX.md` + the
+  change archive) and it is referenced only from its INDEX line. Delete the file **and** collapse
+  that INDEX line to an inline `RESOLVED …` note (no dangling `→` pointer), or `--check-refs` /
+  `knowledge_lint` will flag the orphan.
+
+Procedure:
+1. Compile the candidate list. For **anything at all ambiguous or non-obvious, do NOT prune — ask
+   the operator.**
+2. Get an **independent deepseek-flash review of the candidate filenames** ("did I miss anything?
+   is each one truly done?") — point it at the live tree so it verifies claims itself (e.g. that a
+   handoff's changes are genuinely un-archived). Its verdict is advisory; apply your own judgment.
+3. **Prompt the operator: if there is anything prunable, ask whether to prune it — never prune on
+   your own initiative.** Present each candidate with its readiness evidence and a recommendation,
+   and surface every ambiguous one for a decision.
+4. Apply only the approved prunes, then re-run the downstream suite + `--check-refs` to confirm no
+   dangling references. Prunes land in the same reviewed commit set as the sync (Step 8).
+
+## Step 8 — Commit (downstream, and upstream if you fixed anything)
 
 - **Downstream sync commit needs `git commit --no-verify`.** `scaffold_check.py` (a downstream
   PreToolUse hook) blocks *any* staged scaffold-managed file — that guard exists to catch
@@ -144,7 +178,7 @@ harmless upstream) with a comment explaining why it is load-bearing — then **r
   scaffold fix landed on a worktree branch, note that it must be merged to `main` so future
   syncs (run from `main`) stay converged.
 
-## Step 8 — Report
+## Step 9 — Report
 
 Summarize per downstream repo: convergence state, files added/updated, **any deletions and
 why they were safe**, the knowledge reconciliation (what was triaged/retained and how nothing
