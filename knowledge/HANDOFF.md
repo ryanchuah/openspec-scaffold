@@ -1,121 +1,140 @@
-# HANDOFF — wave-2 backlog, mid-batch (2026-07-13)
+# HANDOFF — wave-2 backlog, mid-batch (2026-07-14)
 
-> **Read this right after `knowledge/STATUS.md`.** A prior session (operator-granted autonomy)
-> worked the wave-2 backlog and shipped 4 of 10 items, then split the rest to a new session by
-> design (operator said "fold in as much as you can; if too much, split with a handoff"). Absorb
-> this, continue from **Remaining work** below, and **delete this file once the whole wave-2 batch
-> (OW-7/8/10/11/12/13) is done**. Its normal state is absent.
+> **Read this right after `knowledge/STATUS.md`.** A session with an explicit operator autonomy grant
+> worked the wave-2 remainder and shipped **OW-7 + OW-10** and **froze OW-11**, then stopped here (the
+> operator asked for a handoff). Absorb this, continue from **Remaining work**, and **delete this file
+> once the whole wave-2 batch (OW-8/11/12/13) is done**. Its normal state is absent.
 >
-> **You still hold the autonomy grant's intent for this batch is NOT automatic** — a new session has
-> no standing grant. Confirm the tier+plan with the operator per change unless they re-grant autonomy.
-> (The 4 shipped items were done under an explicit in-session grant.)
+> **You have NO standing autonomy grant.** The prior grant was in-session only. Confirm tier+plan with
+> the operator per change unless they re-grant autonomy. (Everything below was done under that grant.)
 
-## Single source of truth for the backlog
-- `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` — OW numbering, routing, order.
-- `knowledge/research/workflow-audit-2026-07-11/AUDIT.md` — the wave-2 design calls are **pre-made
-  inline** (findings 1-7 + addendum). Everything remaining is **Opus end-to-end** (apply delegated).
+## DONE this session — order OW-7 → OW-10, then OW-11 frozen
+| OW | change (archive dir) | commits | status |
+|----|----------------------|---------|--------|
+| OW-7 | delegation-wrapper-telemetry | `6b3759f` (impl) + `f3a3fee` (archive) | **SHIPPED** |
+| OW-10 | apply-throughput-resume | `0a4dc7d` (impl) + `8f1666a` (archive) | **SHIPPED** |
+| OW-11 | skill-debloat-gates (scoped) | — (uncommitted) | **FROZEN — ready to APPLY** |
 
-## DONE this session (4 of 10) — all shipped + archived, all gates green, no Sonnet fallback
-| OW | change (archive dir) | commits |
-|----|----------------------|---------|
-| OW-9 + OW-14 | instruction-surface-coherence | 47161da (impl) + dfe6f90 (archive) |
-| OW-1 + OW-4 | defect-prevention-detectors | e90961a (impl) + 6d8024c (archive) |
+All gates green; zero Sonnet fallback anywhere; every review/verify pass ran deepseek via `opencode`.
 
-Batching decision: two tightly-coupled pairs merged (design pairs them). Both OW numbers cited in
-each change's notes.md for traceability. Spec deltas promoted: `tier-confirmation-gate` (+autonomy
-phase-advance), NEW `defect-prevention-detectors`, MODIFIED `verify-multimodel-gate`.
+## ⭐ OW-7 shipped a tool you should USE: `scripts/opencode_delegate.py`
+OW-7 built + tested the **delegation post-processing wrapper**. After running ANY `opencode run`
+delegation, pipe its outputs through it instead of hand-rolling grep/jq/exit-interpretation:
+```bash
+python3 scripts/opencode_delegate.py --phase <apply|verify-pro|propose-review|archive|…> \
+  --agent <name> --model <model> --change <slug> \
+  --out /tmp/<p>-out.jsonl --err /tmp/<p>-err.log (--exit $? | --exit-file /tmp/<p>-out.exit) \
+  [--require-marker "..." --verdict-regex "VERDICT: (READY|NEEDS REVISION)"] [--tag lens=…] --quiet
+```
+It detects fallback, extracts the last text part → `<out>.text.txt`, classifies status
+(`ok|fallback|timeout|crash|marker-missing`), captures the verdict, and appends one telemetry line to
+`output/delegation-log.jsonl` (untracked, append-only). Exit 0 iff status==ok. The 8 skill sites now
+cite it, but the **orchestrator invokes it manually** after each delegation — do that (it's the
+telemetry source for the two scheduled downgrade decisions). It does NOT judge disk state or run the
+failure ladder — those stay yours. `delegation-wrapper` is a promoted spec capability now.
 
-## Remaining work (6 items) — recommended order: OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12
-Sequencing note from OUTSTANDING-WORK: OW-7/9/11/14 edit the verify/apply/archive/delegation-harness
-skill files. OW-9 + OW-14 already landed there cleanly. **OW-11 edits the SAME verify skill** that
-OW-1/OW-4 (lens wiring) and OW-9/OW-14 (phase gates, cues) touched — re-read the current skill before
-planning OW-11; anchors have shifted.
+## OW-11 exact state (FROZEN) + how to apply
+- **Dir:** `openspec/changes/skill-debloat-gates/` (UNTRACKED on disk — frozen artifacts: `notes.md`,
+  `tasks.md` T1-T9, `review-log.md` [3 rounds, PASS], `recon-ow11.md`, and two spec deltas under
+  `specs/`: ADDED `defect-prevention-detectors`, MODIFIED `verify-multimodel-gate`).
+- **SCOPED to 4 items** (of OW-11's chartered 8): #7 `spec-delta-structure` checks.py detector
+  (**closes ratchet `medium-change-spec-delta-unvalidated`** — the class that makes MEDIUM spec deltas
+  invisible to `openspec validate`), #6 `model-id-agreement` scaffold_lint check, #5 concurrent COMPLEX
+  verifier passes, #4 explore→propose slug-match warning. **DEFERRED 4** (#1 verify steps-12-16
+  de-bloat, #2 notes_lint, #3 freeze-check, #8 explore-prose trim) → an OW-11-residual follow-on
+  (record in `knowledge/questions/` at archive; they're independent, nothing blocks on them).
+- **Next: delegate apply** (deepseek-flash — tasks are precise; #7/#6 are code w/ tests, #5/#4 are
+  prose). **Apply-order gotcha:** T7 (verify prose reorder) before T4 (verify one-line add), then
+  re-grep T4's anchor. **Verify** must independently exercise the detector (build a temp change dir
+  under `openspec/changes/` with a delta `spec.md` fixture carrying a SHALL-not-first-line requirement,
+  a missing section header, a missing scenario) and the model-id lint, and **dogfood**
+  `checks.py --check spec-delta-structure` on
+  OW-11's OWN deltas (T9) — they must report clean. #7 follows the OW-1/OW-4 `checks.py` builtin pattern
+  exactly (see
+  `openspec/changes/archive/2026-07-13-defect-prevention-detectors/tasks.md` + Lesson 7 below).
 
-- **OW-7 · Delegation wrapper + run-telemetry ledger · MEDIUM.** `scripts/opencode_delegate.py`
-  mechanizing the hand-rolled `opencode run` post-processing (timeout, fallback-grep, jq extraction,
-  marker assert, EXIT-sentinel, exit-code interpretation) now duplicated across 6 skills, + a one-line
-  JSONL ledger per run to `output/delegation-log.jsonl` (agent, model, phase, change, duration, exit,
-  fallback?, verdict, retry#). Telemetry feeds two scheduled decisions (premise-gate downgrade at ~50
-  reviews; MEDIUM pro-pass downgrade at ~20 verifies — AUDIT.md §"how many verify reviewers"). Design
-  in AUDIT.md finding 1 + §deterministic-script. This is the one that removes the most toil — do first.
-- **OW-10 · Apply-executor throughput + resume contract · MEDIUM.** Green path = targeted tests per
-  task + full suite once per slice (today: full suite after EVERY task → binds the 600s ceiling);
-  retry/fresh-executor brief gains the explicit resume contract (skip `[x]`, resume at first `[ ]`,
-  reconcile the half-edited in-flight task) + distilled-state carry-forward. Edits the apply skill.
-  AUDIT.md finding 4.
-- **OW-11 · Skill de-bloat + mechanized gates · MEDIUM.** Replace verify steps 12-16 with
-  deterministic CLI coverage + a short coherence note; `freeze-check` script (parse review verdict →
-  FREEZE-OK/BLOCKED); `notes_lint.py` five-field gate; explore→propose slug-match warning; run the two
-  COMPLEX verifier passes concurrently; model-ID agreement lint (`deepseek-v4` hardcoded 44×/13 files,
-  no guard). AUDIT.md finding 5. **Fold in the ratchet item `medium-change-spec-delta-unvalidated`**
-  (in `knowledge/ratchet-log.md`, open:since 2026-07-13): a check that discovers changes by DIR and
-  structurally validates their spec deltas — MEDIUM changes are invisible to `openspec validate`.
-- **OW-8 · Delegated-context caching hygiene · SMALL.** Variable-paths-last in apply/archive/reviewer
-  prompt templates; single-source the triplicated premise prompt (explore/propose/AGENTS.md SMALL
-  bullet); test `OPENCODE_DISABLE_PROJECT_CONFIG=1` for executors (verify no agent.md depends on
-  AGENTS.md); treat AGENTS.md edits as cache-invalidation events. AUDIT.md finding 2 + §caching.
-- **OW-13 · Knowledge-surface bounding round 2 · SMALL.** `status_lint` word-budgets for currently-
-  exempt sections; bound `knowledge/decisions/INDEX.md` (year-split); a deterministic `boot_surface`
-  byte-budget check (warn ~80KB / fail ~100KB). AUDIT.md finding 7 + addendum. Self-contained — good
-  low-risk warmup.
+## Remaining work — recommended order OW-8 → OW-13 → OW-12
+- **OW-8 · Delegated-context caching hygiene · SMALL-MEDIUM.** Variable-paths-LAST in the
+  apply/archive/reviewer prompt templates (prefix-cache credit); single-source the triplicated premise
+  prompt (explore / propose / AGENTS.md SMALL bullet); test `OPENCODE_DISABLE_PROJECT_CONFIG=1` for
+  executors (verify no agent.md depends on AGENTS.md content — AGENTS.md is auto-injected into every
+  deepseek call and is the highest-churn boot file); treat AGENTS.md edits as cache-invalidation
+  events (batch them). AUDIT finding 2 + §caching. **NO recon yet — do one first** (map the current
+  prompt templates post-OW-7/OW-11, which reshaped several).
+- **OW-13 · Knowledge-surface bounding round 2 · SMALL.** **RECON DONE →**
+  `openspec/changes/knowledge-surface-bounding-2/recon-ow13.md` (UNTRACKED). Key findings: scaffold
+  boot surface ~77KB (**under** the 80KB warn line IF `boot_surface` is scoped to the 4 core mandatory
+  files and EXCLUDES the ephemeral HANDOFF); **year-split (decisions) + plans-count lint are NO-OPS on
+  the scaffold** (all-2026 decisions, only 10 plans files) — they're propagated mechanisms, build+test
+  via fixtures. status_lint word-budgets for exempt sections need STATUS.md "Immediate next action"
+  trimmed first — but the archives this session rewrote STATUS repeatedly, so **re-measure** before
+  setting a budget. A new `boot_surface_lint.py` under `scripts/` + a test in `test_doc_lint_gate.py` + manifest
+  entry. AUDIT finding 7 + addendum. Self-contained, low-risk.
 - **OW-12 · Archive mechanization · SMALL-MEDIUM · lowest priority.** `archive_move.py` for the dir
   move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM only for MODIFIED merge +
-  reconciliation narrative). Keep the executor on pro. AUDIT.md finding 6.
+  reconciliation narrative). Keep the archive-executor on pro. AUDIT finding 6. NO recon yet.
 
-Late additions (chain-independent, slot anywhere): **OW-15** (correctness-audit meta-hardening — amends
-OW-5, now shipped) and **OW-16** (product-audit skill) — see roadmap.md + OUTSTANDING-WORK.md.
+Late additions (chain-independent, slot anywhere): **OW-15** (correctness-audit meta-hardening, amends
+OW-5) + **OW-16** (product-audit skill) — see `roadmap.md` + `OUTSTANDING-WORK.md`.
 
-## HARD-WON PROCESS LESSONS (make the next session faster — these cost real time to learn)
-1. **opencode delegations MUST run `run_in_background: true`.** The Bash tool's default timeout is
-   120s but opencode budgets are 600-780s → a foreground call gets SIGTERM'd mid-run at 120s. Always:
-   background + append `; echo "EXIT=$?" > /tmp/<phase>-out.exit` + wait for the completion
-   notification, then extract with `grep '"type":"text"' out.jsonl | tail -1 | jq -r '.part.text'`.
-2. **`openspec validate <medium-change> --strict` is VACUOUS** — prints "Unknown item", exits 0 (it
-   discovers changes via proposal.md; MEDIUM has none). Green gate = `bash scripts/check.sh` ONLY.
-   BUT spec deltas DO get validated after promotion at archive (the main spec is validator-visible) —
-   so ensure each requirement's normative **SHALL is on its FIRST physical line** BEFORE archive, or
-   the archive-executor's `openspec validate <capability> --strict` fails. (Now tracked as ratchet
-   `medium-change-spec-delta-unvalidated`, → OW-11.)
-3. **Interpreter:** `python`/`python3 -m pytest` is NOT available bare (no pytest in system python).
-   `bash scripts/check.sh` resolves it (test-cmd = `pytest -q`). For a one-off detector run use
-   `/usr/bin/python3 scripts/checks.py ...` (works; just no pytest).
-4. **The pro review earns its cost on code-heavy changes** — it caught 2 real silent-bug dispatch-
-   contract issues in Change 2 (wrong `checks.py` builtin-dispatch path; missing `findings` key) that
-   green tests would have hidden. Budget for 2-3 review rounds; a 🔴 mandates a re-review round (max 3).
-5. **At verify, independently EXERCISE code changes** — build your own fixtures and run the real code;
-   do NOT trust the executor's green tests (self-consistent-but-wrong is the classic trap; maximally
-   ironic for the test-quality detector, which is why it got hand-fixtures). This caught a real
-   hidden-dir scoping defect the tests missed.
-6. **Apply routing:** deepseek-flash (default) worked cleanly on a *precise* tasks.md (Change 2's AST
-   detectors). Sonnet-first is worth pre-routing for prose-surgery (Change 1) — record the pre-route in
-   notes.md (the `sonnet-first-pre-route` decision, now canonical). A precise spec is what makes
-   deepseek-flash viable.
-7. **checks.py detector architecture** (for OW-7/OW-11 if they touch it): registry = dicts in
-   `_REGISTRY`; in-process builtins register in `_BUILTIN_RUNNERS` + `_PARSERS` (value must be
-   CALLABLE — `lambda _stdout: []`) + special-case `_availability_for_check` (always-available). Adding
-   a registry entry REQUIRES updating `test_checks.py` `ListModeTest.expected_names` + `AutodetectTest`
-   + `SummaryLineFormatTest`. checks.py findings are ADVISORY (don't fail check.sh).
-8. **Archive-executor (deepseek-pro) is reliable** — handled a single ADDED delta and a
-   NEW-capability+MODIFIED two-delta sync cleanly. It uses plain `mv` (not `git mv`), so stage the
-   move with `git add -A <old-dir> <new-archive-dir>`. Its wider-drift sweep is flag-only (it flagged
-   roadmap/OUTSTANDING staleness — reconcile those yourself; see below).
+## HARD-WON PROCESS LESSONS (carried forward + updated — these save real time)
+1. **opencode delegations MUST run `run_in_background: true`** (Bash foreground SIGTERMs at 120s;
+   opencode budgets are 600-780s). Pattern: background + `; echo "EXIT=$?" > /tmp/<p>-out.exit`, wait
+   for the completion notification, then run `opencode_delegate.py` (Lesson above) to post-process.
+2. **`openspec validate <medium-change> --strict` is VACUOUS** (CLI discovers changes via
+   `proposal.md`; MEDIUM has none → "Unknown item", exit 1 for the wrong reason). Green gate =
+   `bash scripts/check.sh` ONLY. Spec deltas DO get validated after promotion at archive, so ensure
+   each requirement's **SHALL/MUST is on its FIRST physical line** before archive. **OW-11's
+   `spec-delta-structure` detector — once it lands — catches this deterministically pre-archive.**
+3. **Interpreter:** bare `pytest`/`python3 -m pytest` is NOT available. `bash scripts/check.sh`
+   (pytest -q). One-off detector run: `/usr/bin/python3 scripts/checks.py --check <name>`.
+4. **The pro review earns its cost on code-heavy changes** — this session it caught 3 real 🔴 in
+   OW-11 (notes↔tasks approach drift + advisory/hard-gate mislabel) that green tests would hide.
+   Budget 2-3 rounds; a 🔴 mandates a re-review round (max 3). Documentation-consistency 🔴s still
+   need the re-review — check EVERY section that references the fixed thing (Round 2 caught a spot I
+   missed in Round 1).
+5. **At verify, INDEPENDENTLY exercise code changes** — build your own fixtures, run the real code;
+   never trust the executor's own green tests. This session: hand-ran `opencode_delegate.py` through 9
+   scenarios + probed the real opencode jsonl timestamp shape (`part.time={start,end}` epoch-ms) to
+   fix a duration bug the frozen tasks.md had guessed wrong (disclosed inline at verify).
+6. **Apply routing:** deepseek-flash worked cleanly on every precise tasks.md this session (OW-7's
+   ~300-line script + 8-site prose wiring; OW-10's byte-synced executor edits). A precise spec is what
+   makes flash viable. No Sonnet fallback needed. Executors sometimes forget to flip `tasks.md`
+   checkboxes — check + flip them yourself before commit.
+7. **checks.py detector architecture** (OW-11 #7 needs this): registry = dicts in `_REGISTRY`;
+   in-process builtins register in `_BUILTIN_RUNNERS` + `_PARSERS` (value MUST be CALLABLE, e.g.
+   `lambda _stdout: []`) + special-case `_availability_for_check` (always-available) +
+   `_autodetect_defaults` (enabled). Adding a registry entry REQUIRES updating `test_checks.py`
+   `ListModeTest.expected_names` + `AutodetectTest` + `SummaryLineFormatTest`. checks.py findings are
+   ADVISORY (don't fail check.sh). scaffold_lint.py checks (budget-agreement, and OW-11's new
+   model-id-agreement) are golden-source-only (NOT in the manifest, don't propagate).
+8. **Archive-executor (deepseek-pro) is reliable** — handled a NEW capability (OW-7) and a MODIFIED
+   requirement promotion (OW-10) cleanly. It uses plain `mv`, so stage the move with
+   `git add -A <old-dir> <new-archive-dir>`. Its wider-drift sweep is flag-only — reconcile
+   `roadmap.md` + `OUTSTANDING-WORK.md` yourself (this session did, per each archive).
 9. **Commit rhythm:** two commits per change — "Implement …" then "Archive … and reconcile project
-   docs". Commit to `main` directly (project convention). Push stays operator-gated (NOT done).
-10. **Downstream propagation of ALL 4 shipped changes is DEFERRED + operator-gated** (scaffold-managed
-    files edited: AGENTS.md spans, 6 skills, delegation-harness, checks.py, test_checks.py,
-    repo_lint.py). Arrives INERT-ish downstream (the detectors are new advisory checks; per-repo
-    checks.toml can disable). Not synced without fresh operator authorization.
+   docs". Commit to `main` directly. **Push stays operator-gated (NOT done this session).**
+10. **STATUS 3-section cap is enforced at each archive** — the archive-executor drops the oldest
+    change section. This session dropped composition-audit-cadence (at OW-7 archive) and
+    instruction-surface-coherence (at OW-10 archive). Full record lives in the archive dirs.
 
-## Session-end reconciliation status
-- The 3 core trackers (STATUS / decisions / questions) were reconciled by each archive. STATUS holds
-  the 2 latest changes; 3-section cap maintained.
-- roadmap.md + OUTSTANDING-WORK.md + lesson-check-ratchet-follow-ons.md batch-reconciled for OW-9/14/1/4
-  at session end (marking them SHIPPED) — see the "reconcile project docs" state at HEAD.
-- ratchet-log.md +2 this session: `medium-change-spec-delta-unvalidated` (→OW-11),
-  `detector-filewalker-scans-hidden-dirs` (frozen test).
+## In-progress artifacts committed with this handoff (pick these up, don't delete)
+- `openspec/changes/skill-debloat-gates/` — OW-11 FROZEN artifacts, committed (apply from here; the
+  next "Implement OW-11" commit adds the code + flips the `tasks.md` checkboxes).
+- `openspec/changes/knowledge-surface-bounding-2/` — OW-13 recon (`recon-ow13.md`), committed.
+- `output/delegation-log.jsonl` — the OW-7 telemetry ledger (this session's verify-pro + archive
+  dogfood runs). Untracked by design (gitignored `output/`).
+- `.claude/worktrees/analyze/` — a LOCKED, gitignored stale git worktree (`worktree-analyze`). NOT
+  ours — leave it; any new file-walking check must exclude it.
+
+## Downstream propagation — DEFERRED + operator-gated (unchanged)
+OW-7 + OW-10 edited scaffold-managed files (AGENTS.md span, 6 skills, delegation-harness, checks.py's
+sibling manifest, apply-executor agent bodies, apply-convergence-guard spec). NOT synced to
+extrends/psc-monitor without fresh operator authorization. OW-11 (when shipped) adds checks.py +
+delegation-harness §(f) to the propagation set.
 
 ## Pointers
-- Design sources: AUDIT.md (wave-2), OUTSTANDING-WORK.md (backlog), SYNTHESIS.md (wave-1 evidence).
-- The scaffold's own `checks.py --check test-quality` reports 13 advisory self-findings (7
-  discarded-return, 6 unfrozen-clock) — EXPECTED (advisory rules on the scaffold's own tests), not a
-  defect; audit-triage material, not a blocker.
+- Design sources: `knowledge/research/workflow-audit-2026-07-11/AUDIT.md` (wave-2 design calls);
+  `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (backlog + per-item STATUS).
+- The scaffold's own `checks.py --check test-quality` reports ~13 advisory self-findings on its own
+  tests — EXPECTED, not a defect (audit-triage material).
