@@ -19,7 +19,10 @@ An empty array ``[]`` = pass (zero findings). Any nonzero exit, timeout, or
 unparseable stdout is an **infrastructure failure** (INFRA-FAIL): the runner
 stops at the FIRST such failure, no later check runs.
 
-Minimal real check (``checks/no_fetchall.py``)::
+Minimal real check (``checks/no_fetchall.py`` — **note:** the scaffold's own
+``checks.py`` now ships a universal ``data-scale`` detector that flags
+``.fetchall()`` on non-test source; this example exists for repos on an older
+scaffold or for extra repo-specific logic)::
 
     #!/usr/bin/env python3
     \"\"\"psc-monitor SCALE-1: unbounded ``.fetchall()`` calls.\"\"\"

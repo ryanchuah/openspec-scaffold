@@ -160,6 +160,7 @@ abort (preflight failure or stop-on-first-failure; findings never abort).
 from __future__ import annotations
 
 import argparse
+import ast
 import glob as glob_module
 import hashlib
 import json
@@ -228,6 +229,22 @@ _REGISTRY: list[dict] = [
         "family": "check",
         "trigger": "pyproject.toml present",
         "coverage_note": "drops dependency-hygiene checking",
+    },
+    {
+        "name": "test-quality",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "python test files present",
+        "coverage_note": "disabling drops test-quality detection",
+    },
+    {
+        "name": "data-scale",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "python source present",
+        "coverage_note": "disabling drops unbounded-query detection",
     },
     {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "repo-lint", "tier": "floor", "kind": "delegate", "family": "check"},
@@ -314,6 +331,8 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "deptry": has_pyproject,
         "data-lint": has_sql_checks,
         "repo-lint": has_py_checks,
+        "test-quality": True,
+        "data-scale": True,
         "radon": False,
         "jscpd": False,
         "vulture": False,
@@ -423,7 +442,7 @@ def _availability_for_check(check: dict, pins: dict[str, str]) -> dict:
         return {"status": "available", "version": None, "expected": None}
     if kind == "custom":
         return _custom_availability(check.get("command", []))
-    if check["name"] == "inventory":
+    if check["name"] in ("inventory", "test-quality", "data-scale"):
         return {"status": "available", "version": None, "expected": None}
     tool_bin = _BUILTIN_TOOL_BIN[check["name"]]
     return _tool_status(tool_bin, pins)
@@ -589,6 +608,8 @@ _PARSERS = {
     "radon": _parse_radon,
     "jscpd": _parse_jscpd,
     "vulture": _parse_vulture,
+    "test-quality": lambda _stdout: [],
+    "data-scale": lambda _stdout: [],
 }
 
 
@@ -917,6 +938,256 @@ def _run_radon(check: dict, config: dict, out_path: Path) -> dict:
     return _run_builtin_tool_json("radon", cmd, out_path)
 
 
+def _module_under_test(filename: str) -> str | None:
+    """Derive the module-under-test from a test filename.
+
+    ``test_<m>.py`` -> ``<m>``, ``<m>_test.py`` -> ``<m>``.
+    Returns ``None`` when no module name is derivable.
+    """
+    base = Path(filename).stem
+    if base.startswith("test_"):
+        return base[5:]
+    if base.endswith("_test"):
+        return base[:-5]
+    return None
+
+
+def _is_advisory_clock_call(node: ast.Call) -> bool:
+    """Check if *node* is a call to a non-deterministic clock: ``datetime.now()``,
+    ``datetime.utcnow()``, ``time.time()``, or ``time.monotonic()``."""
+    func = node.func
+    # datetime.now / datetime.utcnow
+    if isinstance(func, ast.Attribute) and func.attr in ("now", "utcnow"):
+        if isinstance(func.value, ast.Name) and func.value.id == "datetime":
+            return True
+        if isinstance(func.value, ast.Attribute) and func.value.attr == "datetime":
+            # e.g. datetime.datetime.now()
+            if isinstance(func.value.value, ast.Name) and func.value.value.id == "datetime":
+                return True
+    # time.time / time.monotonic
+    if isinstance(func, ast.Attribute) and func.attr in ("time", "monotonic"):
+        if isinstance(func.value, ast.Name) and func.value.id == "time":
+            return True
+    return False
+
+
+def _run_test_quality(check: dict, config: dict, out_path: Path) -> dict:
+    """In-process AST detector for test-quality smells.
+
+    Scans test files (``test_*.py`` / ``*_test.py``) for forced-green assertions,
+    empty tests, unfrozen clocks, self-mocking, and discarded return values.
+    """
+    repo_root = _resolve_repo_root()
+    scan_paths = _check_paths("test-quality", config)
+    findings: list[dict] = []
+    check_name = "test-quality"
+
+    for py_path in _iter_py_files(repo_root, scan_paths, tests_only=True):
+        try:
+            tree = ast.parse(py_path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+
+        rel = str(py_path.relative_to(repo_root))
+
+        for node in ast.walk(tree):
+            # --- assert-true ---
+            if isinstance(node, ast.Assert):
+                if isinstance(node.test, ast.Constant) and node.test.value is True:
+                    findings.append(
+                        {
+                            "check": check_name,
+                            "rule": "assert-true",
+                            "path": rel,
+                            "line": node.lineno,
+                            "message": "tautological `assert True`",
+                        }
+                    )
+                elif isinstance(node.test, ast.BoolOp) and isinstance(node.test.op, ast.Or):
+                    for operand in node.test.values:
+                        if isinstance(operand, ast.Constant) and operand.value is True:
+                            findings.append(
+                                {
+                                    "check": check_name,
+                                    "rule": "assert-or-true",
+                                    "path": rel,
+                                    "line": node.lineno,
+                                    "message": "forced-green `assert ... or True`",
+                                }
+                            )
+                            break
+
+            # --- empty-test ---
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test"):
+                body = node.body
+                # Drop leading docstring
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)
+                ):
+                    body = body[1:]
+                # Check if body is empty or only pass
+                if not body or all(isinstance(stmt, ast.Pass) for stmt in body):
+                    findings.append(
+                        {
+                            "check": check_name,
+                            "rule": "empty-test",
+                            "path": rel,
+                            "line": node.lineno,
+                            "message": "empty test body (no assertions)",
+                        }
+                    )
+
+        # Second pass: scope-sensitive checks (inside test functions)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+                _check_test_func_for_clock_and_discard(node, findings, check_name, rel)
+
+        # --- self-mock (file-level, not scope-constrained) ---
+        module_under_test = _module_under_test(py_path.name)
+        if module_under_test is not None:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    func = node.func
+                    func_name = None
+                    if isinstance(func, ast.Name):
+                        func_name = func.id
+                    elif isinstance(func, ast.Attribute):
+                        # func.attr is "patch" for mock.patch / unittest.mock.patch;
+                        # "object" for patch.object (a non-string first arg — skipped below).
+                        func_name = func.attr
+                    if func_name in ("patch",):
+                        args = node.args
+                        if (
+                            args
+                            and isinstance(args[0], ast.Constant)
+                            and isinstance(args[0].value, str)
+                        ):
+                            target_root = args[0].value.split(".")[0]
+                            if target_root == module_under_test:
+                                findings.append(
+                                    {
+                                        "check": check_name,
+                                        "rule": "self-mock",
+                                        "path": rel,
+                                        "line": node.lineno,
+                                        "message": "test mocks the module under test (self-mock)",
+                                    }
+                                )
+
+    _write_json(out_path, findings)
+    return {"status": "FINDINGS" if findings else "ok", "findings": findings}
+
+
+def _check_test_func_for_clock_and_discard(
+    func_node: ast.FunctionDef, findings: list[dict], check_name: str, rel: str
+) -> None:
+    """Check a single test function body for unfrozen-clock and discarded-return-flag."""
+    for node in ast.walk(func_node):
+        # --- unfrozen-clock (ADVISORY) ---
+        if isinstance(node, ast.Call) and _is_advisory_clock_call(node):
+            findings.append(
+                {
+                    "check": check_name,
+                    "rule": "unfrozen-clock",
+                    "path": rel,
+                    "line": node.lineno,
+                    "message": "advisory: unfrozen clock in test — freeze it for determinism",
+                }
+            )
+        # --- discarded-return-flag (ADVISORY) ---
+        if isinstance(node, ast.Assign):
+            if node.targets and isinstance(node.targets[0], ast.Tuple):
+                target = node.targets[0]
+                if any(isinstance(el, ast.Name) and el.id == "_" for el in target.elts):
+                    if isinstance(node.value, ast.Call):
+                        findings.append(
+                            {
+                                "check": check_name,
+                                "rule": "discarded-return-flag",
+                                "path": rel,
+                                "line": node.lineno,
+                                "message": "advisory: discarded return value (`, _ =`) — a returned status may be dropped (many uses are legitimate, e.g. `x, _ = divmod(...)`)",
+                            }
+                        )
+
+
+def _run_data_scale(check: dict, config: dict, out_path: Path) -> dict:
+    """In-process AST detector for unbounded data materialization.
+
+    Scans non-test Python source for ``.fetchall()`` calls.
+    """
+    repo_root = _resolve_repo_root()
+    scan_paths = _check_paths("data-scale", config)
+    findings: list[dict] = []
+    check_name = "data-scale"
+
+    for py_path in _iter_py_files(repo_root, scan_paths, source_only=True):
+        try:
+            tree = ast.parse(py_path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+
+        rel = str(py_path.relative_to(repo_root))
+
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "fetchall"
+            ):
+                findings.append(
+                    {
+                        "check": check_name,
+                        "rule": "unbounded-fetchall",
+                        "path": rel,
+                        "line": node.lineno,
+                        "message": (
+                            "unbounded `.fetchall()` — record an at-scale run or a"
+                            " bounded-domain argument in notes.md, or add a LIMIT/pagination"
+                        ),
+                    }
+                )
+
+    _write_json(out_path, findings)
+    return {"status": "FINDINGS" if findings else "ok", "findings": findings}
+
+
+def _iter_py_files(
+    repo_root: Path, paths: list[str], *, tests_only=False, source_only=False
+) -> list[Path]:
+    """Walk *paths* (relative to *repo_root*) and yield Python source files.
+
+    Keyword-only bool params (exactly one True per call):
+      *tests_only*  — yield only test files (``test_*.py`` / ``*_test.py``).
+      *source_only* — yield only non-test files (the complement of tests_only).
+    """
+    assert tests_only != source_only, "exactly one of tests_only/source_only must be True"
+    exclude_dirs = {".venv", ".git", "__pycache__"}
+    result: list[Path] = []
+    for rel in paths:
+        scan_dir = (repo_root / rel).resolve()
+        if not scan_dir.is_dir():
+            continue
+        for py_path in sorted(scan_dir.rglob("*.py")):
+            # Skip excluded directories
+            if any(
+                part in exclude_dirs or part.startswith(".")
+                for part in py_path.relative_to(scan_dir).parts
+            ):
+                continue
+            basename = py_path.name
+            is_test = basename.startswith("test_") or basename.endswith("_test.py")
+            if tests_only and not is_test:
+                continue
+            if source_only and is_test:
+                continue
+            result.append(py_path)
+    return result
+
+
 _BUILTIN_RUNNERS = {
     "ruff": _run_ruff,
     "gitleaks": _run_gitleaks,
@@ -925,6 +1196,8 @@ _BUILTIN_RUNNERS = {
     "radon": _run_radon,
     "jscpd": _run_jscpd,
     "vulture": _run_vulture,
+    "test-quality": _run_test_quality,
+    "data-scale": _run_data_scale,
 }
 
 

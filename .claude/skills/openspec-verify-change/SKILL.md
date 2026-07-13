@@ -99,8 +99,10 @@ The orchestrator SHALL select one lens per change and record the selection with 
 ```text
 You are the OpenSpec Change Verifier performing a test-quality lens pass. Focus on test integrity:
 
-For each test the change adds or modifies, would the test fail if the behavior it claims to cover broke? Name the assertion that would trip. Specifically flag:
-- Tautological or forced-green assertions (e.g. `assert True`, `assert 1 == 1`)
+FIRST run `checks.py --check test-quality` (from the repo root) and confirm its findings from disk — these are the mechanical test-smell results the detector already found.
+
+THEN, for each test the change adds or modifies, apply the residual lens judgment: would the test fail if the behavior it claims to cover broke? Name the assertion that would trip. Specifically flag:
+- Tautological or forced-green assertions (e.g. `assert True`, `assert 1 == 1`) — the detector catches these already; confirm its findings
 - Empty test bodies or tests that never reach their assertion
 - Mocks that replace the module under test (self-mocking)
 - Discarded return values or flags (e.g. calling a function but ignoring its return)
@@ -113,6 +115,9 @@ Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ##
 ```text
 You are the OpenSpec Change Verifier performing a data-scale lens pass. Focus on data-path safety:
 
+FIRST run `checks.py --check data-scale` (from the repo root) and confirm its findings from disk — the mechanical `.fetchall()` results the detector already found.
+
+THEN apply the residual lens judgment the detector cannot make mechanically:
 - Which input domains are unbounded in production?
 - Does the change fully materialize the result of an unbounded query (e.g. `fetchall()` on an unbounded query)?
 - Does the change need an at-scale run or a recorded bounded-domain argument in `notes.md`?
@@ -122,7 +127,7 @@ Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ##
 
 **Selection rule:** select the test-quality lens by default. Select the data-scale lens when the change's dominant risk is data-path behavior (unbounded inputs, query volume, large-scale processing). The orchestrator MAY additionally run a lens pass on a MEDIUM change when its risk profile warrants it, under the same contract and recording rules.
 
-**Forward-compatibility:** when a corresponding deterministic detector ships (e.g. a test-quality or data-scale check in `scripts/checks.py`), the lens prompt SHALL direct the verifier to run and confirm the detector's findings rather than rediscover them.
+**Forward-compatibility (fulfilled):** the corresponding deterministic detectors now exist (`checks.py --check test-quality` and `checks.py --check data-scale`). Each lens prompt above directs the verifier to run and confirm the detector's findings rather than rediscover them.
 
 #### Assert the real verifier ran
 
@@ -162,6 +167,12 @@ When the change touches auth, credentials/secrets, persisted data, or an externa
 - **Under OpenCode (no such skill exists):** the orchestrator itself reviews the diff against this concrete checklist — (a) authn/authz bypass or missing authorization on new endpoints/queries; (b) credential/secret leakage (logged, returned in a response, or committed); (c) unsanitized external/user input reaching SQL, shell, or file paths (injection); (d) unsafe deserialization; (e) missing input-confirmation guard on a destructive operation.
 
 This is a **hard gate for COMPLEX** changes on those surfaces and a **recommended** pass for MEDIUM changes on those surfaces. Changes touching none of those surfaces do not trigger it. Confirmed findings use the existing defect re-delegation path.
+
+### Data-path verify rule (conditional — data-path changes)
+
+When a change modifies a data path (a query, bulk transform, or any code whose input volume can grow with data or history), verify SHALL require the change's `notes.md` to record EITHER evidence of an at-scale run OR an explicit bounded-domain argument (why the input is bounded in production). This is the standing enforcement of the canonical "Mind data scale" rule — see `AGENTS.md` (the "Mind data scale" span) and `openspec/config.yaml` `rules.verify` — cited, not restated.
+
+Absence of both, on a data-path change, is a verify defect the orchestrator resolves before archive. Changes touching no data path do not trigger it. Confirmed findings use the existing defect re-delegation path.
 
 **PHASE GATE — STOP after verification.** Once the verification report and `notes.md` checkpoint are complete, without an explicit autonomy grant this is a hard STOP: tell the user the verdict and prompt them: "Verification complete. Say 'archive <name>' when ready to archive." Then WAIT. Under an autonomy grant, auto-advance to archive is permitted per the `autonomy-phase-advance` canonical rule (AGENTS.md) EXCEPT across a premise DISSENT, an unresolved verify NEEDS-REVISION, or an operator-named gate — the NEEDS-REVISION carve-out is especially relevant here: a verdict this skill's own defect loop could not clear halts the grant and surfaces to the operator instead of auto-advancing to archive.
 

@@ -205,6 +205,8 @@ class ListModeTest(AuditBundleTestBase):
             "gitleaks",
             "osv-scanner",
             "deptry",
+            "test-quality",
+            "data-scale",
             "data-lint",
             "repo-lint",
             "radon",
@@ -250,6 +252,8 @@ class AutodetectTest(AuditBundleTestBase):
         self.assertEqual(lines["osv-scanner"], "enabled")
         self.assertEqual(lines["deptry"], "enabled")
         self.assertEqual(lines["data-lint"], "enabled")
+        self.assertEqual(lines["test-quality"], "enabled")
+        self.assertEqual(lines["data-scale"], "enabled")
         self.assertEqual(lines["inventory"], "enabled")
         self.assertEqual(lines["outstanding"], "enabled")
         # repo-lint disabled without checks/*.py
@@ -875,6 +879,8 @@ class SummaryLineFormatTest(AuditBundleTestBase):
                     "gitleaks:",
                     "osv-scanner:",
                     "deptry:",
+                    "test-quality:",
+                    "data-scale:",
                     "data-lint:",
                     "inventory:",
                 )
@@ -1002,7 +1008,11 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_floor_no_checks_enabled_exits_0(self):
-        (self.repo / "checks.toml").write_text("[checks.scope]\nenabled = false\n")
+        (self.repo / "checks.toml").write_text(
+            "[checks.scope]\nenabled = false\n"
+            "[checks.test-quality]\nenabled = false\n"
+            "[checks.data-scale]\nenabled = false\n"
+        )
         buf = io.StringIO()
         with redirect_stdout(buf):
             rc = checks.main(["--floor"])
@@ -1207,6 +1217,176 @@ class CompositionAnchorTest(AuditBundleTestBase):
         self.assertEqual(aa.get("tag"), "audit/2026-07-12")
         # composition_anchor stays on the composition tag.
         self.assertEqual(ca.get("tag"), "audit/2026-07-11-composition")
+
+
+class TestQualityDetectorTest(AuditBundleTestBase):
+    """Tests for the test-quality in-process AST detector."""
+
+    def _write_source(self, filename: str, source: str) -> Path:
+        p = self.repo / filename
+        p.write_text(source, encoding="utf-8")
+        self._git("add", str(p.name))
+        return p
+
+    def test_all_rules_flagged_in_test_file(self):
+        """test-quality flags all six rules in a single test file."""
+        source = """\
+import time
+from datetime import datetime, timezone
+from unittest.mock import patch
+
+
+def test_trivial():
+    assert True
+
+
+def test_forced_green():
+    x = compute()
+    assert x or True
+
+
+def test_empty():
+    pass
+
+
+def test_clock():
+    now = datetime.now()
+    utc = datetime.utcnow()
+    t = time.time()
+
+
+def test_discard():
+    result, _ = some_call()
+
+
+def test_self_mock():
+    patch("sample.do_stuff")
+    patch.object(widget, "do_stuff")
+"""
+        self._write_source("test_sample.py", source)
+
+        out_dir = self.tmpdir / "out-tq"
+        rc, out = self._capture(["--check", "test-quality", "--out", str(out_dir)])
+        self.assertEqual(rc, 2, f"expected FINDINGS, got rc={rc}, out={out!r}")
+        data = json.loads((out_dir / "test-quality.json").read_text())
+
+        # Build a map of rule -> finding for assertion
+        findings_by_rule = {}
+        for f in data:
+            self.assertEqual(f["check"], "test-quality")
+            self.assertEqual(f["path"], "test_sample.py")
+            findings_by_rule[f["rule"]] = f
+
+        self.assertIn("assert-true", findings_by_rule)
+        self.assertEqual(findings_by_rule["assert-true"]["line"], 7)
+
+        self.assertIn("assert-or-true", findings_by_rule)
+        self.assertEqual(findings_by_rule["assert-or-true"]["line"], 12)
+
+        self.assertIn("empty-test", findings_by_rule)
+        self.assertEqual(findings_by_rule["empty-test"]["line"], 15)
+
+        self.assertIn("unfrozen-clock", findings_by_rule)
+        self.assertIn("advisory:", findings_by_rule["unfrozen-clock"]["message"])
+        # unfrozen-clock fires on every wall-clock call in the fixture; assert membership
+        # (order-independent) rather than the last-walked instance.
+        unfrozen_lines = {f["line"] for f in data if f["rule"] == "unfrozen-clock"}
+        self.assertIn(22, unfrozen_lines)
+
+        self.assertIn("discarded-return-flag", findings_by_rule)
+        self.assertIn("advisory:", findings_by_rule["discarded-return-flag"]["message"])
+        self.assertEqual(findings_by_rule["discarded-return-flag"]["line"], 26)
+
+        self.assertIn("self-mock", findings_by_rule)
+        self.assertEqual(findings_by_rule["self-mock"]["line"], 30)
+
+    def test_non_test_file_not_scanned(self):
+        """test-quality produces zero findings on non-test files."""
+        self._write_source(
+            "sample.py",
+            "assert True\nassert x or True\nfrom datetime import datetime\nnow = datetime.now()\n",
+        )
+        out_dir = self.tmpdir / "out-tq-neg"
+        rc, out = self._capture(["--check", "test-quality", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "test-quality.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_empty_test_with_only_docstring(self):
+        """An empty test body with only a docstring is flagged."""
+        self._write_source(
+            "test_doc.py",
+            'def test_do_nothing():\n    """This test does nothing."""\n    pass\n',
+        )
+        out_dir = self.tmpdir / "out-tq-empty"
+        rc, out = self._capture(["--check", "test-quality", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "test-quality.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("empty-test", rules)
+
+    def test_self_mock_with_mock_patch(self):
+        """self-mock via mock.patch is detected."""
+        self._write_source(
+            "test_widget.py",
+            'from unittest import mock\nmock.patch("widget.do_stuff")\n',
+        )
+        out_dir = self.tmpdir / "out-tq-sm"
+        rc, out = self._capture(["--check", "test-quality", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "test-quality.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("self-mock", rules)
+
+    def test_hidden_dir_skipped(self):
+        """test-quality skips files inside hidden directories."""
+        hidden_dir = self.repo / ".hidden"
+        hidden_dir.mkdir()
+        (hidden_dir / "test_skipme.py").write_text("def test_x():\n    assert True\n")
+        out_dir = self.tmpdir / "out-tq-hidden"
+        rc, out = self._capture(["--check", "test-quality", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "test-quality.json").read_text())
+        self.assertEqual(data, [])
+
+
+class DataScaleDetectorTest(AuditBundleTestBase):
+    """Tests for the data-scale in-process AST detector."""
+
+    def _write_source(self, filename: str, source: str) -> Path:
+        p = self.repo / filename
+        p.write_text(source, encoding="utf-8")
+        self._git("add", str(p.name))
+        return p
+
+    def test_fetchall_flagged_in_source(self):
+        """data-scale flags .fetchall() in non-test source."""
+        self._write_source(
+            "db.py",
+            "def get_all():\n    cur = conn.cursor()\n    rows = cur.fetchall()\n    return rows\n",
+        )
+        out_dir = self.tmpdir / "out-ds"
+        rc, out = self._capture(["--check", "data-scale", "--out", str(out_dir)])
+        self.assertEqual(rc, 2, f"expected FINDINGS, got rc={rc}, out={out!r}")
+        data = json.loads((out_dir / "data-scale.json").read_text())
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["check"], "data-scale")
+        self.assertEqual(data[0]["rule"], "unbounded-fetchall")
+        self.assertEqual(data[0]["path"], "db.py")
+        self.assertEqual(data[0]["line"], 3)
+        self.assertIn("fetchall", data[0]["message"])
+
+    def test_fetchall_in_test_file_not_flagged(self):
+        """data-scale does not flag .fetchall() in test files."""
+        self._write_source(
+            "test_db.py",
+            "def test_fetch():\n    rows = cur.fetchall()\n    assert len(rows) > 0\n",
+        )
+        out_dir = self.tmpdir / "out-ds-neg"
+        rc, out = self._capture(["--check", "data-scale", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "data-scale.json").read_text())
+        self.assertEqual(data, [])
 
 
 if __name__ == "__main__":
