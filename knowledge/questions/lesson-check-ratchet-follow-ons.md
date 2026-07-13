@@ -12,11 +12,17 @@ sources. Deliberately deferred until there is real usage to learn from — the e
 lint age-flag (`ratchet_open_max_age_days`) already catches rot in the meantime, so nothing
 is silently lost by waiting.
 
-## OW-1 test-quality detector packaging
+## OW-1 test-quality detector packaging — RESOLVED
 
 Design deferral (design.md Open Questions): whether OW-1's generic test-quality detectors
 ship as `checks/*.py` tenants of the new invariant framework, or as a scaffold built-in. Not
 decided here by design — OW-1 makes this call when it is actually built.
+
+**Resolved 2026-07-13:** the call was made when OW-1 shipped (`defect-prevention-detectors`,
+`openspec/changes/archive/2026-07-13-defect-prevention-detectors/`) — decided as **in-process
+`checks.py` builtins**, NOT per-repo `checks/*.py` tenants, because per-repo check dirs don't
+propagate via `sync_scaffold.py`, so only `checks.py` builtins are universal. Recorded in
+`knowledge/decisions/INDEX.md` (`checks.py-universal-builtins`).
 
 ## Downstream propagation of OW-2's scaffold changes (operator-gated)
 
