@@ -7,7 +7,24 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — composition-audit-cadence SHIPPED (2026-07-13)
+## Latest change — instruction-surface-coherence SHIPPED (2026-07-13)
+
+Shipped the instruction-surface coherence sweep (OW-9 + OW-14, MEDIUM): resolved the
+autonomy-grant-vs-phase-gate contradiction with a single canonical
+`<!-- CANONICAL: autonomy-phase-advance -->` rule in `AGENTS.md` backed by a new
+`tier-confirmation-gate` spec requirement, so the four lifecycle skills now cite one source
+instead of each asserting an unconditional STOP. Added the haiku tier to the model-assignment
+matrix and a canonical `delegation-by-default` rule (run-and-extract → subagent,
+read-and-judge → orchestrator) with point-of-action delegation cues in the verify/apply/archive
+skills; legitimized Sonnet-first pre-routing for apply via the notes.md convention; and
+resolved six smaller instruction-surface contradictions (self-review wording, propose
+freeze-branch de-dup, archive EXIT-sentinel, assumption-batching, boot-read displacement).
+Verify: full MEDIUM gate green — self-review PASS, pro behavioral READY, zero defects, no
+Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-instruction-surface-coherence/`.
+
+## Prior change — composition-audit-cadence SHIPPED (2026-07-13)
 
 Shipped the composition-audit cadence (OW-6, COMPLEX): a deterministic, advisory
 composition-audit due-signal (archived-changes and commits since the last composition
@@ -39,30 +56,13 @@ Downstream propagation is operator-gated and DEFERRED (scaffold-only ship). Deci
 `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-13-correctness-audit-skill/`.
 
-## Prior change — verify-stack-redirect SHIPPED (2026-07-13)
-
-Shipped the verify-stack redirect (OW-3, MEDIUM): the multi-model verify gate is now
-tier-keyed and platform-uniform — MEDIUM runs self-review then one pro behavioral pass;
-COMPLEX adds a third pass that is a **lens** (test-quality/adversarial-oracle default, or
-data-scale for data-path-dominant changes) instead of a third same-checklist pass, closing
-the zero-yield redundancy the empirical evidence showed. One `openspec-verifier` agent now
-serves both the behavioral and lens prompts via prompt/`--model` selection. Two specs
-promoted: `verify-multimodel-gate`, `noninteractive-delegation-safety` (dropped the
-abandoned OpenCode Task-tool exemption). As-built delta: root `README.md`'s stale
-verify-chain description was also reconciled directly (not scaffold-managed, no downstream
-sweep owed). Verify: full gate green from disk; self-review and pro behavioral pass both
-READY, no defects. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-13-verify-stack-redirect/`.
-
 ## Immediate next action
-`composition-audit-cadence` (OW-6) is now **SHIPPED** — the frozen **OW-2→3→5→6 batch is
-COMPLETE**. There is no proactive build in flight. Next is the wave-2 backlog: no session is yet
-proposed for it (each item needs its own tier+plan confirmation) per
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (single source: OW-1..14
-items, routing, session order), plus two late additions that slot in anywhere after the frozen
-batch — `OW-15` (amends OW-5's capability; its gate is now clear) and `OW-16` (chain-independent,
-greenfield). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
+`instruction-surface-coherence` (OW-9 + OW-14) is now **SHIPPED**. The frozen OW-2→3→5→6
+batch and the paired OW-9/14 sweep are both complete. There is no proactive build in flight.
+The wave-2 remainder — OW-1, OW-4, OW-7, OW-8, OW-10, OW-11, OW-12, OW-13 — plus the late
+additions OW-15 and OW-16 are still open; work is in progress this session. Single source:
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`. The Fable-tier design
+backlog is closed (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
 Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
 

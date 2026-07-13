@@ -43,3 +43,5 @@
 - ratchet-lint-cleanup (knowledge_lint.py/repo_lint.py code-quality follow-on, behavior-preserving, low priority) → `knowledge/questions/ratchet-lint-cleanup.md`
 - Correctness-audit-skill follow-ons → `knowledge/questions/correctness-audit-skill-follow-ons.md`
 - Composition-audit-cadence follow-ons → `knowledge/questions/composition-audit-cadence-follow-ons.md`
+- Instruction-surface PostToolUse hook (OW-14 item c, deferred — Claude-only, needs own carve-out) → `knowledge/questions/instruction-surface-posttooluse-hook.md`
+- Instruction-surface content checklist (OW-9, deferred — low-yield) → `knowledge/questions/instruction-surface-content-checklist.md`
