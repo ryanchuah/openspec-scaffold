@@ -7,7 +7,21 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — outstanding-work-collector SHIPPED (2026-07-09)
+## Latest change — outstanding-and-continuity-hardening SHIPPED (2026-07-13)
+
+Widened the `knowledge_lint.py` handoff-file check from a root-only, case-sensitive
+`HANDOFF*`/`HANDOVER*` prefix match to a repo-wide, case-insensitive substring match over the
+whole tree, respecting gitignore, with `knowledge/HANDOFF.md` as the sole sanctioned exemption —
+closing the gap where nested handoff-named files (e.g. `plans/*-handoff.md`) escaped the
+single-canonical-handoff enforcement. AGENTS.md's Working process now signposts the pull-only
+`outstanding-work-review` skill as the canonical outstanding-work entry point (deliberately not
+boot-wired), and that skill's Judge step names a "Residual sweep" sub-step for what the
+deterministic gather can't see (prose bodies, in-code TODOs, orphaned research docs). Verify:
+self-review only, ran clean (multi-model pro pass operator-waived). Decisions:
+`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-13-outstanding-and-continuity-hardening/`.
+
+## Prior change — outstanding-work-collector SHIPPED (2026-07-09)
 
 Shipped a deterministic outstanding-work gather: a `facts.py` fact (`outstanding`) enumerates
 every configured source — `knowledge/questions/` Active+Parked, open `tasks.md` checkboxes, live
@@ -37,22 +51,6 @@ Verify: self-review + behavioral verify READY, multi-model passes operator-waive
 Archive: `openspec/changes/archive/2026-07-03-shared-lint-layer/`. Decisions in
 `knowledge/decisions/INDEX.md`; forward items parked in `knowledge/questions/`.
 
-## Prior change — checks-facts-split SHIPPED (2026-07-03)
-
-Split the deterministic audit engine into a checks/facts/audit trichotomy: `audit_bundle.py`
-renamed to `scripts/checks.py` (findings-capable detectors, preflight-gated, dated `--report` output)
-alongside a new `scripts/facts.py` (cache-semantics snapshots — undated, regenerate-on-use, never
-fails), sharing one engine/registry via a `family` field. Preflight turns serial tool-discovery into
-one informed report: before any check-family tool runs, `--floor`/`--report` compute availability for
-every enabled entry and, on any gap, print one self-explaining line per tool (trigger, install-or-disable
-guidance, coverage-loss note), record an INFRA-FAIL, run nothing, exit 3; fact-family tools keep today's
-graceful per-tool degradation. Config renamed `audit.toml` → `checks.toml`. Inventory gained an
-`audit_anchor` (latest audit tag + commits-since) for staleness-cadence signalling; `audit_scope.py`'s
-ceremony is unchanged. Verify: self-review passed in full (multi-model passes waived by operator
-instruction); suite green. A commit-test-gate hook misfire was discovered live during apply and parked,
-not fixed here. Decisions in `knowledge/decisions/INDEX.md`; forward items parked in `knowledge/questions/`.
-Archive: `openspec/changes/archive/2026-07-03-checks-facts-split`.
-
 ## Immediate next action
 Four changes are **propose-complete and deliberately paused at apply** (operator-mandated batching):
 `lesson-check-ratchet` (OW-2), `verify-stack-redirect` (OW-3), `correctness-audit-skill` (OW-5),
@@ -62,6 +60,13 @@ OW-2→3→5→6, then works the remaining backlog per
 items, routing, session order). The Fable-tier design backlog is closed (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.
 Earlier portfolios (succession-hardening; day-to-day tooling A/B/C) are fully shipped.
+
+**outstanding-and-continuity-hardening SHIPPED (2026-07-13)** — scaffold-only; the frozen
+OW-2→3→5→6 batch above remains the stated next work, unchanged by this change. Downstream
+propagation of the widened handoff-file lint is **deliberately DEFERRED and operator-gated**: it
+is coupled to a downstream cleanup (extrends' ~27 and psc-monitor's handoff-named files must be
+renamed/archived first), since syncing the widened lint before that cleanup would redden both
+repos' pytest gates. See `knowledge/questions/continuity-file-downstream-cleanup.md`.
 
 **Downstream propagation — extrends AND psc-monitor FULLY SYNCED.** On 2026-07-04 the operator
 authorized propagation to **extrends**, now converged to scaffold HEAD (beacon `a879317`). The full

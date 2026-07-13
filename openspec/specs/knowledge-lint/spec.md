@@ -199,18 +199,31 @@ affect other lines.
 - **WHEN** line 1 cites `` `src/gone.py` `` without the marker and line 3 cites `` `src/other.py` `` with the marker
 - **THEN** line 1's broken citation SHALL still be flagged despite the marker on line 3
 
-### Requirement: Root-level handoff files are flagged
-`knowledge_lint.py` SHALL flag any `HANDOFF*` or `HANDOVER*` file at the repository root, mechanizing
-the knowledge-handoff-file decision (durable handoffs belong in the knowledge tree, not as tracked
-root files). The sanctioned ephemeral `knowledge/HANDOFF.md` SHALL be exempt (it is inside the
-knowledge tree, not at the root). This check rides the same live-tree gate as the other doc-lints.
+### Requirement: Handoff-named files are flagged
+`knowledge_lint.py` SHALL flag any non-gitignored file anywhere in the repository whose name
+contains `handoff` or `handover` (case-insensitive substring match), mechanizing the
+knowledge-handoff-file decision that exactly one sanctioned handoff file may exist. The
+sanctioned ephemeral `knowledge/HANDOFF.md` SHALL be the sole exemption; every other
+handoff-named file — at any depth, tracked or merely present in the working tree — SHALL be
+flagged. Gitignored paths SHALL NOT be scanned (consistent with the other repo-wide checks), so
+transient handoff-named files under ignored directories are out of scope for this check. This
+check rides the same live-tree gate as the other doc-lints.
 
-#### Scenario: a root handoff file is flagged
-- **WHEN** a file matching `HANDOFF*` or `HANDOVER*` exists at the repository root
+#### Scenario: a nested handoff-named file is flagged
+- **WHEN** a file whose name contains `handoff` (any case) exists at any path outside
+  `knowledge/HANDOFF.md` and is not gitignored — e.g. `plans/session-handoff.md`
+- **THEN** the linter SHALL flag it as a finding
+
+#### Scenario: a handover-named file is matched case-insensitively
+- **WHEN** a non-gitignored file named e.g. `docs/HANDOVER.md` or `tmp/session-Handover.md` exists
 - **THEN** the linter SHALL flag it as a finding
 
 #### Scenario: the sanctioned in-tree handoff is exempt
 - **WHEN** `knowledge/HANDOFF.md` exists (the sanctioned mid-session handoff location)
+- **THEN** the linter SHALL NOT flag it
+
+#### Scenario: gitignored handoff files are not scanned
+- **WHEN** a handoff-named file exists under a gitignored path — e.g. `output/x-handoff.md`
 - **THEN** the linter SHALL NOT flag it
 
 ### Requirement: linter-detects-duplicate-content-blocks
