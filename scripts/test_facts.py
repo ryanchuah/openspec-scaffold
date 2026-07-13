@@ -23,7 +23,11 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import checks  # noqa: E402
+# I001 is suppressed (not just E402): a downstream repo that has a top-level
+# `checks/` package makes ruff's isort classify `import checks` as first-party
+# and demand a separate import group, which would break the byte-identical sync
+# (this file passes as-is in the scaffold, which has no such package). Keep I001.
+import checks  # noqa: E402, I001
 import facts  # noqa: E402
 
 _BASE_PATH = "/usr/bin:/bin"
