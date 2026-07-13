@@ -198,13 +198,18 @@ Implement tasks from an OpenSpec change.
 
    3. **Failure ladder:**
 
-      - **Operational crash** → **retry the `opencode run` once** (if it timed out,
-        retry with a **tight brief**: name the exact files to read, front-load the facts
-        you've already verified as given, and forbid codebase re-exploration — the wrapper
-        is a hard ceiling and the executor otherwise burns its budget re-deriving context
-        you already have). Second crash → spawn a **Sonnet subagent**
-        apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
-        `tasks.md`.
+       - **Operational crash** → **retry the `opencode run` once with a resume brief.** The resume
+         brief SHALL state: (1) which `tasks.md` items are already `[x]` — SKIP them, do not redo
+         completed work; (2) resume at the first `[ ]`; (3) **reconcile the in-flight task** — the
+         task at/after the last `[x]` may have been half-edited when the prior run died, so re-read
+         its current on-disk state (`git diff`) and complete/repair it rather than assume it is
+         untouched or already done; (4) carry forward distilled state — front-load the facts you have
+         already verified as given and forbid codebase re-exploration (the wrapper is a hard ceiling;
+         the executor otherwise burns its budget re-deriving context you already have). This is the
+         ONLY resume path — the harness has no subagent resume (AGENTS.md "Make work resumable"), so a
+         killed executor restarts cold. Second crash → spawn a **Sonnet subagent**
+         apply-executor (`Agent` tool, `subagent_type: "apply-executor"`) to finish
+         `tasks.md`, given the same brief.
       - **Non-crash failure — declared blocker** (the completion report contains
         `### NON-CONVERGENCE BLOCKER`) → route to **orchestrator triage**, NOT
         reflexive Sonnet. Triage options:
@@ -242,9 +247,11 @@ Implement tasks from an OpenSpec change.
      - **Declared blocker found** → report it to the user with the triage
        options (tighten brief + fresh executor / escalate to user for
        artifact/decision gap / Sonnet only if model-capability gap).
-     - **No declared blocker** (opaque give-up) → dispatch a **fresh**
-       `@apply-executor` (do NOT route to Sonnet), or escalate to the user
-       if another retry is unlikely to help.
+      - **No declared blocker** (opaque give-up) → dispatch a **fresh**
+        `@apply-executor` (do NOT route to Sonnet), or escalate to the user
+        if another retry is unlikely to help. Give the fresh executor
+        the same resume brief (skip `[x]` / resume at first `[ ]` /
+        reconcile the in-flight task / carry distilled state).
    - User interrupts
 
 7. **On completion or pause, show status**

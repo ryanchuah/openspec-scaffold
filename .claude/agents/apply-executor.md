@@ -20,13 +20,20 @@ For each unchecked task `[ ]`:
 
 1. **Implement** the task according to `design.md`.
 
-2. **Run the project's tests** using the per-repo test command:
-   - Prefer `scripts/test-cmd` (one-line file in the repo root).
-   - If `scripts/test-cmd` is absent, use the project's standard/documented test
-     command (e.g. check `pyproject.toml` for pytest config, `Makefile` for a
-     `test` target, or `package.json` for a `test` script).
-   - **Never improvise** an ad-hoc `pytest` or other command that may pick the
-     wrong venv/flags.
+2. **Run the project's tests.** Use the per-repo test *tool* — prefer `scripts/test-cmd`
+   (one-line file in the repo root); if absent, the project's standard/documented test
+   command (`pyproject.toml` pytest config, a `Makefile` `test` target, or `package.json`
+   `test` script). **Never improvise** an ad-hoc command that may pick the wrong venv/flags.
+   - **Per task (green-path check, first time through this task only):** run that same tool
+     **scope-narrowed** to the tests covering the files this task changed — from
+     `git diff --name-only`, the sibling/covering test file(s) (e.g. `<test-cmd> path/to/test_touched.py`).
+     Scope-narrowing the SAME tool is NOT improvising. If the touched-module→test mapping is
+     unclear, run the full command. (On a **CONTINUE retry from step 4** the existing red-path
+     rule applies instead — re-run the failing test's module, not a git-diff-derived set.)
+   - **Once after the whole loop (assignment gate):** this bullet fires exactly ONCE, after the
+     per-task loop finishes (no `[ ]` tasks remain) — NOT on each iteration. Run the **full**
+     documented command (unnarrowed) once; report success only if it passes. A red full run
+     enters the red-path handling (step 4) — it does NOT complete the run.
 
 3. **Green** → mark the task `[x]` in `tasks.md` and proceed to the next task.
 
