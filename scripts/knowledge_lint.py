@@ -1359,6 +1359,169 @@ def _check_untriaged_age(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Check 11 — audit-liveness drift (Delta 1)
+# ---------------------------------------------------------------------------
+
+
+def _active_questions_text(root: Path) -> str:
+    """Return the text of the ``## Active`` section of
+    ``knowledge/questions/INDEX.md`` (the region from the ``## Active``
+    heading up to the next ``## `` heading), or an empty string when the
+    file or the section is absent.  Read-only.  Wraps the ``read_text``
+    in ``try/except OSError``, mirroring ``_check_audit_dossier``."""
+    path = root / "knowledge" / "questions" / "INDEX.md"
+    if not path.is_file():
+        return ""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    lines = text.splitlines()
+    active_start = None
+    for i, line in enumerate(lines):
+        if line.strip().startswith("## ") and "## Active" in line:
+            active_start = i
+            break
+    if active_start is None:
+        return ""
+    # Find the next ## heading after Active (or EOF).
+    section_lines: list[str] = []
+    for line in lines[active_start + 1 :]:
+        if line.strip().startswith("## "):
+            break
+        section_lines.append(line)
+    return "\n".join(section_lines)
+
+
+def _check_audit_liveness(root: Path) -> list[Finding]:
+    """Flag in-progress correctness-audit dossiers not referenced by an
+    Active item in ``knowledge/questions/INDEX.md``.
+
+    Mirrors the guarded ``_check_audit_dossier`` idiom: glob
+    ``knowledge/research/correctness-audit-*/``; consider only dirs whose
+    ``CHARTER.md`` contains the literal ``format: correctness-audit/v1``;
+    skip any whose ``CHARTER.md`` also contains a ``status: closed`` line.
+    For each remaining (in-progress) dossier, require the dossier directory
+    basename (e.g. ``correctness-audit-2026-07``) to appear (substring
+    membership) in ``_active_questions_text(root)``; if it does not, flag.
+
+    Empty glob / markerless / charter-less / closed → no findings.
+    Detect-only.
+    """
+    findings: list[Finding] = []
+    active_text = _active_questions_text(root)
+    dossier_dirs = sorted(root.glob("knowledge/research/correctness-audit-*/"))
+    for dd in dossier_dirs:
+        if not dd.is_dir():
+            continue
+        charter_path = dd / "CHARTER.md"
+        if not charter_path.is_file():
+            continue
+        try:
+            charter_text = charter_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "format: correctness-audit/v1" not in charter_text:
+            continue
+        if "status: closed" in charter_text:
+            continue
+        # Substring match on the unique correctness-audit-YYYY-MM basename.
+        dir_basename = dd.name
+        if dir_basename not in active_text:
+            findings.append(
+                Finding(
+                    "audit-liveness",
+                    _relpath(root, dd),
+                    None,
+                    "in-progress correctness-audit dossier not referenced "
+                    "by an Active knowledge/questions/INDEX.md item",
+                )
+            )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Check 12 — post-close ledger format (Delta 4)
+# ---------------------------------------------------------------------------
+
+
+def _check_post_close_ledger(root: Path) -> list[Finding]:
+    """Validate ``POST-CLOSE-LEDGER.md`` line format in marked dossiers.
+
+    Glob ``knowledge/research/correctness-audit-*/``; for each dir whose
+    ``CHARTER.md`` contains ``format: correctness-audit/v1``, look for
+    ``POST-CLOSE-LEDGER.md``.  When present, treat as entry line every line
+    that is NOT blank, NOT a markdown heading (stripped line starts with
+    ``#``), NOT a table-separator row (stripped line consists only of
+    ``|``, ``-``, ``:``, spaces), and NOT an HTML comment (stripped line
+    starts with ``<!--``).  For each entry line: strip it, remove a single
+    leading ``|`` and a single trailing ``|`` if present, split on ``|``,
+    and require at least five cells each non-empty after trimming.  Otherwise
+    flag.  Absent ledger / unmarked / no dossier → no findings.  Detect-only.
+    """
+    findings: list[Finding] = []
+    dossier_dirs = sorted(root.glob("knowledge/research/correctness-audit-*/"))
+    for dd in dossier_dirs:
+        if not dd.is_dir():
+            continue
+        charter_path = dd / "CHARTER.md"
+        if not charter_path.is_file():
+            continue
+        try:
+            charter_text = charter_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "format: correctness-audit/v1" not in charter_text:
+            continue
+
+        ledger_path = dd / "POST-CLOSE-LEDGER.md"
+        if not ledger_path.is_file():
+            continue
+        try:
+            ledger_lines = ledger_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        rel = _relpath(root, ledger_path)
+
+        for lineno, raw_line in enumerate(ledger_lines, start=1):
+            stripped = raw_line.strip()
+
+            # Skip blank lines.
+            if not stripped:
+                continue
+            # Skip markdown headings.
+            if stripped.startswith("#"):
+                continue
+            # Skip table-separator rows (e.g. |---|---|---|).
+            if all(ch in "|-: " for ch in stripped):
+                continue
+            # Skip HTML comments.
+            if stripped.startswith("<!--"):
+                continue
+
+            # Strip a single leading | and a single trailing | if present.
+            cell_line = stripped
+            if cell_line.startswith("|"):
+                cell_line = cell_line[1:]
+            if cell_line.endswith("|"):
+                cell_line = cell_line[:-1]
+
+            cells = [c.strip() for c in cell_line.split("|")]
+            if len(cells) < 5 or any(c == "" for c in cells):
+                findings.append(
+                    Finding(
+                        "post-close-ledger-format",
+                        rel,
+                        lineno,
+                        "malformed post-close ledger line "
+                        "(need commit | subsystem | wave-owner | spec? | review-tier): "
+                        f"{raw_line!r}",
+                    )
+                )
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -1382,6 +1545,8 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_closed_unpruned(root))
     findings.extend(_check_audit_dossier(root))
     findings.extend(_check_untriaged_age(root))
+    findings.extend(_check_audit_liveness(root))
+    findings.extend(_check_post_close_ledger(root))
     return findings
 
 

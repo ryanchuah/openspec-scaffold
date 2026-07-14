@@ -1647,3 +1647,269 @@ def test_audit_dossier_no_dossier_dir_clean(tmp_path):
     findings = knowledge_lint.collect_findings(tmp_path)
     dossier_findings = [f for f in findings if f.check == "audit-dossier-format"]
     assert dossier_findings == []
+
+
+# ===================================================================
+# 3.1 — audit-liveness drift check (_check_audit_liveness)
+# ===================================================================
+
+_CHARTER_IN_PROGRESS = (
+    "# Correctness Audit Charter\n"
+    "\n"
+    "## Scope\n"
+    "scripts/ingestion.py\n"
+    "\n"
+    "---\n"
+    "format: correctness-audit/v1\n"
+    "status: in-progress\n"
+)
+
+_CHARTER_CLOSED = (
+    "# Correctness Audit Charter\n"
+    "\n"
+    "## Scope\n"
+    "scripts/ingestion.py\n"
+    "\n"
+    "---\n"
+    "format: correctness-audit/v1\n"
+    "status: closed\n"
+)
+
+
+def test_liveness_no_dossier_dir_clean(tmp_path):
+    """(a) no dossier dir → no audit-liveness findings."""
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert liveness == []
+
+
+def test_liveness_markerless_charter_clean(tmp_path):
+    """(b) markerless charter → clean."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        "# Charter without marker\n",
+        None,
+        [],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert liveness == []
+
+
+def test_liveness_closed_charter_clean_even_without_active_item(tmp_path):
+    """(c) charter containing 'status: closed' → clean even with no
+    Active item."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_CLOSED,
+        None,
+        [],
+    )
+    # No Active questions item at all.
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert liveness == []
+
+
+def test_liveness_in_progress_missing_from_active_flagged(tmp_path):
+    """(d) in-progress dossier (marked, no 'status: closed') whose dir
+    name is absent from the INDEX Active section → exactly one
+    audit-liveness finding."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_IN_PROGRESS,
+        None,
+        [],
+    )
+    # INDEX.md with empty ## Active (no reference to the dossier).
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/questions/INDEX.md": (
+                "# Open Questions\n"
+                "\n"
+                "## Active\n"
+                "\n"
+                "<!-- nothing here -->\n"
+                "\n"
+                "## Parked\n"
+                "\n"
+                "- Some parked item\n"
+            )
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert len(liveness) == 1
+    assert "correctness-audit-2026-07" in liveness[0].path
+
+
+def test_liveness_in_progress_present_in_active_clean(tmp_path):
+    """(e) in-progress dossier whose dir name appears in the ## Active
+    section → clean."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_IN_PROGRESS,
+        None,
+        [],
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/questions/INDEX.md": (
+                "# Open Questions\n"
+                "\n"
+                "## Active\n"
+                "\n"
+                "- correctness-audit-2026-07 → `knowledge/questions/correctness-audit-2026-07.md`\n"
+                "\n"
+                "## Parked\n"
+                "\n"
+                "- Some parked item\n"
+            )
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert liveness == []
+
+
+def test_liveness_in_progress_only_in_parked_flagged(tmp_path):
+    """(f) in-progress dossier whose dir name appears only under
+    ## Parked (not ## Active) → flagged."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_IN_PROGRESS,
+        None,
+        [],
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/questions/INDEX.md": (
+                "# Open Questions\n"
+                "\n"
+                "## Active\n"
+                "\n"
+                "<!-- nothing relevant -->\n"
+                "\n"
+                "## Parked\n"
+                "\n"
+                "- correctness-audit-2026-07 → `knowledge/questions/correctness-audit-2026-07.md`\n"
+            )
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    liveness = [f for f in findings if f.check == "audit-liveness"]
+    assert len(liveness) == 1
+    assert "correctness-audit-2026-07" in liveness[0].path
+
+
+# ===================================================================
+# 3.2 — post-close ledger format check (_check_post_close_ledger)
+# ===================================================================
+
+
+def test_ledger_absent_no_findings(tmp_path):
+    """(a) marked dossier with no POST-CLOSE-LEDGER.md → no
+    post-close-ledger-format findings."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_CLOSED,
+        None,
+        [],
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ledger_findings = [f for f in findings if f.check == "post-close-ledger-format"]
+    assert ledger_findings == []
+
+
+def test_ledger_valid_lines_clean(tmp_path):
+    """(b) ledger with valid entry lines — both bare form
+    (a | b | c | d | e) and pipe-delimited table form
+    (| a | b | c | d | e |) → clean."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_CLOSED,
+        None,
+        [],
+    )
+    ledger_content = "# Post-Close Ledger\n\na1 | b1 | c1 | d1 | e1\n| a2 | b2 | c2 | d2 | e2 |\n"
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/research/correctness-audit-2026-07/POST-CLOSE-LEDGER.md": ledger_content,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ledger_findings = [f for f in findings if f.check == "post-close-ledger-format"]
+    assert ledger_findings == []
+
+
+def test_ledger_malformed_lines_flagged(tmp_path):
+    """(c) entry line with fewer than five cells, and one with an empty
+    cell → each flagged with its line number."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_CLOSED,
+        None,
+        [],
+    )
+    ledger_content = (
+        "# Post-Close Ledger\n"
+        "\n"
+        "a1 | b1 | c1 | d1 | e1\n"
+        "a2 | b2 | c2 | d2\n"  # only 4 cells -> flagged
+        "\n"
+        "a4 | b4 | c4 | d4 | \n"  # last cell empty -> flagged
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/research/correctness-audit-2026-07/POST-CLOSE-LEDGER.md": ledger_content,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ledger_findings = [f for f in findings if f.check == "post-close-ledger-format"]
+    assert len(ledger_findings) == 2
+    lines = {f.line for f in ledger_findings}
+    assert 4 in lines  # line 4: only 4 cells
+    assert 6 in lines  # line 6: last cell empty
+
+
+def test_ledger_non_entry_lines_skipped(tmp_path):
+    """(d) heading / table-separator / HTML-comment / blank lines
+    alongside valid entries → not treated as entries, clean."""
+    _build_dossier(
+        tmp_path,
+        "correctness-audit-2026-07",
+        _CHARTER_CLOSED,
+        None,
+        [],
+    )
+    ledger_content = (
+        "# Post-Close Ledger\n"
+        "\n"
+        "a1 | b1 | c1 | d1 | e1\n"
+        "|---|---|---|\n"
+        "<!-- a comment -->\n"
+        "\n"
+        "| a2 | b2 | c2 | d2 | e2 |\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/research/correctness-audit-2026-07/POST-CLOSE-LEDGER.md": ledger_content,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    ledger_findings = [f for f in findings if f.check == "post-close-ledger-format"]
+    assert ledger_findings == []
