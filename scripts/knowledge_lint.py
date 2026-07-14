@@ -93,6 +93,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import subprocess
@@ -1522,6 +1523,91 @@ def _check_post_close_ledger(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Check 13 — claims-ledger staleness (product-audit/v1)
+# ---------------------------------------------------------------------------
+
+
+def _check_claims_ledger_staleness(root: Path) -> list[Finding]:
+    """Flag staleness in product-audit claims ledgers.
+
+    Globs ``knowledge/reference/*.md`` and checks only files containing
+    the literal marker ``format: product-audit/v1``.  Parses the
+    ``## Covered promise-surface files`` section for lines matching
+    ``- <path> — sha256:<64-hex>``.  For each matched file:
+    - if the file does not exist on disk → finding
+    - if the file's current sha256 differs (case-insensitive) from the
+      recorded hash → finding
+    Lines that do not match the format are silently skipped (lenient parse).
+    No ``## Covered promise-surface files`` section, an empty section,
+    or no marker → zero findings.  Detect-only.
+    """
+    findings: list[Finding] = []
+    _MANIFEST_LINE_RE = re.compile(
+        r"\s*-\s*(?P<path>.+?)\s*[—–-]+\s*sha256:(?P<hash>[0-9a-fA-F]{64})\b"
+    )
+
+    for ledger in sorted(root.glob("knowledge/reference/*.md")):
+        try:
+            text = ledger.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if "format: product-audit/v1" not in text:
+            continue
+
+        lines = text.splitlines()
+        in_manifest = False
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            # Track manifest section boundaries.
+            if stripped == "## Covered promise-surface files":
+                in_manifest = True
+                continue
+            if in_manifest and stripped.startswith("## "):
+                in_manifest = False
+                continue
+            if not in_manifest:
+                continue
+
+            # Lenient parse: silently skip non-matching lines.
+            m = _MANIFEST_LINE_RE.match(line)
+            if not m:
+                continue
+
+            target_rel = m.group("path")
+            recorded_hash = m.group("hash")
+            target_path = (root / target_rel).resolve()
+
+            if not target_path.is_file():
+                findings.append(
+                    Finding(
+                        "claims-ledger-staleness",
+                        _relpath(root, ledger),
+                        lineno,
+                        f"claims ledger covers a missing promise-surface file: {target_rel}",
+                    )
+                )
+                continue
+
+            try:
+                actual_hash = hashlib.sha256(target_path.read_bytes()).hexdigest()
+            except OSError:
+                continue
+
+            if actual_hash.lower() != recorded_hash.lower():
+                findings.append(
+                    Finding(
+                        "claims-ledger-staleness",
+                        _relpath(root, ledger),
+                        lineno,
+                        f"claims ledger stale: {target_rel} content changed since last reconciliation",
+                    )
+                )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -1547,6 +1633,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_untriaged_age(root))
     findings.extend(_check_audit_liveness(root))
     findings.extend(_check_post_close_ledger(root))
+    findings.extend(_check_claims_ledger_staleness(root))
     return findings
 
 

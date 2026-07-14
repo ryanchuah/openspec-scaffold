@@ -1913,3 +1913,238 @@ def test_ledger_non_entry_lines_skipped(tmp_path):
     findings = knowledge_lint.collect_findings(tmp_path)
     ledger_findings = [f for f in findings if f.check == "post-close-ledger-format"]
     assert ledger_findings == []
+
+
+# ===================================================================
+# 4.1 — claims-ledger staleness checks (_check_claims_ledger_staleness)
+# ===================================================================
+
+
+def _write_ledger_covered_file(tmp_path: Path, rel_path: str, content: bytes) -> tuple[Path, str]:
+    """Write a covered file under *tmp_path*, returning (path, sha256 hex)."""
+    target = tmp_path / rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    import hashlib
+
+    h = hashlib.sha256(content).hexdigest()
+    return target, h
+
+
+def test_claims_ledger_conforming_clean(tmp_path):
+    """(a) conforming — marked ledger with matching sha256 → zero findings."""
+    covered_path, actual_hash = _write_ledger_covered_file(tmp_path, "some/file.md", b"content")
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        f"- some/file.md — sha256:{actual_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | Delivering surface | Proving check | Disposition |\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_conforming_uppercase_hash_clean(tmp_path):
+    """(a2) conforming — recorded hash in UPPERCASE (case-insensitive match)."""
+    covered_path, actual_hash = _write_ledger_covered_file(
+        tmp_path, "docs/landing.html", b"landing content"
+    )
+    uppercase_hash = actual_hash.upper()
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        f"- docs/landing.html — sha256:{uppercase_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_drift_flagged(tmp_path):
+    """(b) drift — recorded hash present but covered file content changed
+    → exactly one finding naming the file."""
+    covered_path, original_hash = _write_ledger_covered_file(
+        tmp_path, "pricing/page.md", b"original content"
+    )
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        f"- pricing/page.md — sha256:{original_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    # Now change the covered file's content (drift).
+    covered_path.write_bytes(b"changed content")
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert len(claims_findings) == 1
+    assert "pricing/page.md" in claims_findings[0].message
+
+
+def test_claims_ledger_missing_file_flagged(tmp_path):
+    """(c) missing — a listed covered file does not exist on disk
+    → one finding naming it."""
+    actual_hash = "ab" * 32  # valid 64-char hex, but file doesn't exist
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        f"- pricing/gone.md — sha256:{actual_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert len(claims_findings) == 1
+    assert "missing promise-surface file" in claims_findings[0].message
+    assert "pricing/gone.md" in claims_findings[0].message
+
+
+def test_claims_ledger_no_marker_skipped(tmp_path):
+    """(d1) guard-skip — ledger without the format: product-audit/v1 marker
+    → zero findings."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": (
+                "# Claims Ledger\n"
+                "\n"
+                "## Covered promise-surface files\n"
+                "- missing/file.md — sha256:aa" + "bb" * 31 + "\n"
+            ),
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_no_ledger_file_skipped(tmp_path):
+    """(d2) guard-skip — no knowledge/reference/*.md at all → zero findings."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/other.md": "# No reference dir\n",
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_malformed_lines_skipped(tmp_path):
+    """(d3) guard-skip — marked ledger with malformed manifest lines:
+    one short/garbage hash (sha256:zzzz), one no-sha256 line, and one
+    wrong-delimiter line (colon instead of em-dash).  All silently skipped.
+    Also includes one conforming line with a real tracked file that
+    matches — to avoid the false positive of 'no findings because no
+    lines parsed at all'."""
+    covered_path, actual_hash = _write_ledger_covered_file(
+        tmp_path, "real/file.md", b"real content"
+    )
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        "- short/hash.md — sha256:zzzz\n"
+        "- no-hash-line.md — some text without sha256\n"
+        "- wrong/delim.md : sha256:" + "aa" * 32 + "\n"
+        f"- real/file.md — sha256:{actual_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_no_manifest_section_skipped(tmp_path):
+    """(d4) guard-skip — marked ledger with NO ``## Covered promise-surface
+    files`` section → zero findings."""
+    covered_path, actual_hash = _write_ledger_covered_file(
+        tmp_path, "real/file.md", b"real content"
+    )
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Other section\n"
+        f"- real/file.md — sha256:{actual_hash}\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []
+
+
+def test_claims_ledger_empty_manifest_section_skipped(tmp_path):
+    """(d5) guard-skip — marked ledger whose ``## Covered promise-surface
+    files`` heading exists but has no entries before the next ``## `` heading
+    → zero findings."""
+    ledger = (
+        "<!-- format: product-audit/v1 -->\n"
+        "\n"
+        "## Covered promise-surface files\n"
+        "\n"
+        "## Claims\n"
+        "| Promise | ...\n"
+    )
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/claims-ledger.md": ledger,
+        },
+    )
+    findings = knowledge_lint.collect_findings(tmp_path)
+    claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
+    assert claims_findings == []

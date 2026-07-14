@@ -9,6 +9,7 @@
 .claude/skills/correctness-audit/SKILL.md
 .claude/skills/knowledge-drift-review/SKILL.md
 .claude/skills/composition-audit/SKILL.md
+.claude/skills/product-audit/SKILL.md
 .claude/skills/openspec-apply-change/SKILL.md
 .claude/skills/openspec-archive-change/SKILL.md
 .claude/skills/openspec-explore/SKILL.md
