@@ -3,7 +3,9 @@
 
 Enforces the bounds specified in design.md §D-E:
 
-  - knowledge/STATUS.md: at most 3 change-entry sections, each <=150 words.
+  - knowledge/STATUS.md: at most 3 change-entry sections, each <=150 words (C1/C2).
+  - knowledge/STATUS.md: cap-exempt sections (current state, immediate next action,
+    done, pointers) have per-heading word budgets enforced by C3.
   - knowledge/decisions/INDEX.md: every line matching the date-bullet anchor
     ``^- **YYYY-MM-DD**`` must be a valid registry entry of the form:
       - **YYYY-MM-DD** · <slug> · <one-line essence> → `openspec/changes/archive/<dir>/`
@@ -15,7 +17,7 @@ Enforces the bounds specified in design.md §D-E:
     excluded from the check.
 
 Exit codes
------------
+----------
 0  — all clean.
 2  — one or more hard violations.
 
@@ -35,14 +37,12 @@ from pathlib import Path
 # Constants
 # ---------------------------------------------------------------------------
 
-EXEMPT_HEADINGS = frozenset(
-    {
-        "current state",
-        "immediate next action",
-        "done",
-        "pointers",
-    }
-)
+EXEMPT_HEADING_BUDGETS: dict[str, int] = {
+    "current state": 500,
+    "immediate next action": 550,
+    "done": 300,
+    "pointers": 200,
+}
 
 # Anchor: a dash-list item opening with a bolded ISO date.
 # Matches lines like: - **2026-06-16** · slug · text
@@ -137,7 +137,7 @@ def _check_status_md(repo_root: Path) -> list[str]:
     change_entries: list[tuple[str, str, str]] = []
     for heading, body in sections:
         norm = _normalize_heading(heading)
-        if norm in EXEMPT_HEADINGS:
+        if norm in EXEMPT_HEADING_BUDGETS:
             continue
         change_entries.append((heading, body, norm))
 
@@ -158,6 +158,19 @@ def _check_status_md(repo_root: Path) -> list[str]:
         wc = _word_count(body_clean)
         if wc > 150:
             violations.append(f"  knowledge/STATUS.md: {heading} body has {wc} words (max 150)")
+
+    # C3 — exempt-section word budgets
+    for heading, body in sections:
+        norm = _normalize_heading(heading)
+        if norm not in EXEMPT_HEADING_BUDGETS:
+            continue
+        body_clean = _remove_fenced_code_blocks(body)
+        wc = _word_count(body_clean)
+        budget = EXEMPT_HEADING_BUDGETS[norm]
+        if wc > budget:
+            violations.append(
+                f"  knowledge/STATUS.md: {heading} body has {wc} words (max {budget})"
+            )
 
     return violations
 

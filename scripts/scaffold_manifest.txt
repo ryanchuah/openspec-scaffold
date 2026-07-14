@@ -48,6 +48,7 @@ scripts/knowledge_lint.py
 scripts/scaffold_check.py
 scripts/scaffold_manifest.txt
 scripts/status_lint.py
+scripts/boot_surface_lint.py
 scripts/test-gate.sh
 scripts/test_checks.py
 scripts/test_facts.py
@@ -60,6 +61,7 @@ scripts/test_index_coverage.py
 scripts/test_knowledge_lint.py
 scripts/test_outstanding.py
 scripts/test_status_lint.py
+scripts/test_boot_surface_lint.py
 scripts/check.sh
 scripts/install-tools.sh
 scripts/opencode_delegate.py

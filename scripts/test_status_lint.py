@@ -185,24 +185,87 @@ class StatusLintTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     # ------------------------------------------------------------------
-    # Exempt sections skip C2
+    # C3 — Exempt-section word budgets
     # ------------------------------------------------------------------
 
-    def test_exempt_sections_skip_c2(self):
-        """Exempt sections >150w + 3 under-budget change-entries => pass."""
-        status = (
-            "# Status\n\n"
-            "## Current state\n" + _n_words(500) + "\n"
-            "## Immediate next action\n" + _n_words(200) + "\n"
-            "## Done\n" + _n_words(500) + "\n"
-            "## Pointers\n" + _n_words(500) + "\n"
-            "## Latest change — one\n" + _n_words(100) + "\n"
-            "## Prior change — two\n" + _n_words(100) + "\n"
-            "## Prior change — three\n" + _n_words(100) + "\n"
-        )
+    def test_c3_current_state_over_budget_fails(self):
+        """current state (budget 500) over by 1 => exit 2."""
+        status = "# Status\n\n## Current state\n" + _n_words(501) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_c3_current_state_exact_budget_passes(self):
+        """current state at exactly 500 => exit 0."""
+        status = "# Status\n\n## Current state\n" + _n_words(500) + "\n"
         repo = _make_repo(self.tmpdir, status_md=status)
         rc = status_lint.main([str(repo)])
         self.assertEqual(rc, 0)
+
+    def test_c3_current_state_under_budget_passes(self):
+        """current state at 499 => exit 0."""
+        status = "# Status\n\n## Current state\n" + _n_words(499) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_c3_immediate_next_action_over_budget_fails(self):
+        """immediate next action (budget 550) over by 1 => exit 2."""
+        status = "# Status\n\n## Immediate next action\n" + _n_words(551) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_c3_immediate_next_action_exact_budget_passes(self):
+        """immediate next action at exactly 550 => exit 0."""
+        status = "# Status\n\n## Immediate next action\n" + _n_words(550) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_c3_done_over_budget_fails(self):
+        """done (budget 300) over by 1 => exit 2."""
+        status = "# Status\n\n## Done\n" + _n_words(301) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_c3_done_exact_budget_passes(self):
+        """done at exactly 300 => exit 0."""
+        status = "# Status\n\n## Done\n" + _n_words(300) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_c3_pointers_over_budget_fails(self):
+        """pointers (budget 200) over by 1 => exit 2."""
+        status = "# Status\n\n## Pointers\n" + _n_words(201) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_c3_pointers_exact_budget_passes(self):
+        """pointers at exactly 200 => exit 0."""
+        status = "# Status\n\n## Pointers\n" + _n_words(200) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_c3_fence_excluded_from_budget(self):
+        """Fenced code blocks are excluded from exempt-section word count."""
+        # pointers budget=200; 190 words outside + 50 inside fence => 190 counted => pass
+        status = "# Status\n\n## Pointers\n" + _n_words(190) + "\n```\n" + _n_words(50) + "\n```\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 0)
+
+    def test_c3_non_exempt_heading_still_change_entry(self):
+        """A heading NOT in the exempt list is still a change-entry (C2, not budget-exempt)."""
+        # 200 words in a non-exempt section => C2 violation (max 150), not budget-exempt
+        status = "# Status\n\n## Custom section\n" + _n_words(200) + "\n"
+        repo = _make_repo(self.tmpdir, status_md=status)
+        rc = status_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
 
     # ------------------------------------------------------------------
     # Zero change-entries
