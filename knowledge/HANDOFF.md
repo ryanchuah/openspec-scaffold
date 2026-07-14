@@ -33,6 +33,25 @@ archive. **Both are now corrected** (OW-5's STATUS line → SHIPPED; OW-15 marke
 tracker's STATUS line is a snapshot, not a live fact — when a backlog item's actionability hinges on
 another item's ship state, check `openspec/changes/archive/` directly, not just the tracker prose.
 
+## Hard-won lessons (process — carried forward)
+1. **Mixed code + load-bearing scaffold prose → split the apply.** The two `knowledge_lint` detectors +
+   tests went to the flash apply-executor (deterministic code, must be delegated); the
+   `.claude/skills/correctness-audit/SKILL.md` prose (nested code fences, downstream-propagated) was
+   applied by the **primary directly**. Relaying fenced markdown through a delegated executor is
+   error-prone — pre-author verbatim insertion blocks (this change's `skill-additions.md`) and let the
+   primary place them. Keeps "no implementation *code* by primary" intact (primary writes prose, flash
+   writes Python). tasks.md tracked both, with the prose group labeled orchestrator-applied.
+2. **"Fold as much as possible" = maximal COHERENT unit, not maximal count.** OW-15 folded psc CG9 +
+   extrends convergence + strategy-pressure-test into one capability amendment. OW-16 was deliberately
+   NOT folded — greenfield new skill, different capability, higher blast radius, shares only the
+   blind-diff method. Scope by coherence and what survives recon (prior-handoff lesson, re-confirmed).
+3. **Any new `knowledge_lint` check MUST be guarded or it breaks the live-tree gate.**
+   `scripts/test_doc_lint_gate.py` asserts `collect_findings(REPO_ROOT) == []` on THIS repo. Mirror the
+   `_check_audit_dossier` marker-gate idiom (glob → `continue` if no marker → only then flag) so this
+   repo and un-adopted downstream repos lint clean. Both OW-15 detectors did this and stayed green.
+4. **Zero Sonnet fallback again** — flash cleanly handled the whole code apply; deepseek-v4-pro handled
+   premise + behavioral verify (real work, re-ran the suite). Sonnet ran only the archive (operator-directed).
+
 ## Remaining work — OW-12, OW-16, OW-11 residual
 - **OW-12 · Archive mechanization · SMALL–MEDIUM · lowest priority · no recon yet.** `archive_move.py`
   for the dir move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM only for MODIFIED merge
