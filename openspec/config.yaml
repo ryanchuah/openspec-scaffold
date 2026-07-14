@@ -34,7 +34,13 @@ rules:
       apply-executor's work (not a checklist rubber-stamp). The primary agent
       itself (never delegated, never trusting the executor's summary) MUST - (1) read the
       actual diffs/changed files (git diff); (2) re-run the FULL test suite
-      (prefer `scripts/test-cmd`, falling back to the project's documented test command when absent — never an improvised command; e.g. `.venv/bin/python -m pytest -q`) - green is necessary but NOT sufficient; (3) eyeball
+      (prefer `scripts/test-cmd`, falling back to the project's documented test command when absent — never an improvised command; e.g. `.venv/bin/python -m pytest -q`) - green is necessary but NOT sufficient: the executor's tests are a single blind
+      source, so for any change whose diff carries decision logic (parser, state machine,
+      detector, validator, branch-taking transform) the primary MUST also author its OWN
+      adversarial/boundary fixtures — the boundary and should/should-not-trip inputs the
+      executor's tests omit — and confirm behavior on them, since a green suite can hide a
+      real defect at an untested boundary (the verify skill's "Adversarial / boundary
+      fixtures" subsection carries the per-code-type how); (3) eyeball
       the real output the code produces - actual records/rows, the output the system
       generates, results from the relevant project CLI command or a `scripts/_*_oneoff.py`
       probe; (4) on any defect, diagnose and scope it, then re-delegate the fix to a

@@ -43,6 +43,19 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 - After Sonnet fixes it, re-verify again from step 1.
 - **Mandatory disclosure:** if Sonnet was used, say so in the verification report / `notes.md` field 3 ("defect found and how it was fixed — and who fixed it"), explicitly noting the deepseek attempt failed and Sonnet took over.
 
+### Adversarial / boundary fixtures (self-review core)
+
+**Canonical rule:** `openspec/config.yaml` `rules.verify` step (2) — *green is necessary but not sufficient; author your own adversarial/boundary fixtures for logic-bearing changes.* This subsection is the operational how; it cites that rule and does not restate it.
+
+The apply-executor's passing test suite is a **single blind source**: it covers the paths the executor considered and can pass green while a real defect hides at an input those tests never reach. This has already bitten the scaffold — a `spec-delta-structure` detector shipped with a false-negative on multi-section deltas while its executor-written tests (single-section only) all passed; only orchestrator-authored multi-section fixtures caught it (ratchet `detector-statemachine-boundary-flush`).
+
+So during the self-review (Step 5), when the change's diff carries **decision logic** — a parser, state machine, detector, validator, or any branch-taking transform — do NOT stop at re-running the executor's green suite. Independently construct the boundary and adversarial inputs the executor's tests omit, and confirm the change's behavior on them (from a freshly authored test or real output):
+- **State machine / doc-walking parser:** exercise EVERY transition and flush boundary — section headers, first/last item, EOF, empty input — not only the happy middle. (The canonical miss was a per-item flush that fired at two of three boundaries.)
+- **Detector / validator:** feed inputs that SHOULD trip each rule AND inputs that SHOULD NOT, including the empty, single, first, last, and multi-item cases.
+- **Any branch-taking transform:** cover each branch and the edges between them.
+
+This is **distinct from the test-quality lens**: that lens judges the quality of the tests the executor *already wrote*; this obligation has the orchestrator *author the boundary tests the executor never wrote*. A defect surfaced this way takes the existing defect path (Step 8: diagnose, re-delegate a fix-spec, re-verify). A change whose diff carries **no** decision logic — pure prose, docs, config, or data-free rewiring — does not trigger this; record that determination in `notes.md` and proceed.
+
 ### Multi-model passes (independent verification gates)
 
 **Tier applicability:** This skill and its multi-model passes apply to MEDIUM and COMPLEX changes only. A SMALL change does its own verification per `AGENTS.md` and does **not** invoke this skill, its multi-model passes, or the verify phase-gate.
@@ -262,6 +275,8 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
 5. **Re-run the FULL test suite yourself**
 
    Prefer `scripts/test-cmd`, falling back to the project's documented test command when absent — never an improvised command; e.g. `.venv/bin/python -m pytest -q`. It must be green (pre-existing skips OK). A green exit is **necessary but not sufficient.**
+
+   **When the diff carries decision logic** (a parser, state machine, detector, validator, or branch-taking transform), a green executor suite is not enough — author your OWN adversarial/boundary fixtures and confirm behavior on them before proceeding. See the **Adversarial / boundary fixtures (self-review core)** subsection for what to construct and why; a change with no decision logic in its diff records that determination in `notes.md` and skips this.
 
    **Point-of-action delegation cue** (cites `delegation-by-default`, AGENTS.md): the *run+extract*
    of the suite — producing the green/fail signal — is delegable to a haiku/Sonnet subagent; the
