@@ -93,7 +93,7 @@ data-path change requires either an at-scale run or a recorded bounded-domain ar
 `notes.md`. **Effort:** ~1 day. **Deps:** none.
 
 ## OW-5 · `correctness-audit` scaffold skill  ·  Tier: COMPLEX  ·  Orch: **Fable** (design) → Opus (apply/verify)
-**STATUS 2026-07-11: PROPOSE COMPLETE — PAUSED AT APPLY (operator-mandated pause).**
+**STATUS 2026-07-13: SHIPPED** (`openspec/changes/archive/2026-07-13-correctness-audit-skill/`).
 All 4 artifacts frozen in `openspec/changes/correctness-audit-skill/` (proposal, design, 2 spec
 deltas — new `correctness-audit` capability + `knowledge-lint` dossier-lint delta — tasks), each
 through deepseek-v4-pro review: direction gate AGREE (round 1), proposal AGREE (round 1), design
@@ -271,6 +271,7 @@ Evidence docs: `psc-coverage-gap-review-2026-07-11.md` + `extrends-coverage-gap-
 `knowledge/research/correctness-audit-2026-07/gap-map-2026-07-11.md`.
 
 ## OW-15 · Correctness-audit meta-hardening (liveness + scope blind spots)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`).
 Three deltas to the `correctness-audit` capability OW-5 ships, from a downstream review that
 found a heavily-audited repo (psc-monitor, waves 0–2 executed) had (a) **silently dropped its
 chartered Waves 3–4 from every tracker** — the remediation program took over the "wave"
@@ -402,10 +403,8 @@ anywhere after the frozen batch. Standard escalation caveat.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
   **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (mechanized half), OW-13,
-  OW-8 are DONE** (SHIPPED — see per-item STATUS lines above); remaining order is **OW-12** (plus
-  OW-11's parked residual de-bloat half).
-  **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
-  capability, so it pairs naturally with OW-5's verify session or the first real audit run.
+  OW-8, OW-5, OW-15 are DONE** (SHIPPED — see per-item STATUS lines above); remaining order is
+  **OW-12** (plus OW-11's parked residual de-bloat half) and **OW-16**.
   **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the
   frozen batch; if a downstream repo approaches a launch, its claims-ledger half is the urgent
   slice and can be run by hand from the psc reference impl before the skill exists.

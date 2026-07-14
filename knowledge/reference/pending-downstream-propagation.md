@@ -46,6 +46,17 @@ in), so batching them is low-risk:
   reshapes) + `_shared/delegation-harness.md` (new §(g) variable-last convention). All behavior-
   preserving prompt reshapes + doc conventions; low-risk to propagate, no new lint failures expected
   downstream.
+- **correctness-audit-meta-hardening** (2026-07-14) — `scripts/knowledge_lint.py` +
+  `scripts/test_knowledge_lint.py` (two new detectors: `audit-liveness`, `post-close-ledger-format`)
+  and `.claude/skills/correctness-audit/SKILL.md` (liveness/status-marker prose, blind coverage-gap
+  review step, scope-seeding checklist, post-close ledger step), plus the `correctness-audit` +
+  `knowledge-lint` capability specs. Both new lint checks are guarded on the existing
+  `format: correctness-audit/v1` charter marker, same idiom as the shipped `audit-dossier-lint`
+  check — no new downstream lint failures expected on first sync. **Migration note for the
+  propagate-scaffold operator:** a downstream repo whose marked dossier is genuinely still
+  in-progress must add a `status:` line to that charter (`in-progress`/`closed`) and, if
+  in-progress, an Active `knowledge/questions/INDEX.md` item — a one-time reconciliation the
+  liveness check will otherwise (correctly) flag; this is intended behavior, not a regression.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

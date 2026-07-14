@@ -7,7 +7,23 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — delegated-context-caching SHIPPED (2026-07-14)
+## Latest change — correctness-audit-meta-hardening SHIPPED (2026-07-14)
+
+OW-15, MEDIUM. Four deltas to the shipped `correctness-audit` capability: liveness (an in-progress
+dossier stays an Active `knowledge/questions/INDEX.md` item; charter `status:` marker `in-progress`→
+`closed`; remediation programs use a namespace distinct from discovery `WAVE-N` rows); a blind
+close-out coverage-gap review (four-marker taxonomy diff; both the blind-taxonomy and evidence-fanout
+halves load-bearing); a bounded scope-seeding checklist inlined in the skill (11-group dimension seed +
+12 named blind-spot classes; classes 9-12 carried as awareness pointers only — the claims-ledger
+mechanism is OW-16, not built here); and a post-close `POST-CLOSE-LEDGER.md` for persistence-touching
+changes. Two new guarded `knowledge_lint` detectors (`audit-liveness`, `post-close-ledger-format`),
+both gated on the existing format marker so un-adopted repos stay clean. Verify: premise AGREE, pro
+behavioral verifier READY with zero defects, 9 orchestrator-authored adversarial fixtures held,
+`check.sh` green, zero Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
+
+## Prior change — delegated-context-caching SHIPPED (2026-07-14)
 
 OW-8 caching hygiene, SMALL. Shipped A (reshaped the 4 delegated `opencode run` prompt strings —
 apply/archive/propose-reviewer/AGENTS.md SMALL-premise — to put per-change variable paths LAST for
@@ -34,29 +50,15 @@ pro behavioral verifier READY with zero defects, `check.sh` green, zero Sonnet f
 Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`.
 
-## Prior change — verify-adversarial-fixtures SHIPPED (2026-07-14)
-
-Promoted the carried-forward verify lesson (an executor's green tests passed over a real
-`spec-delta-structure` detector false-negative on multi-section deltas; ratchet
-`detector-statemachine-boundary-flush`) into the durable verify surface: extended
-`config.yaml` `rules.verify` step (2)'s "green is necessary but NOT sufficient" clause so the
-self-review MUST author its OWN adversarial/boundary fixtures for logic-bearing diffs, plus a
-new operational subsection + Step 5 pointer in the verify skill. Single-source: config owns the
-rule, skill cites it; no spec delta (self-review content isn't owned by `verify-multimodel-gate`).
-Verify: self-review PASS → pro behavioral verifier READY, zero defects; `check.sh` green; the
-obligation correctly assessed N/A on this very diff (pure-prose exemption dogfooded). Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Downstream
-propagation is operator-gated and deferred. Archive:
-`openspec/changes/archive/2026-07-14-verify-adversarial-fixtures/`.
-
 ## Immediate next action
-No proactive build in flight. OW-8 (delegated-context-caching) shipped —
-`openspec/changes/archive/2026-07-14-delegated-context-caching/`; its B item is a deferred-blocked
-follow-on and C was dropped (both recorded, not open work). The wave-2 scaffold-hardening remainder
-is **OW-12** (archive mechanization, lowest priority), plus **OW-15** (BLOCKED on unshipped OW-5) and
-**OW-16** (chain-independent greenfield). OW-11's fuzzy de-bloat half is a parked residual follow-on
-(`knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source of the backlog:
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
+No proactive build in flight. OW-15 (correctness-audit-meta-hardening) shipped —
+`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`. The wave-2 scaffold-hardening
+remainder is **OW-12** (archive mechanization, lowest priority), **OW-16** (product-audit greenfield,
+chain-independent — carries OW-15's classes 9-12 awareness pointers + the claims-ledger mechanism),
+and OW-11's fuzzy de-bloat residual (`knowledge/questions/skill-debloat-gates-follow-ons.md`). Note:
+OW-15's prior "BLOCKED on unshipped OW-5" status (in the old HANDOFF/STATUS) was stale — OW-5
+(`correctness-audit`) shipped 2026-07-13; the `OUTSTANDING-WORK.md` tracker line has been corrected.
+Single source of the backlog: `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
 
 The **Fable-tier design backlog is closed** (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`) — everything remaining is Opus-tier. Earlier

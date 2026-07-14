@@ -1,95 +1,65 @@
-# HANDOFF — OW-8 (delegated-context-caching) shipped; wave-2 remaining OW-12 (+ OW-15/16) (2026-07-14)
+# HANDOFF — OW-15 (correctness-audit-meta-hardening) shipped; wave-2 remaining OW-12/OW-16 + OW-11 residual (2026-07-14)
 
-> **Read this right after `knowledge/STATUS.md`.** A session with an explicit operator autonomy grant
-> shipped **`delegated-context-caching` (OW-8, SMALL)** end-to-end — plan → premise → apply → verify →
-> archive, three commits on `main` (impl, archive, handoff), local & **unpushed** (push is
-> operator-gated). Absorb this, pick up from **Remaining work**, and **delete this file once absorbed**.
-> Its normal state is absent.
+> **Read this right after `knowledge/STATUS.md`.** A session shipped **`correctness-audit-meta-hardening`
+> (OW-15, MEDIUM)** end-to-end — plan → propose → apply → verify → archive, committed on `main`, local &
+> **unpushed** (push is operator-gated). Downstream propagation is **DEFERRED + operator-gated**. Absorb
+> this, pick up from **Remaining work**, and **delete this file once absorbed**. Its normal state is absent.
 >
-> **You have NO standing autonomy grant.** The prior grant was in-session only. Confirm tier+plan per
-> change unless the operator re-grants autonomy.
+> **You have NO standing autonomy grant.** Confirm tier+plan per change unless the operator re-grants
+> autonomy.
 
-## DONE this session — delegated-context-caching (OW-8)
-OW-8 was "Delegated-context caching hygiene" with four sub-parts. Shipped **A + D**; deferred **B**
-(blocked); dropped **C** (over-engineering). SMALL, no spec delta, doc/prompt-only (no code).
-- **A — variable-paths-LAST reshape** of the 4 delegated `opencode run` prompt strings (apply-executor,
-  archive-executor, propose openspec-reviewer base, AGENTS.md SMALL-premise reviewer). Fixed
-  instructions first, per-change variable paths bound at the tail → the byte-identical instruction body
-  becomes a DeepSeek prefix-cache-eligible shared prefix. Behavior-preserving; all wrapper-asserted
-  markers preserved. The verifier prompts were already the ideal shape (no inlined path) — the reference.
-- **D — convention + durable finding.** (d1) New `delegation-harness.md` **§(g) "Prompt-template shape
-  — variable content last"** codifies the rule so future prompt edits preserve it (prose-is-write-only-
-  memory mitigation). (d2) AGENTS.md stability preamble gained a tight **batch-AGENTS.md-edits** note.
-  (d3) B-finding recorded durably (archived `notes.md` + decisions entry + follow-on).
+## DONE this session — correctness-audit-meta-hardening (OW-15)
+Four deltas to the shipped `correctness-audit` capability: (1) liveness — an in-progress dossier stays
+an Active `knowledge/questions/INDEX.md` item; charter `status:` marker `in-progress`→`closed`;
+remediation programs use a namespace distinct from discovery `WAVE-N` rows; (2) a blind close-out
+coverage-gap review (four-marker taxonomy diff; blind-taxonomy + evidence-fanout both load-bearing);
+(3) a bounded scope-seeding checklist inlined in the skill (11-group dimension seed + 12 named
+blind-spot classes; **classes 9-12 are awareness pointers only — the claims-ledger mechanism is OW-16,
+not built here**); (4) a post-close `POST-CLOSE-LEDGER.md` requirement for persistence-touching changes.
+Plus two new guarded `knowledge_lint` detectors (`audit-liveness`, `post-close-ledger-format`), both
+gated on the existing `format: correctness-audit/v1` marker. Verify: premise AGREE, pro behavioral
+verifier READY with zero defects, 9 orchestrator-authored adversarial fixtures held, `check.sh` green,
+zero Sonnet fallback anywhere in the lifecycle. Full record: decisions —
+`knowledge/decisions/INDEX.md` (`correctness-audit-meta-hardening`); follow-ons —
+`knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`; archive —
+`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
 
-## ⭐ USE these now — they govern YOUR work
-- **`delegation-harness.md` §(g) is a live convention.** Any new/edited delegated `opencode run` prompt
-  MUST put per-change variables (paths/names/flags) at the TAIL and preserve its wrapper-asserted
-  markers (`### Premise Verdict`/`PREMISE:`, `## Verify Pass`/`VERDICT:`/`### Defects`). Review-enforced
-  (no lint — the variable-vs-illustrative-placeholder distinction is too fuzzy to detect reliably).
-- **AGENTS.md is injected into every delegated executor and CANNOT be surgically stripped** (see below).
-  So **batch AGENTS.md edits** — each one resets the DeepSeek prefix cache for all delegated agents.
+## ⭐ Corrected stale-tracker finding — verify archive vs tracker STATUS lines before trusting them
+This change's own premise was almost blocked by a stale line: `OUTSTANDING-WORK.md`'s OW-5 entry still
+read "PROPOSE COMPLETE — PAUSED AT APPLY" even though OW-5 (`correctness-audit`) **shipped 2026-07-13**
+(`openspec/changes/archive/2026-07-13-correctness-audit-skill/`). The prior HANDOFF and `STATUS.md` both
+repeated the stale "OW-15 BLOCKED on OW-5" claim, inherited from the tracker without re-checking the
+archive. **Both are now corrected** (OW-5's STATUS line → SHIPPED; OW-15 marked SHIPPED). Lesson: a
+tracker's STATUS line is a snapshot, not a live fact — when a backlog item's actionability hinges on
+another item's ship state, check `openspec/changes/archive/` directly, not just the tracker prose.
 
-## ⭐⭐ B-BLOCKED — do NOT re-attempt without a new opencode mechanism (reproducible proof)
-The analysis's biggest lever — strip the ~7.2k-token, high-churn, orchestrator-voice AGENTS.md
-injection from sub-executors via `OPENCODE_DISABLE_PROJECT_CONFIG=1` — is **blocked in opencode
-v1.17.18**: that env var ALSO disables `.opencode/agents/` discovery. Proof (zero model cost):
-`OPENCODE_DISABLE_PROJECT_CONFIG=1 opencode agent list` → **0** project agents (only built-ins);
-plain `opencode agent list` → all 5 present. So setting it would silently swap `--agent apply-executor`
-for a built-in default (right model, WRONG role) — the exact silent-fallback footgun. No per-agent
-instruction-scoping opt-out exists in the schema. **Revisit only if** opencode adds a targeted
-per-agent instruction-scoping mechanism, or AGENTS.md is deliberately split; re-test on any opencode
-major-version bump. Full evidence: archived `notes.md`; trigger: `knowledge/questions/delegated-context-caching-follow-ons.md`.
-
-## HARD-WON LESSONS (carried forward — prior lessons in archived handoffs still hold)
-1. **"Fold as much as possible" = scope by coherence AND by what survives recon, not by count.** OW-8's
-   4 sub-parts collapsed to 2 shippable (A+D) once recon proved B blocked and C over-engineering. The
-   honest, correct scope was NOT padded to look bigger — the highest-value output was arguably the
-   *recon finding* (B is definitively blocked), which saves every future agent from re-attempting it.
-   Don't fold OW-12/OW-16 in — different surfaces, higher blast radius (handoff-lesson carried).
-2. **Test the "just try X" backlog hypotheses cheaply before building on them.** `opencode agent list`
-   with/without the env var settled B in two commands — no model spend, no guesswork. When a backlog
-   item says "test env var Y", the binary + a dry CLI subcommand often answer it for free.
-3. **Doc/prompt-only SMALL changes: the primary applies directly** (disclosed deviation from the
-   flash-delegate default). AGENTS.md's "quick doc edits done by the primary; do not over-delegate
-   trivia" governs when there's no implementation code and exact target strings are pre-authored — more
-   reliable for load-bearing prose, and avoids the `.claude/worktrees/analyze/` stale-copy footgun.
-4. **`scripts/opencode_delegate.py` is NOT executable in a fresh checkout** — invoke `python3
-   scripts/opencode_delegate.py …`, not `scripts/opencode_delegate.py …` (the latter → "Permission
-   denied", exit 126). The AGENTS.md/skill examples show the bare form; prefix `python3`.
-5. **Zero Sonnet fallback again.** deepseek-flash cleanly handled both the SMALL premise pass (AGREE,
-   validated the B-defer/C-drop judgment calls independently) and the verify behavioral pass (READY,
-   zero defects, produced a real side-by-side semantic-equivalence table — not a rubber stamp).
-   **Archive via a Sonnet subagent** (operator-directed) worked cleanly: held the ≤3 STATUS cap,
-   respected C3 budgets + boot_surface, created the follow-on body, and even caught a pre-existing
-   OW-13 self-consistency gap in OUTSTANDING-WORK (flagged + fixed).
-6. **Two `knowledge/reference` reconciliations the archive brief must name** (I had to add them post-
-   archive): the **pending-propagation ledger** (`knowledge/reference/pending-downstream-propagation.md`)
-   needs an entry for any scaffold-managed edit, and the **roadmap** wave-status line goes stale. Put
-   both in the archive-executor brief next time.
-
-## Remaining work — OW-12 (+ OW-15 / OW-16)
-- **OW-12 · Archive mechanization · SMALL–MEDIUM · lowest priority · NO recon yet.** `archive_move.py`
+## Remaining work — OW-12, OW-16, OW-11 residual
+- **OW-12 · Archive mechanization · SMALL–MEDIUM · lowest priority · no recon yet.** `archive_move.py`
   for the dir move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM only for MODIFIED merge
-  + reconciliation narrative). Keep the archive-executor on pro. AUDIT finding 6.
-- **OW-15** (correctness-audit meta-hardening) — **BLOCKED**: amends OW-5's capability, and **OW-5 is
-  still parked-at-apply**. **OW-16** (`product-audit` skill) — chain-independent greenfield, slot
-  anywhere. See `OUTSTANDING-WORK.md` lines ~268/330.
+  + reconciliation narrative). Keep the archive-executor on pro.
+- **OW-16 · `product-audit` skill (promise-surface / business-thesis audit) · chain-independent
+  greenfield.** Carries forward this change's classes 9-12 (copy↔capability conformance / claims ledger,
+  entitlement-state reachability, severity-taxonomy completeness, source-class labeling) as the
+  operationalization target, plus the claims-ledger convention itself. Slots anywhere; see
+  `OUTSTANDING-WORK.md` OW-16 entry and `knowledge/roadmap.md`.
 - **OW-11's fuzzy de-bloat half** remains parked (`knowledge/questions/skill-debloat-gates-follow-ons.md`).
-- **OW-8 residual follow-ons** → `knowledge/questions/delegated-context-caching-follow-ons.md` (B revisit
-  trigger; the C-drop premise-marker lint idea). None blocking.
+- **OW-15 residual follow-ons** (monitored, none blocking) →
+  `knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`: liveness substring-match
+  false-negative; Delta-4 ledger should-exist-after-close-out obligation (deferred, protocol-level not
+  lint-level); ledger at-least-five cell tolerance.
 
 ## Downstream propagation — DEFERRED + operator-gated
-This change edited scaffold-managed surfaces: AGENTS.md shared span (stability note + SMALL-premise
-prompt reshape), the 3 delegating skills (apply/archive/propose prompt reshapes), and
-`_shared/delegation-harness.md` (new §(g)). NOT synced to extrends/psc-monitor without fresh operator
-authorization. Unlike knowledge-surface-bounding-2, these are behavior-preserving prompt reshapes + doc
-conventions — **no new lint failures expected downstream**. Running ledger:
+This change edited scaffold-managed surfaces: `scripts/knowledge_lint.py` + `test_knowledge_lint.py`
+(two new detectors), `.claude/skills/correctness-audit/SKILL.md`, and the `correctness-audit` +
+`knowledge-lint` capability specs. NOT synced to extrends/psc-monitor without fresh operator
+authorization. Both new lint checks are guarded on the existing format marker — no new downstream lint
+failures expected on first sync. Migration note for whoever runs the propagation: a downstream dossier
+that later adopts the marker while genuinely still in-progress needs a `status:` line added (a one-time
+reconciliation the liveness check will otherwise correctly flag). Running ledger:
 `knowledge/reference/pending-downstream-propagation.md`.
 
 ## Pointers
 - Backlog + per-item STATUS: `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
-- Wave-2 design calls + caching analysis: `knowledge/research/workflow-audit-2026-07-11/` (`AUDIT.md`,
-  `caching-analysis.md` — the latter is the OW-8 source; its items #1 (var-last) and #3-batch shipped
-  here, #2/#3-boot shipped in OW-13, #4 (AGENTS.md scoping) = the blocked B).
-- This change (full record incl. B-evidence): `openspec/changes/archive/2026-07-14-delegated-context-caching/`.
+- Evidence sources for OW-15: `psc-coverage-gap-review-2026-07-11.md`,
+  `extrends-coverage-gap-review-2026-07-12.md`, `psc-strategy-pressure-test-2026-07-12.md` (same dir).
+- This change (full record): `openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
