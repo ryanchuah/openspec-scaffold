@@ -7,7 +7,20 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — knowledge-surface-bounding-2 SHIPPED (2026-07-14)
+## Latest change — delegated-context-caching SHIPPED (2026-07-14)
+
+OW-8 caching hygiene, SMALL. Shipped A (reshaped the 4 delegated `opencode run` prompt strings —
+apply/archive/propose-reviewer/AGENTS.md SMALL-premise — to put per-change variable paths LAST for
+DeepSeek prefix-cache credit; markers preserved) + D (codified the variable-last convention as
+`delegation-harness.md` §(g); batch-AGENTS.md-edits note added). **B DEFERRED (blocked):**
+`OPENCODE_DISABLE_PROJECT_CONFIG` proven (binary+empirical) to also disable `.opencode/agents/`
+discovery → would silently swap the executor for a built-in default. **C DROPPED:** premise prompt
+only ~7 words truly shared → over-engineering. No spec delta. Verify: premise AGREE, flash verifier
+READY zero defects, `check.sh` green, zero Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`;
+follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-14-delegated-context-caching/`.
+
+## Prior change — knowledge-surface-bounding-2 SHIPPED (2026-07-14)
 
 Mechanized two boot-surface bounds that AGENTS.md's prose already states but nothing enforced:
 `status_lint.py` gained a C3 check bounding each cap-exempt STATUS.md section (current
@@ -36,25 +49,11 @@ obligation correctly assessed N/A on this very diff (pure-prose exemption dogfoo
 propagation is operator-gated and deferred. Archive:
 `openspec/changes/archive/2026-07-14-verify-adversarial-fixtures/`.
 
-## Prior change — skill-debloat-gates (OW-11 mechanized gates) SHIPPED (2026-07-14)
-
-Shipped OW-11's mechanized half (MEDIUM, scoped — the fuzzy de-bloat half deferred to a residual
-follow-on): a `spec-delta-structure` detector in `checks.py` that structurally validates every open
-change's spec deltas by directory presence, closing the `medium-change-spec-delta-unvalidated`
-ratchet (`openspec validate` is proposal.md-gated and never saw MEDIUM changes' deltas); a
-`model-id-agreement` lint in `scaffold_lint.py` guarding sanctioned deepseek model-id spellings;
-concurrent-launch prose for the two COMPLEX verifier passes; and an explore→propose slug near-match
-warning. Promoted two spec deltas (`defect-prevention-detectors`, `verify-multimodel-gate`); both
-validate `--strict` clean. Verify: self-review caught and re-delegated a fix for a real detector
-false-negative (a multi-section scenario-check gap); pro behavioral pass READY, zero defects;
-simplicity gate landed four behavior-preserving cleanups; `check.sh` green; zero Sonnet fallback.
-Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-14-skill-debloat-gates/`.
-
 ## Immediate next action
-No proactive build in flight. OW-13 (knowledge-surface-bounding-2) shipped —
-`openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`. The wave-2 scaffold-hardening
-remainder is **OW-8 → OW-12** (recommended order), plus **OW-15** (BLOCKED on unshipped OW-5) and
+No proactive build in flight. OW-8 (delegated-context-caching) shipped —
+`openspec/changes/archive/2026-07-14-delegated-context-caching/`; its B item is a deferred-blocked
+follow-on and C was dropped (both recorded, not open work). The wave-2 scaffold-hardening remainder
+is **OW-12** (archive mechanization, lowest priority), plus **OW-15** (BLOCKED on unshipped OW-5) and
 **OW-16** (chain-independent greenfield). OW-11's fuzzy de-bloat half is a parked residual follow-on
 (`knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source of the backlog:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.

@@ -51,3 +51,4 @@
 - skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual de-bloat + 3 low-priority items) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
 - verify-adversarial-fixtures follow-ons (rules.verify registry row; verifier verdict-block adherence, monitored) → `knowledge/questions/verify-adversarial-fixtures-follow-ons.md`
 - knowledge-surface-bounding-2 follow-ons (OW-13, shipped 2026-07-14; decisions/INDEX.md year-split, budget/threshold tuning, boot_surface WARN visibility) → `knowledge/questions/knowledge-surface-bounding-2-follow-ons.md`
+- delegated-context-caching follow-ons (OW-8, shipped 2026-07-14): B — AGENTS.md-injection strip blocked on opencode env-var coupling, revisit on per-agent instruction-scoping / AGENTS.md split; C-drop lint idea → `knowledge/questions/delegated-context-caching-follow-ons.md`

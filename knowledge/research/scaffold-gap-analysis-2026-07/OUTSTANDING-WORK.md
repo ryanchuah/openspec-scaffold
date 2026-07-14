@@ -192,10 +192,14 @@ retry#) to untracked `output/delegation-log.jsonl`. Telemetry feeds the two sche
 **Deps:** after frozen batch.
 
 ## OW-8 · Delegated-context caching hygiene  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
-Variable-paths-last in apply/archive/reviewer prompt templates; scope down / stabilize the
-AGENTS.md auto-injection into delegated deepseek calls (highest-churn file resets all 5 agents'
-prefix cache; ~7.2k orchestrator-voice tokens sent to the implementer role); single-source the
-triplicated premise prompt. **Deps:** none hard; prompt-template edits after frozen batch.
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-delegated-context-caching/`).
+Shipped A (variable-paths-last reshape of the 4 delegated prompt strings) + D (variable-last
+convention codified in `delegation-harness.md`; AGENTS.md batch-edits note). **B (scope down /
+stabilize the AGENTS.md auto-injection) DEFERRED-BLOCKED:** `OPENCODE_DISABLE_PROJECT_CONFIG`
+proven to also disable `.opencode/agents/` discovery — would silently swap the executor for a
+built-in default; no per-agent instruction-scoping opt-out exists in opencode v1.17.18. **C
+(single-source the triplicated premise prompt) DROPPED:** only ~7 words are genuinely shared;
+extraction would be net-negative indirection. Follow-ons: `knowledge/questions/delegated-context-caching-follow-ons.md`.
 
 ## OW-9 · Instruction-surface contradiction sweep  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
 **STATUS 2026-07-13: SHIPPED** (`openspec/changes/archive/2026-07-13-instruction-surface-coherence/`).
@@ -237,6 +241,7 @@ only for MODIFIED merge + reconciliation narrative). Keep the executor on pro �
 the judgment. **Deps:** after frozen batch.
 
 ## OW-13 · Knowledge-surface bounding, round 2  ·  Tier: SMALL  ·  Orch: **Opus**
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`).
 `status_lint` word-budgets for the currently-exempt sections (evidence: extrends "Immediate next
 action" at 1,645 words); bound `knowledge/decisions/INDEX.md` (extrends 52KB ≈ 13k boot-scan
 tokens; year-split); optional plans/-count lint (extrends 68-file shadow workflow); a
@@ -396,8 +401,9 @@ anywhere after the frozen batch. Standard escalation caveat.
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
-  **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10 are DONE** (SHIPPED — see per-item
-  STATUS lines above); remaining order is **OW-11 → OW-8 → OW-13 → OW-12**.
+  **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (mechanized half), OW-13,
+  OW-8 are DONE** (SHIPPED — see per-item STATUS lines above); remaining order is **OW-12** (plus
+  OW-11's parked residual de-bloat half).
   **OW-15** (late addition 2026-07-11) slots anywhere after the frozen batch — it amends OW-5's
   capability, so it pairs naturally with OW-5's verify session or the first real audit run.
   **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the

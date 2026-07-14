@@ -54,7 +54,7 @@ for OW numbering, routing, order). All wave-2 items Opus end-to-end; Fable-tier 
 `openspec/changes/archive/2026-07-13-instruction-surface-coherence/`) — OW-9 delivered the
 instruction-surface contradiction sweep + autonomy-phase-advance rule; OW-14 delivered
 delegation-by-default mechanics (haiku tier + point-of-action cues). Remaining wave-2 items:
-OW-7 (`delegation-wrapper-telemetry`) SHIPPED 2026-07-13; OW-10 (`apply-throughput-resume`) SHIPPED 2026-07-14; OW-11 (`skill-debloat-gates`, mechanized half) SHIPPED 2026-07-14 (de-bloat half → OW-11-residual follow-on); OW-13 (`knowledge-surface-bounding-2`) SHIPPED 2026-07-14; OW-8, OW-12 — still open (order OW-8 → OW-12).
+OW-7 (`delegation-wrapper-telemetry`) SHIPPED 2026-07-13; OW-10 (`apply-throughput-resume`) SHIPPED 2026-07-14; OW-11 (`skill-debloat-gates`, mechanized half) SHIPPED 2026-07-14 (de-bloat half → OW-11-residual follow-on); OW-13 (`knowledge-surface-bounding-2`) SHIPPED 2026-07-14; OW-8 (`delegated-context-caching`) SHIPPED 2026-07-14 (A+D; B deferred-blocked, C dropped); OW-12 — still open (lowest priority).
 
 ## `openspec update` skill-clobber — NON-ISSUE (already handled) — closed 2026-06-18
 <!-- lint:keep --> <!-- resolved investigation, no shipped change to graduate to; retained as the durable "already checked, not an issue" record. -->

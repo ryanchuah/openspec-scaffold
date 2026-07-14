@@ -41,6 +41,11 @@ in), so batching them is low-risk:
 - **knowledge-surface-bounding-2** (2026-07-14) — `status_lint.py`, new `boot_surface_lint.py`,
   `scaffold_manifest.txt`. Downstream will **FAIL** `boot_surface_lint` on first sync (extrends is
   ~122KB boot surface today) — the intended signal; cleaning that up is separate downstream work.
+- **delegated-context-caching** (2026-07-14) — AGENTS.md shared span (stability batch-edits note +
+  the SMALL-premise reviewer prompt reshape) + the 3 delegating skills (apply/archive/propose prompt
+  reshapes) + `_shared/delegation-harness.md` (new §(g) variable-last convention). All behavior-
+  preserving prompt reshapes + doc conventions; low-risk to propagate, no new lint failures expected
+  downstream.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
