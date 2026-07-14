@@ -7,7 +7,22 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — skill-debloat-gates (OW-11 mechanized gates) SHIPPED (2026-07-14)
+## Latest change — verify-adversarial-fixtures SHIPPED (2026-07-14)
+
+Promoted the carried-forward verify lesson (an executor's green tests passed over a real
+`spec-delta-structure` detector false-negative on multi-section deltas; ratchet
+`detector-statemachine-boundary-flush`) into the durable verify surface: extended
+`config.yaml` `rules.verify` step (2)'s "green is necessary but NOT sufficient" clause so the
+self-review MUST author its OWN adversarial/boundary fixtures for logic-bearing diffs, plus a
+new operational subsection + Step 5 pointer in the verify skill. Single-source: config owns the
+rule, skill cites it; no spec delta (self-review content isn't owned by `verify-multimodel-gate`).
+Verify: self-review PASS → pro behavioral verifier READY, zero defects; `check.sh` green; the
+obligation correctly assessed N/A on this very diff (pure-prose exemption dogfooded). Decisions:
+`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Downstream
+propagation is operator-gated and deferred. Archive:
+`openspec/changes/archive/2026-07-14-verify-adversarial-fixtures/`.
+
+## Prior change — skill-debloat-gates (OW-11 mechanized gates) SHIPPED (2026-07-14)
 
 Shipped OW-11's mechanized half (MEDIUM, scoped — the fuzzy de-bloat half deferred to a residual
 follow-on): a `spec-delta-structure` detector in `checks.py` that structurally validates every open
@@ -34,18 +49,16 @@ before completion; two new scenarios. Verify: self-review PASS → pro behaviora
 green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
 Archive: `openspec/changes/archive/2026-07-14-apply-throughput-resume/`.
 
-## Prior change — delegation-wrapper-telemetry SHIPPED (2026-07-13)
-
-Shipped the ingest wrapper (`scripts/opencode_delegate.py`) that mechanizes post-processing across 8 delegation sites — fallback detection, text extraction, status classification, verdict capture, and marker assertion — without altering the literal `timeout … opencode run … < /dev/null` invocation at any site, so the budget-agreement and delegation-safety guards remain fully intact. Each post-processed run appends one telemetry line to an untracked ledger (`output/delegation-log.jsonl`) with a pinned minimum schema, feeding the two scheduled evidence-gated decisions (premise-gate downgrade at ~50 reviews, MEDIUM pro-pass downgrade at ~20 verifies). Promoted the new `delegation-wrapper` capability. Verify: self-review PASS → pro behavioral READY; wrapper dogfooded on the verifier run. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive: `openspec/changes/archive/2026-07-13-delegation-wrapper-telemetry/`.
-
 ## Immediate next action
-`skill-debloat-gates` (OW-11, mechanized half) is now **SHIPPED**, joining `apply-throughput-resume`
-(OW-10), `delegation-wrapper-telemetry` (OW-7), `defect-prevention-detectors` (OW-1 + OW-4), and
-`instruction-surface-coherence` (OW-9 + OW-14, all SHIPPED earlier this session). The frozen
-OW-2→3→5→6 batch and the paired OW-9/14 sweep are both complete. There is no proactive build in
-flight. The wave-2 remainder — OW-8 → OW-13 → OW-12 (recommended order) — plus the late additions
-OW-15 and OW-16 are still open. OW-11's de-bloat half is deferred to a residual follow-on (parked,
-not blocking; see `knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source:
+`verify-adversarial-fixtures` is now **SHIPPED** (not a numbered OW item — a verify-hardening
+promoting the wave-2 carried-forward self-review lesson), joining `skill-debloat-gates` (OW-11,
+mechanized half), `apply-throughput-resume` (OW-10), `delegation-wrapper-telemetry` (OW-7),
+`defect-prevention-detectors` (OW-1 + OW-4), and `instruction-surface-coherence` (OW-9 + OW-14,
+all SHIPPED earlier this session). The frozen OW-2→3→5→6 batch and the paired OW-9/14 sweep are
+both complete. There is no proactive build in flight. The wave-2 remainder is unchanged and still
+open: OW-8 → OW-13 → OW-12 (recommended order), plus OW-15 (BLOCKED on unshipped OW-5) and OW-16.
+OW-11's de-bloat half is deferred to a residual follow-on (parked, not blocking; see
+`knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`. The Fable-tier design
 backlog is closed (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`); everything remaining is Opus-tier.

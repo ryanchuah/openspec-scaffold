@@ -49,3 +49,4 @@
 - repo_lint.py no_fetchall docstring example (notes.md A2, low — wording only) → `knowledge/questions/repo-lint-fetchall-docstring.md`
 - Delegation-wrapper-telemetry follow-ons (OW-7, shipped 2026-07-13) → `knowledge/questions/delegation-wrapper-follow-ons.md`
 - skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual de-bloat + 3 low-priority items) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
+- verify-adversarial-fixtures follow-ons (rules.verify registry row; verifier verdict-block adherence, monitored) → `knowledge/questions/verify-adversarial-fixtures-follow-ons.md`
