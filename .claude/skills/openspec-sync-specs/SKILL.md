@@ -11,7 +11,11 @@ metadata:
 
 Sync delta specs from a change to main specs.
 
-This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
+This is a **hybrid** operation: a deterministic script (`scripts/apply_delta_spec.py`) applies the
+whole-block, name-keyed operations — **ADDED / REMOVED / RENAMED** — directly to the main specs,
+and **you** apply only the **MODIFIED** merges it defers (the one operation that needs judgment —
+e.g. adding a scenario without copying the entire requirement). The script never silently
+overwrites a canonical spec; it halts and reports on any ambiguous operation.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -46,40 +50,38 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
    If no delta specs found, inform user and stop.
 
-4. **For each delta spec, apply changes to main specs**
+4. **Promote the delta specs — deterministic ADDED/REMOVED/RENAMED, LLM only for MODIFIED**
 
-   For each repo-local capability delta spec path returned by the CLI:
+   Run the deterministic promoter over the change's delta specs (pass the change root the CLI
+   resolved — the parent of the `specs/` dir):
 
-   a. **Read the delta spec** to understand the intended changes
+   ```bash
+   python3 scripts/apply_delta_spec.py --change-dir "<changeRoot>" --json
+   ```
 
-   b. **Read the main spec** at `openspec/specs/<capability>/spec.md` (may not exist yet)
+   The promoter applies **ADDED / REMOVED / RENAMED** directly to `openspec/specs/<capability>/spec.md`,
+   including **creating a new main spec** (a `## Purpose` TBD + `## Requirements` skeleton, no
+   `# <name> Specification` H1) for an ADDED-only delta on a new capability. It writes
+   **all-or-nothing** across the change's specs.
 
-   c. **Apply changes intelligently**:
+   - **Exit `0`** — deterministic operations applied (or nothing to do). The JSON report lists
+     `applied` (added/removed/renamed), `skipped` (already-satisfied — e.g. a REMOVED whose target
+     was already absent, or an ADDED whose byte-equal block already exists), and `deferred_modified`.
+   - **Exit `2`** — an anomaly; the promoter wrote **nothing**. Anomalies are: an ADDED name that
+     already exists **with a different body** (the promoter never silently overwrites — a byte-equal
+     collision is a skip, a differing one halts); a RENAMED whose FROM/TO are both present or both
+     absent; a REMOVED/RENAMED against a nonexistent main spec. **Do not hand-edit around an
+     anomaly** — fix the delta or the main spec and re-run.
 
-      **ADDED Requirements:**
-      - If requirement doesn't exist in main spec → add it
-      - If requirement already exists → update it to match (treat as implicit MODIFIED)
+   Then, **for each requirement in the report's `deferred_modified` list**, apply that MODIFIED
+   merge by hand (the one operation that needs judgment):
+   - Read the delta's `## MODIFIED Requirements` block for that requirement.
+   - Find the matching requirement in `openspec/specs/<capability>/spec.md`.
+   - Apply the partial change — add new scenarios (no need to copy existing ones), modify a
+     scenario, or change the description — **preserving** scenarios/content the delta does not
+     mention.
 
-      **MODIFIED Requirements:**
-      - Find the requirement in main spec
-      - Apply the changes - this can be:
-        - Adding new scenarios (don't need to copy existing ones)
-        - Modifying existing scenarios
-        - Changing the requirement description
-      - Preserve scenarios/content not mentioned in the delta
-
-      **REMOVED Requirements:**
-      - Remove the entire requirement block from main spec
-
-      **RENAMED Requirements:**
-      - Find the FROM requirement, rename to TO
-
-   d. **Create new main spec** if capability doesn't exist yet:
-      - Create `openspec/specs/<capability>/spec.md`
-      - Start the file at `## Purpose`; do **not** add a `# <name> Specification` H1
-        (the repo's 7 specs share this header shape).
-      - Add Purpose section (can be brief, mark as TBD)
-      - Add Requirements section with the ADDED requirements
+   ADDED, REMOVED, and RENAMED are already done by the promoter — do not redo them by hand.
 
 5. **Show summary**
 
@@ -116,9 +118,10 @@ The system SHALL do something new.
 - TO: `### Requirement: New Name`
 ```
 
-**Key Principle: Intelligent Merging**
+**Key Principle: Intelligent Merging (the MODIFIED path only)**
 
-Unlike programmatic merging, you can apply **partial updates**:
+ADDED / REMOVED / RENAMED are applied deterministically by the promoter. For the **MODIFIED**
+merges it defers, you apply **partial updates** with judgment:
 - To add a scenario, just include that scenario under MODIFIED - don't copy existing scenarios
 - The delta represents *intent*, not a wholesale replacement
 - Use your judgment to merge changes sensibly
@@ -142,8 +145,11 @@ Main specs are now updated. The change remains active - archive when implementat
 ```
 
 **Guardrails**
-- Read both delta and main specs before making changes
+- ADDED/REMOVED/RENAMED go through `scripts/apply_delta_spec.py` — never hand-apply them; only the
+  MODIFIED merges it defers are yours.
+- Never hand-edit around a promoter anomaly (exit 2) — fix the delta or the main spec and re-run.
+- Read both delta and main specs before making a MODIFIED merge
 - Preserve existing content not mentioned in delta
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
-- The operation should be idempotent - running twice should give same result
+- The operation is idempotent - the promoter reports already-satisfied operations as skips

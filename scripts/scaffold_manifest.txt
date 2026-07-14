@@ -37,6 +37,8 @@ openspec/config.yaml
 
 # Scripts
 scripts/_convergence.py
+scripts/apply_delta_spec.py
+scripts/archive_move.py
 scripts/audit_scope.py
 scripts/checks.py
 scripts/data_lint.py
@@ -53,6 +55,9 @@ scripts/boot_surface_lint.py
 scripts/test-gate.sh
 scripts/test_checks.py
 scripts/test_facts.py
+scripts/test_apply_delta_spec.py
+scripts/test_apply_delta_spec_adversarial.py
+scripts/test_archive_move.py
 scripts/test_audit_scope.py
 scripts/test_convergence.py
 scripts/test_data_lint.py

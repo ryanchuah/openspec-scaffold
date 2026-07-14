@@ -76,10 +76,16 @@ Archive a completed change in the experimental workflow.
 
    Use `artifactPaths.specs.existingOutputPaths` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
-   **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `openspec/specs/<capability>/spec.md`
-   - Determine what changes would be applied (adds, modifications, removals, renames)
-   - Show a combined summary before prompting
+   **If delta specs exist**, compute the assessment deterministically with a dry run of the promoter
+   (`<changeRoot>` is the active change dir from the status JSON — before any move):
+   ```bash
+   python3 scripts/apply_delta_spec.py --change-dir "<changeRoot>" --dry-run --json
+   ```
+   Parse the report and show a combined summary before prompting: what would be `applied`
+   (added/removed/renamed), `skipped` (already-satisfied), `deferred_modified` (the MODIFIED merges
+   the executor performs by hand), and any `anomalies`. **If the report shows anomalies (exit 2),
+   advise the operator to resolve the delta/main-spec conflict before archiving** — the executor's
+   real promote run would halt on it anyway.
 
    **Prompt options:**
    - If changes needed: "Sync now (recommended)", "Archive without syncing"
@@ -139,16 +145,19 @@ Archive a completed change in the experimental workflow.
           --agent archive-executor \
           --model deepseek/deepseek-v4-pro \
           --format json \
-          "Archive an OpenSpec change: move its change dir to the archive path, sync \
-           delta specs if requested, and reconcile the three project docs \
+          "Archive an OpenSpec change: if delta spec sync was requested, first promote its delta \
+           specs (deterministic ADDED/REMOVED/RENAMED via scripts/apply_delta_spec.py plus the \
+           MODIFIED merges it defers), THEN move its change dir to the archive path (via \
+           scripts/archive_move.py), and reconcile the three project docs \
            (knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md) \
            from the archived notes.md / proposal.md / design.md. Also run \
            scripts/knowledge_lint.py and re-check knowledge/reference/, \
            knowledge/roadmap.md, and the individual knowledge/questions/<item>.md Parked \
            bodies for now-stale claims about this just-shipped change; surface any findings \
            flag-only — do not edit those wider bodies. Do not commit. End with a brief \
-           completion report (what was moved, which specs synced, which docs reconciled, \
-           any wider-sweep findings, anything the primary should double-check). \
+           completion report (which specs promoted + any promoter anomaly, what was moved, \
+           which docs reconciled, any wider-sweep findings, anything the primary should \
+           double-check). \
            changeRoot: <changeRoot>; \
            archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>; \
            Delta spec sync requested: <yes/no>." \
@@ -247,6 +256,10 @@ Archive a completed change in the experimental workflow.
 
    - **Read back from disk:** confirm `<archivePath>/` exists, then read the diffs in
      `knowledge/STATUS.md`, `knowledge/decisions/INDEX.md`, and `knowledge/questions/INDEX.md`.
+   - **Verify spec promotion (if sync was requested):** confirm the `openspec/specs/` diffs match the
+     promoter's report — ADDED/REMOVED/RENAMED applied, each `deferred_modified` requirement merged by
+     hand. Surface the report's `skipped` list to yourself: a `REMOVED … target-absent` skip means the
+     removal was a no-op (already gone, or a mistyped requirement name) — confirm it was intended.
    - **Quality check — verify each doc contains real, artifact-backed content:**
      - `knowledge/STATUS.md` `## Latest change` section must record the verify *outcome*
        ("tests pass" / "the system ran clean", or any failing or newly-skipped test

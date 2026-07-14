@@ -21,24 +21,28 @@ When invoked you will be given:
 
 Perform archive execution in this order:
 
-### 1. Move the change directory
+### 1. Promote spec deltas (if requested)
 
-```bash
-mkdir -p "<planningHome.changesDir>/archive"
-mv "<changeRoot>" "<archivePath>"
-```
+If the primary indicated delta spec sync was requested, promote the change's spec deltas into the canonical main specs **before** moving the change dir (promote-then-move — so an anomaly halts with nothing moved). The deterministic promoter handles ADDED / REMOVED / RENAMED; you handle only the MODIFIED merges it defers.
 
-If `<archivePath>` already exists, report the conflict and stop — do not overwrite.
-
-### 2. Sync delta specs (if requested)
-
-If the primary indicated delta spec sync was requested:
-- Read each delta spec from `<archivePath>/` (the now-moved change dir)
-- Compare to the corresponding main spec at `openspec/specs/<capability>/spec.md`
-- Apply additions, modifications, removals, and renames (RENAMED, FROM:/TO: format — see `openspec-sync-specs`) to the main spec
-- Do not invent changes not present in the delta spec
+1. Run the deterministic promoter against the **active** change dir:
+   ```bash
+   python3 scripts/apply_delta_spec.py --change-dir "<changeRoot>" --json
+   ```
+   - Exit `0` — the deterministic operations were applied (or there was nothing to do). The JSON report lists what was `applied`, `skipped`, and `deferred_modified`.
+   - Exit `2` — an anomaly (e.g. an ADDED name collides with a different existing body, or a RENAMED target is ambiguous). The promoter wrote **nothing**. Do **not** hand-edit around it — stop and report the anomaly to the primary, who resolves it.
+2. For each requirement in the report's `deferred_modified` list, apply that MODIFIED merge by hand: read the delta's `## MODIFIED Requirements` block for that requirement from `<changeRoot>/specs/<capability>/spec.md` and merge its scenarios/description into the matching requirement in `openspec/specs/<capability>/spec.md`, preserving content the delta does not mention. This is the ONLY spec editing you do — ADDED / REMOVED / RENAMED are already applied deterministically.
+3. Do not invent changes not present in the delta spec.
 
 If sync was not requested, skip this step.
+
+### 2. Move the change directory
+
+```bash
+python3 scripts/archive_move.py --change-root "<changeRoot>" --archive-path "<archivePath>"
+```
+
+Exit `0` — moved. Exit `2` — the mover refused (source missing, or `<archivePath>` already exists) and moved nothing; report the conflict and stop, do not overwrite.
 
 ### 3. Reconcile project-state docs
 
