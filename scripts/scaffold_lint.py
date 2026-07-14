@@ -25,7 +25,7 @@ Each finding is printed as exactly one stdout line:
 
     scaffold-lint: <check-id>: <detail>
 
-All six checks run even after an earlier one has produced findings — this
+All seven checks run even after an earlier one has produced findings — this
 script reports everything in one pass, then exits 1. If all checks are
 clean, it prints ``scaffold-lint: clean`` and exits 0.
 
@@ -110,6 +110,21 @@ Checks
     ``## (e)`` -> ``budget-agreement: §e table not found``; table rows were
     found but zero pairs were extracted from them ->
     ``budget-agreement: could not parse §e table``.
+
+  model-id-agreement
+    Extracts every ``deepseek[-/]v[0-9][-a-z_]*``-shaped token (regex
+    ``\\bdeepseek[-/]v\\d[-\\w]*``) from the same file set as
+    ``dangling-skill-refs``. Every matched token must be in the set of
+    sanctioned model IDs parsed from ``.claude/skills/_shared/
+    delegation-harness.md``'s §(f) table: iterate the file's lines, and on
+    each line starting with ``|`` (a markdown table row) apply
+    `` `(deepseek[-/][^`]+)` `` (backtick-quoted model ID cell) and
+    collect all matches. Any token not in the sanctioned set is a finding
+    naming the file, line, and token. Two distinct infra findings: no
+    line in the harness file starts with ``## (f)`` ->
+    ``model-id-agreement: §(f) table not found``; table rows were found
+    but zero IDs were extracted from them ->
+    ``model-id-agreement: could not parse §(f) table``.
 """
 
 from __future__ import annotations
@@ -179,6 +194,10 @@ _HARNESS_REL_PATH = ".claude/skills/_shared/delegation-harness.md"
 _EMBEDDED_PAIR_RE = re.compile(r"timeout\s+-k\s+(\d+)\s+(\d+)")
 _TABLE_CELL_PAIR_RE = re.compile(r"`-k (\d+) (\d+)`")
 
+# model-id-agreement
+_MODEL_ID_TOKEN_RE = re.compile(r"\bdeepseek[-/]v\d[-\w]*")
+_TABLE_CELL_MODEL_ID_RE = re.compile(r"`(deepseek[-/][^`]+)`")
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -188,8 +207,7 @@ _TABLE_CELL_PAIR_RE = re.compile(r"`-k (\d+) (\d+)`")
 def _scan_file_set(root: Path) -> list[Path]:
     """AGENTS.md + every .md (recursive) under the three scan base dirs.
 
-    Shared by dangling-skill-refs and budget-agreement (task 1.6 reuses the
-    task 1.5 file set verbatim).
+    Shared by dangling-skill-refs, budget-agreement, and model-id-agreement.
     """
     files: list[Path] = []
     agents_md = root / "AGENTS.md"
@@ -456,6 +474,59 @@ def check_budget_agreement(root: Path, scanned: list[tuple[Path, str]]) -> list[
 
 
 # ---------------------------------------------------------------------------
+# Check: model-id-agreement
+# ---------------------------------------------------------------------------
+
+
+def _sanctioned_model_ids(root: Path) -> tuple[set[str], list[str]]:
+    """Return (sanctioned model IDs, infra findings) parsed from the §(f)
+    table in .claude/skills/_shared/delegation-harness.md."""
+    findings: list[str] = []
+    harness_path = root / _HARNESS_REL_PATH
+
+    if not harness_path.is_file():
+        findings.append(f"model-id-agreement: {_HARNESS_REL_PATH} not found")
+        return set(), findings
+
+    lines = harness_path.read_text(encoding="utf-8").splitlines()
+
+    if not any(line.startswith("## (f)") for line in lines):
+        findings.append("model-id-agreement: §(f) table not found")
+        return set(), findings
+
+    table_row_found = False
+    ids: set[str] = set()
+    for line in lines:
+        if line.startswith("|"):
+            table_row_found = True
+            for m in _TABLE_CELL_MODEL_ID_RE.finditer(line):
+                ids.add(m.group(1))
+
+    if table_row_found and not ids:
+        findings.append("model-id-agreement: could not parse §(f) table")
+
+    return ids, findings
+
+
+def check_model_id_agreement(root: Path, scanned: list[tuple[Path, str]]) -> list[str]:
+    sanctioned, findings = _sanctioned_model_ids(root)
+
+    for path, text in scanned:
+        rel = path.relative_to(root).as_posix()
+        lines = text.splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            for m in _MODEL_ID_TOKEN_RE.finditer(line):
+                token = m.group(0)
+                if token not in sanctioned:
+                    findings.append(
+                        f"model-id-agreement: {rel}:{lineno}: model ID "
+                        f"{token!r} not in the sanctioned §(f) set"
+                    )
+
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -472,6 +543,7 @@ def collect_findings(root: Path) -> list[str]:
     findings.extend(check_config_rules_last(root))
     findings.extend(check_dangling_skill_refs(root, scanned))
     findings.extend(check_budget_agreement(root, scanned))
+    findings.extend(check_model_id_agreement(root, scanned))
     return findings
 
 

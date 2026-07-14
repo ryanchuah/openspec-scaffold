@@ -85,6 +85,15 @@ Wrap every delegated call with `timeout -k <grace> <budget>`.
 |-------|------|-----------------|------------|------------|-------|
 | apply | apply-executor | `-k 30 600` | 600 | 30s | note |
 | verify | verifier | `-k 15 780` | 780 | 15s | note |
+
+## (f) Sanctioned delegation model IDs
+
+| Model ID | Form | Notes |
+|----------|------|-------|
+| `deepseek/deepseek-v4-pro` | model-flag form (preferred) | Used in `--model` flags |
+| `deepseek/deepseek-v4-flash` | model-flag form (preferred) | Used in `--model` flags |
+| `deepseek-v4-pro` | bare form | Used in prose descriptions |
+| `deepseek-v4-flash` | bare form | Used in prose descriptions |
 """
 
 _SKILL_CLEAN = """\
@@ -560,3 +569,75 @@ def test_budget_agreement_could_not_parse_table_flagged(tmp_path):
     findings = scaffold_lint.collect_findings(tmp_path)
     budget_findings = [f for f in findings if f.startswith("budget-agreement:")]
     assert any("could not parse §e table" in f for f in budget_findings)
+
+
+# ===================================================================
+# model-id-agreement
+# ===================================================================
+
+
+def test_model_id_agreement_clean_no_findings(tmp_path):
+    _build_clean_repo(tmp_path)
+    findings = scaffold_lint.collect_findings(tmp_path)
+    assert not any(f.startswith("model-id-agreement:") for f in findings)
+
+
+def test_model_id_agreement_unsanctioned_id_flagged(tmp_path):
+    tree = _clean_tree()
+    tree["AGENTS.md"] = "The apply-executor uses `deepseek-v4-preview` for now.\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    model_id_findings = [f for f in findings if f.startswith("model-id-agreement:")]
+    assert len(model_id_findings) == 1
+    assert "deepseek-v4-preview" in model_id_findings[0]
+
+    exit_code, _stdout = _run_main(tmp_path)
+    assert exit_code == 1
+
+
+def test_model_id_agreement_sanctioned_id_not_flagged(tmp_path):
+    tree = _clean_tree()
+    tree["AGENTS.md"] = "The apply-executor uses `deepseek-v4-flash` for all apply work.\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    model_id_findings = [f for f in findings if f.startswith("model-id-agreement:")]
+    assert model_id_findings == []
+
+
+def test_model_id_agreement_table_not_found_flagged(tmp_path):
+    tree = _clean_tree()
+    tree[".claude/skills/_shared/delegation-harness.md"] = _HARNESS_CLEAN.replace(
+        "## (f) Sanctioned delegation model IDs",
+        "## Sanctioned delegation model IDs (no marker)",
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    model_id_findings = [f for f in findings if f.startswith("model-id-agreement:")]
+    assert any("§(f) table not found" in f for f in model_id_findings)
+
+
+def test_model_id_agreement_exact_string_match(tmp_path):
+    """A deepseek-v4-pro-plus must NOT match deepseek-v4-pro (exact match)."""
+    tree = _clean_tree()
+    tree["AGENTS.md"] = "Experimental: `deepseek-v4-pro-plus` is not yet sanctioned.\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    model_id_findings = [f for f in findings if f.startswith("model-id-agreement:")]
+    assert len(model_id_findings) == 1
+    assert "deepseek-v4-pro-plus" in model_id_findings[0]
+
+
+def test_model_id_agreement_bare_deepseek_v4_no_tier_flagged(tmp_path):
+    """A bare deepseek-v4 with no tier suffix must be flagged."""
+    tree = _clean_tree()
+    tree["AGENTS.md"] = "The model is `deepseek-v4` (no tier specified).\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    model_id_findings = [f for f in findings if f.startswith("model-id-agreement:")]
+    assert len(model_id_findings) == 1
+    assert "deepseek-v4" in model_id_findings[0]

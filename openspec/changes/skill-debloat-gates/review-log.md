@@ -41,3 +41,23 @@ Propose complete. Next phase: apply (delegated, deepseek-flash — tasks are pre
 T7 (verify prose) before T4 (verify one-line add). Verify must independently exercise the
 `spec-delta-structure` detector + `model-id-agreement` lint, and dogfood the detector on OW-11's own
 deltas (T9). See notes.md for the 4-in / 4-deferred scope.
+
+## Apply — 2026-07-14 (deepseek-flash via opencode, no fallback)
+All 9 tasks landed and checked off in one executor run; ratchet `medium-change-spec-delta-unvalidated`
+closed with the `check` disposition (T9). check.sh green. No Sonnet fallback.
+
+## Verify — 2026-07-14 (MEDIUM: self-review → pro behavioral → simplicity gate)
+- **Self-review (orchestrator, non-delegable):** independently exercised the real detector + lint
+  with hand-built fixtures. Found **one real defect** — `_validate_delta` `requirement-no-scenario`
+  false-negative at `## Section` boundaries (multi-section deltas). Diagnosed + scoped; **re-delegated
+  the fix** to a fresh deepseek-flash executor (`_check_no_scenario` closure at all three boundaries +
+  multi-section regression test); bundled a trivial propose-skill prose over-claim fix. Re-verified
+  from disk (own fixtures pass).
+- **Pro behavioral verifier pass (`deepseek/deepseek-v4-pro`):** VERDICT: **READY**, zero defects.
+- **Simplicity/quality gate (4 parallel review agents — reuse/simplification/efficiency/altitude):**
+  four behavior-preserving cleanups confirmed and **re-delegated** (helper reuse; dead comment removed;
+  dead unreachable worktrees guard removed; module docstring inventory fixed). Two refactors deferred
+  as low-priority follow-ons (two-pass merge; shared `_parse_harness_table` helper) — see notes.md
+  field 5. Re-verified behavior-preserving.
+- **Not triggered:** security review + data-path rule (no auth/creds/data/external-API surface).
+- **Result:** READY for archive. Zero Sonnet fallback across apply + 3 verify-phase delegations.

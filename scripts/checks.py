@@ -246,6 +246,14 @@ _REGISTRY: list[dict] = [
         "trigger": "python source present",
         "coverage_note": "disabling drops unbounded-query detection",
     },
+    {
+        "name": "spec-delta-structure",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "openspec change deltas present",
+        "coverage_note": "disabling drops MEDIUM spec-delta structural validation",
+    },
     {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "repo-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "radon", "tier": "heavy", "kind": "builtin", "family": "fact"},
@@ -333,6 +341,7 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "repo-lint": has_py_checks,
         "test-quality": True,
         "data-scale": True,
+        "spec-delta-structure": True,
         "radon": False,
         "jscpd": False,
         "vulture": False,
@@ -442,7 +451,7 @@ def _availability_for_check(check: dict, pins: dict[str, str]) -> dict:
         return {"status": "available", "version": None, "expected": None}
     if kind == "custom":
         return _custom_availability(check.get("command", []))
-    if check["name"] in ("inventory", "test-quality", "data-scale"):
+    if check["name"] in ("inventory", "test-quality", "data-scale", "spec-delta-structure"):
         return {"status": "available", "version": None, "expected": None}
     tool_bin = _BUILTIN_TOOL_BIN[check["name"]]
     return _tool_status(tool_bin, pins)
@@ -610,6 +619,7 @@ _PARSERS = {
     "vulture": _parse_vulture,
     "test-quality": lambda _stdout: [],
     "data-scale": lambda _stdout: [],
+    "spec-delta-structure": lambda _stdout: [],
 }
 
 
@@ -1155,6 +1165,190 @@ def _run_data_scale(check: dict, config: dict, out_path: Path) -> dict:
     return {"status": "FINDINGS" if findings else "ok", "findings": findings}
 
 
+# ---------------------------------------------------------------------------
+# spec-delta-structure detector (Group 1 — OW-11 #7)
+# ---------------------------------------------------------------------------
+
+
+_SECTION_HEADER_RE = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
+_REQUIREMENT_HEADER_RE = re.compile(r"^### Requirement:\s*(.*)")
+_SCENARIO_HEADER_RE = re.compile(r"^#### Scenario:")
+
+
+def _has_archive_or_hidden(parts: tuple[str, ...]) -> bool:
+    """Return True if any path part is 'archive' or starts with '.'."""
+    for part in parts:
+        if part == "archive" or part.startswith("."):
+            return True
+    return False
+
+
+def _validate_delta(spec_path: Path, check_name: str, repo_root: Path) -> list[dict]:
+    """Validate a single spec.md delta file and return findings."""
+    findings: list[dict] = []
+    try:
+        lines = spec_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return findings
+
+    rel = str(spec_path.relative_to(repo_root))
+
+    # -- missing-delta-header --
+    has_requirement_header = any(_REQUIREMENT_HEADER_RE.match(line) for line in lines)
+    has_section_header = any(_SECTION_HEADER_RE.match(line) for line in lines)
+    if has_requirement_header and not has_section_header:
+        # Find the lineno of the first ### Requirement: for the finding site.
+        first_req_lineno = None
+        for lineno, line in enumerate(lines, start=1):
+            if _REQUIREMENT_HEADER_RE.match(line):
+                first_req_lineno = lineno
+                break
+        findings.append(
+            {
+                "check": check_name,
+                "rule": "missing-delta-header",
+                "path": rel,
+                "line": first_req_lineno or 1,
+                "message": (
+                    "spec delta lacks an `## ADDED|MODIFIED|REMOVED|RENAMED Requirements` header"
+                ),
+            }
+        )
+        # No point checking further if the structure is missing.
+        return findings
+
+    # -- Section-aware requirement validation --
+    current_section: str | None = None  # ADDED, MODIFIED, REMOVED, RENAMED, None
+    in_requirement = False
+    req_name = ""
+    req_lineno = 0
+    scenario_count = 0
+
+    # Local helper to emit requirement-no-scenario for the pending requirement.
+    # Called at every requirement-end boundary: next ### Requirement: header,
+    # next ## Section header, and EOF.
+    def _check_no_scenario() -> None:
+        if in_requirement and current_section in ("ADDED", "MODIFIED") and scenario_count == 0:
+            findings.append(
+                {
+                    "check": check_name,
+                    "rule": "requirement-no-scenario",
+                    "path": rel,
+                    "line": req_lineno,
+                    "message": (f"requirement {req_name!r}: no `#### Scenario:` block"),
+                }
+            )
+
+    # Parse line-by-line state machine
+    for lineno, line in enumerate(lines, start=1):
+        section_m = _SECTION_HEADER_RE.match(line)
+        if section_m:
+            _check_no_scenario()
+            current_section = section_m.group(1)
+            in_requirement = False
+            continue
+
+        req_m = _REQUIREMENT_HEADER_RE.match(line)
+        if req_m:
+            _check_no_scenario()
+            in_requirement = True
+            req_name = req_m.group(1).strip()
+            req_lineno = lineno
+            scenario_count = 0
+            continue
+
+        scen_m = _SCENARIO_HEADER_RE.match(line)
+        if scen_m and in_requirement:
+            scenario_count += 1
+            continue
+
+    # Handle the last requirement in the file
+    _check_no_scenario()
+
+    # Second pass: check shall-not-first-line for ADDED/MODIFIED requirements
+    # We need to find the first non-blank body line after each ### Requirement:
+    current_section = None
+    in_requirement = False
+    req_name = ""
+    req_lineno = 0
+    found_body = False
+
+    for lineno, line in enumerate(lines, start=1):
+        section_m = _SECTION_HEADER_RE.match(line)
+        if section_m:
+            current_section = section_m.group(1)
+            in_requirement = False
+            continue
+
+        req_m = _REQUIREMENT_HEADER_RE.match(line)
+        if req_m:
+            in_requirement = True
+            req_name = req_m.group(1).strip()
+            req_lineno = lineno
+            found_body = False
+            continue
+
+        if in_requirement and current_section in ("ADDED", "MODIFIED"):
+            # Skip blank lines looking for the first non-blank body line
+            if not found_body:
+                if line.strip():
+                    found_body = True
+                    # First non-blank line after the header
+                    if not re.search(r"\b(?:SHALL|MUST)\b", line):
+                        findings.append(
+                            {
+                                "check": check_name,
+                                "rule": "shall-not-first-line",
+                                "path": rel,
+                                "line": req_lineno,
+                                "message": (
+                                    f"requirement {req_name!r}: normative "
+                                    f"SHALL/MUST not on the first physical line"
+                                    f" (openspec validate --strict fails"
+                                    f" at archive)"
+                                ),
+                            }
+                        )
+
+    return findings
+
+
+def _run_spec_delta_structure(check: dict, config: dict, out_path: Path) -> dict:
+    """In-process structural validator for change delta specs.
+
+    Discovers change dirs by directory presence under
+    ``openspec/changes/*/`` (excluding ``archive`` and dot-prefixed
+    dirs), globs each change's ``specs/**/spec.md`` delta files, and
+    structurally validates each delta: section header presence,
+    SHALL/MUST on the requirement's first physical line, and at least
+    one ``#### Scenario:`` per ADDED/MODIFIED requirement.
+    """
+    repo_root = _resolve_repo_root()
+    findings: list[dict] = []
+    check_name = "spec-delta-structure"
+
+    changes_dir = repo_root / "openspec" / "changes"
+    if not changes_dir.is_dir():
+        _write_json(out_path, [])
+        return {"status": "ok", "findings": []}
+
+    for change_dir in sorted(changes_dir.iterdir()):
+        if not change_dir.is_dir():
+            continue
+        change_rel = change_dir.name
+        if _has_archive_or_hidden((change_rel,)):
+            continue
+
+        for spec_path in sorted(change_dir.glob("specs/**/spec.md")):
+            spec_rel = spec_path.relative_to(changes_dir)
+            if _has_archive_or_hidden(spec_rel.parts):
+                continue
+            findings.extend(_validate_delta(spec_path, check_name, repo_root))
+
+    _write_json(out_path, findings)
+    return {"status": "FINDINGS" if findings else "ok", "findings": findings}
+
+
 def _iter_py_files(
     repo_root: Path, paths: list[str], *, tests_only=False, source_only=False
 ) -> list[Path]:
@@ -1198,6 +1392,7 @@ _BUILTIN_RUNNERS = {
     "vulture": _run_vulture,
     "test-quality": _run_test_quality,
     "data-scale": _run_data_scale,
+    "spec-delta-structure": _run_spec_delta_structure,
 }
 
 

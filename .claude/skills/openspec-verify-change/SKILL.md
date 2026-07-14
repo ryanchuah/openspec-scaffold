@@ -51,8 +51,8 @@ After your own self-review (above) and **before** the artifact/spec mapping chec
 
 The pass sequence is identical on both platforms (Claude Code and OpenCode) and depends on tier:
 
-- **MEDIUM:** self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass.
-- **COMPLEX:** self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass → `deepseek/deepseek-v4-flash` lens verifier pass (see the lens-pass subsection below).
+- **MEDIUM:** self-review → `deepseek/deepseek-v4-pro` behavioral verifier pass (single pass, sequential).
+- **COMPLEX:** self-review → both the `deepseek/deepseek-v4-pro` behavioral verifier pass and the `deepseek/deepseek-v4-flash` lens verifier pass. The two passes MAY be launched concurrently on the frozen tree — they are independent, read-only, and the harness already supports background launch (see the invocation below). NEEDS-REVISION fix→re-run still serializes (unchanged — the concurrency is an initial-launch optimization only).
 
 No pass repeats the behavioral checklist a third time — the recorded three-repo evidence showed zero non-trivial unique catches from a same-checklist third pass.
 
@@ -67,9 +67,11 @@ VERDICT: READY            # or exactly: VERDICT: NEEDS REVISION
 
 #### Invocation (both platforms)
 
-For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `.claude/skills/_shared/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above):
+For each pass, invoke the verifier via an `opencode run` with hardened invocation and EXIT-sentinel per `.claude/skills/_shared/delegation-harness.md` §a and §d (same pattern as the fix-executor invocation above).
 
-**Behavioral pro pass (MEDIUM and COMPLEX):**
+On a MEDIUM change, launch the single pro pass and wait for its EXIT-sentinel before proceeding. On a COMPLEX change, the two passes MAY be launched **concurrently**: launch BOTH before waiting for either, then wait for BOTH exit-sentinels before proceeding to post-processing for each pass. (The harness background-launch support — `run_in_background: true` — already exists; this states the concurrent path.)
+
+**Behavioral pro pass:**
 ```bash
 timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
   --model deepseek/deepseek-v4-pro --format json "<behavioral verifier prompt>" \
@@ -83,7 +85,7 @@ timeout -k 15 780 opencode run --dir <repoRoot> --agent openspec-verifier \
   > /tmp/verify-lens-out.jsonl 2> /tmp/verify-lens-err.log < /dev/null ; echo "EXIT=$?" > /tmp/verify-lens-out.exit
 ```
 
-Both invocations follow the hardened invocation and EXIT-sentinel patterns per `.claude/skills/_shared/delegation-harness.md` §a and §d.
+Both invocations follow the hardened invocation and EXIT-sentinel patterns per `.claude/skills/_shared/delegation-harness.md` §a and §d. On COMPLEX, both are launched before waiting for either exit-sentinel; after both exit-sentinels are detected, proceed to post-processing for each pass.
 
 #### Behavioral verifier prompt
 
@@ -144,7 +146,10 @@ Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ##
 
 Before trusting any pass output (both platforms), invoke `scripts/opencode_delegate.py`
 for post-processing, which detects fallback, extracts the completion text, classifies
-status, and asserts markers (see the harness §b contract):
+status, and asserts markers (see the harness §b contract).
+
+On COMPLEX, run both post-processing calls (pro and lens) after BOTH exit-sentinels have
+been detected — do NOT post-process the pro pass before launching the lens pass.
 
 **Behavioral pro pass:**
 ```bash
@@ -279,7 +284,7 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
 
 9. **Run the independent multi-model verification passes (MEDIUM/COMPLEX only)**
 
-   MEDIUM/COMPLEX changes run the passes in **Multi-model passes** above (SMALL does not); run them here, after the behavioral review and before the artifact/spec mapping checks below. Do NOT duplicate the invocations — point to the section.
+   MEDIUM/COMPLEX changes run the passes in **Multi-model passes** above (SMALL does not); run them here, after the behavioral review and before the artifact/spec mapping checks below. On COMPLEX, the two passes MAY be launched concurrently (both backgrounded before waiting for either) per the invocation section above. Do NOT duplicate the invocations — point to the section.
 
 10. **Run the simplicity/quality gate (MEDIUM/COMPLEX only)**
 
@@ -321,6 +326,13 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
       - If requirements appear unimplemented:
         - Add CRITICAL issue: "Requirement not found: <requirement name>"
         - Recommendation: "Implement requirement X: <description>"
+
+    **Structural spec-delta validation**:
+    - When the change has spec deltas (`specs/**/spec.md`), the orchestrator SHALL run
+      `checks.py --check spec-delta-structure` and resolve any finding BEFORE advancing to archive.
+      (This is the deterministic replacement for the hand-checked SHALL-on-first-line rule; it is
+      enforcing at verify time even though the detector's own findings are advisory at the audit
+      level.)
 
 14. **Verify Correctness**
 

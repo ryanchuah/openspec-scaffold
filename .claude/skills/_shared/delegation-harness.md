@@ -157,6 +157,23 @@ the `reviewer-budget` capability spec.
 
 ---
 
+## (f) Sanctioned delegation model IDs
+
+| Model ID | Form | Notes |
+|----------|------|-------|
+| `deepseek/deepseek-v4-pro` | model-flag form (preferred) | Used in `--model` flags |
+| `deepseek/deepseek-v4-flash` | model-flag form (preferred) | Used in `--model` flags |
+| `deepseek-v4-pro` | bare form | Used in prose descriptions |
+| `deepseek-v4-flash` | bare form | Used in prose descriptions |
+
+This table is the single source of truth for the `model-id-agreement` scaffold_lint check. Any
+`deepseek[-/]v4[-a-z]*`-shaped token appearing in the live instruction surface (AGENTS.md,
+`.claude/skills/**`, `.claude/agents/*`, `.opencode/agents/*`) MUST be one of the four sanctioned
+ids above — no other spelling, version drift, or bare suffixless token (e.g. `deepseek`-`v4` with
+no tier) is permitted.
+
+---
+
 ## Carve-out: verify's in-process self-review
 
 Verify's **in-process self-review pass** is the **orchestrator's own review pass, performed

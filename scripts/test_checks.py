@@ -207,6 +207,7 @@ class ListModeTest(AuditBundleTestBase):
             "deptry",
             "test-quality",
             "data-scale",
+            "spec-delta-structure",
             "data-lint",
             "repo-lint",
             "radon",
@@ -254,6 +255,7 @@ class AutodetectTest(AuditBundleTestBase):
         self.assertEqual(lines["data-lint"], "enabled")
         self.assertEqual(lines["test-quality"], "enabled")
         self.assertEqual(lines["data-scale"], "enabled")
+        self.assertEqual(lines["spec-delta-structure"], "enabled")
         self.assertEqual(lines["inventory"], "enabled")
         self.assertEqual(lines["outstanding"], "enabled")
         # repo-lint disabled without checks/*.py
@@ -881,6 +883,7 @@ class SummaryLineFormatTest(AuditBundleTestBase):
                     "deptry:",
                     "test-quality:",
                     "data-scale:",
+                    "spec-delta-structure:",
                     "data-lint:",
                     "inventory:",
                 )
@@ -1012,6 +1015,7 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
             "[checks.scope]\nenabled = false\n"
             "[checks.test-quality]\nenabled = false\n"
             "[checks.data-scale]\nenabled = false\n"
+            "[checks.spec-delta-structure]\nenabled = false\n"
         )
         buf = io.StringIO()
         with redirect_stdout(buf):
@@ -1386,6 +1390,180 @@ class DataScaleDetectorTest(AuditBundleTestBase):
         rc, out = self._capture(["--check", "data-scale", "--out", str(out_dir)])
         self.assertEqual(rc, 0)
         data = json.loads((out_dir / "data-scale.json").read_text())
+        self.assertEqual(data, [])
+
+
+class SpecDeltaStructureDetectorTest(AuditBundleTestBase):
+    """Tests for the spec-delta-structure in-process delta validator."""
+
+    def _write_spec_delta(self, rel_path: str, content: str) -> Path:
+        p = self.repo / rel_path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        self._git("add", str(p))
+        self._git("commit", "-m", f"add {rel_path}")
+        return p
+
+    def test_missing_delta_header_flagged(self):
+        """A delta with ### Requirement: but no ## ... Requirements header."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "### Requirement: Something\n"
+            "SHALL do something.\n\n"
+            "#### Scenario: Happy\n"
+            "- **WHEN** x\n"
+            "- **THEN** y\n",
+        )
+        out_dir = self.tmpdir / "out-sds-missing"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("missing-delta-header", rules)
+        for f in data:
+            self.assertEqual(f["check"], "spec-delta-structure")
+
+    def test_shall_not_first_line_flagged(self):
+        """An ADDED requirement whose SHALL is not on the first body line."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "## ADDED Requirements\n\n"
+            "### Requirement: Late shall\n"
+            "Some prose introduction.\n"
+            "SHALL do this thing.\n\n"
+            "#### Scenario: Test\n"
+            "- **WHEN** x\n"
+            "- **THEN** y\n",
+        )
+        out_dir = self.tmpdir / "out-sds-shall"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("shall-not-first-line", rules)
+        # The finding should point to the requirement header line
+        shall_findings = [f for f in data if f["rule"] == "shall-not-first-line"]
+        self.assertEqual(len(shall_findings), 1)
+        self.assertIn("Late shall", shall_findings[0]["message"])
+
+    def test_requirement_no_scenario_flagged(self):
+        """An ADDED requirement with no #### Scenario: block."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "## ADDED Requirements\n\n"
+            "### Requirement: No scenario\n"
+            "SHALL do something.\n",
+        )
+        out_dir = self.tmpdir / "out-sds-noscen"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("requirement-no-scenario", rules)
+        no_scen_findings = [f for f in data if f["rule"] == "requirement-no-scenario"]
+        self.assertEqual(len(no_scen_findings), 1)
+        self.assertIn("No scenario", no_scen_findings[0]["message"])
+
+    def test_multisection_added_requirement_no_scenario_flagged(self):
+        """An ADDED requirement with no scenarios followed by a MODIFIED section
+        IS flagged — the section-header boundary must not swallow the finding."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "## ADDED Requirements\n\n"
+            "### Requirement: Foo\n"
+            "Foo SHALL do X.\n\n"
+            "## MODIFIED Requirements\n\n"
+            "### Requirement: Bar\n"
+            "Bar SHALL do Y.\n\n"
+            "#### Scenario: s\n"
+            "- **WHEN** a\n"
+            "- **THEN** b\n",
+        )
+        out_dir = self.tmpdir / "out-sds-multisection"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        no_scen_findings = [f for f in data if f["rule"] == "requirement-no-scenario"]
+        self.assertEqual(len(no_scen_findings), 1)
+        self.assertIn("Foo", no_scen_findings[0]["message"])
+        # Bar has a scenario and must NOT be flagged.
+        bar_findings = [f for f in no_scen_findings if "Bar" in f["message"]]
+        self.assertEqual(len(bar_findings), 0)
+
+    def test_well_formed_delta_zero_findings(self):
+        """A well-formed delta with MODIFIED requirement SHALL on line 2."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "## MODIFIED Requirements\n\n"
+            "### Requirement: Clean requirement\n"
+            "SHALL do this.\n\n"
+            "#### Scenario: Test\n"
+            "- **WHEN** x\n"
+            "- **THEN** y\n",
+        )
+        out_dir = self.tmpdir / "out-sds-clean"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_archive_dir_not_scanned(self):
+        """Deltas under openspec/changes/archive/ are not scanned."""
+        self._write_spec_delta(
+            "openspec/changes/archive/oldchange/specs/cap/spec.md",
+            "# Delta — old\n\n### Requirement: Something\nSHALL do something.\n",
+        )
+        # Also put a clean change that would normally flag if scanned
+        self._write_spec_delta(
+            "openspec/changes/active/specs/cap/spec.md",
+            "# Delta — active\n\n"
+            "## ADDED Requirements\n\n"
+            "### Requirement: Good\n"
+            "SHALL work.\n\n"
+            "#### Scenario: Test\n"
+            "- **WHEN** x\n"
+            "- **THEN** y\n",
+        )
+        out_dir = self.tmpdir / "out-sds-archive"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_hidden_change_dir_not_scanned(self):
+        """A .-prefixed change directory is not scanned."""
+        self._write_spec_delta(
+            "openspec/changes/.hidden/specs/cap/spec.md",
+            "# Delta — hidden\n\n### Requirement: Hidden\nSHALL do something.\n",
+        )
+        out_dir = self.tmpdir / "out-sds-hidden"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_shall_on_first_line_clean(self):
+        """MODIFIED requirement whose SHALL is on the first body line -> clean."""
+        self._write_spec_delta(
+            "openspec/changes/mychange/specs/cap/spec.md",
+            "# Delta — mychange\n\n"
+            "## MODIFIED Requirements\n\n"
+            "### Requirement: Good shall\n"
+            "SHALL do this thing correctly.\n"
+            "Some additional context.\n\n"
+            "#### Scenario: Test\n"
+            "- **WHEN** x\n"
+            "- **THEN** y\n",
+        )
+        out_dir = self.tmpdir / "out-sds-shall-ok"
+        rc, out = self._capture(["--check", "spec-delta-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "spec-delta-structure.json").read_text())
         self.assertEqual(data, [])
 
 

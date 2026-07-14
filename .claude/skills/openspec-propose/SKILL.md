@@ -55,6 +55,25 @@ I'll create artifacts with review:
     Best-effort skip when no matching `plans/<name>/` exists — the change may have been proposed
     without a prior explore phase, and the silence is intentional.
 
+    **Near-match warning:** When there is no exact match, list `plans/*/` directories and flag any
+    near-match slug (shares at least one hyphen-delimited token) so an orphaned brief with its premise review is surfaced rather than permanently
+    silenced:
+    ```bash
+    if [ ! -d "plans/<name>" ] && [ -d "plans" ]; then
+      for slug in plans/*/; do
+        slug_name="${slug#plans/}"
+        slug_name="${slug_name%/}"
+        # Token overlap: check if any hyphen-delimited token is shared
+        for token in $(echo "<name>" | tr '-' '\n'); do
+          if echo "$slug_name" | tr '-' '\n' | grep -qFx "$token"; then
+            echo "WARNING: plans/$slug_name/ has explore-brief + premise-review that may be related to this change (shared token '$token')" >&2
+            break
+          fi
+        done
+      done
+    fi
+    ```
+
 3. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json

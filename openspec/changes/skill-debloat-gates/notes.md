@@ -99,3 +99,71 @@ compromising correctness").
 ## Traceability
 Partially closes **OW-11** (mechanized-gates half); closes ratchet `medium-change-spec-delta-unvalidated`.
 De-bloat half → OW-11-residual follow-on.
+
+## Verify checkpoint (mandatory 5 fields + archive handoff) — 2026-07-14
+
+**1. Verdict:** READY for archive. MEDIUM verify: self-review → pro behavioral pass (READY, zero
+defects) → simplicity/quality gate → artifact/spec mapping. No security or data-path gate triggered
+(lint tooling + skill prose; no auth/credential/persisted-data/external-API/data-path surface).
+`bash scripts/check.sh` green; live `scaffold_lint.py` clean. Zero Sonnet fallback anywhere; every
+review/verify/fix pass ran deepseek-flash/pro via `opencode`.
+
+**2. Live output eyeballed (behavior, not counts):** I ran the REAL `spec-delta-structure` detector
+against my own hand-built malformed-delta fixtures — it correctly flags `requirement-no-scenario`,
+`shall-not-first-line`, and `missing-delta-header`, correctly stays silent on well-formed deltas, on
+REMOVED-section requirements, and on this repo's own two open deltas, and does NOT scan
+`archive/`/dot-prefixed dirs. I ran the REAL `model-id-agreement` check — it flags an injected
+`deepseek-v4-preview`, `deepseek-v4-turbo`, and a bare tier-less `deepseek-v4`, while passing the
+four sanctioned ids and leaving the live tree clean. The detectors detect (not forced-green).
+
+**3. Defect found + how fixed (attributed):** *Self-review* found one real correctness defect — a
+**false negative** in `_validate_delta`'s `requirement-no-scenario` rule: a scenario-less ADDED/
+MODIFIED requirement immediately followed by a `## …Requirements` section header was never checked
+(the section-header branch reset `in_requirement` without running the pending scenario check), so
+multi-section deltas silently missed it. Reproduced with two fixtures. Orchestrator diagnosed/scoped;
+**re-delegated the fix to a fresh deepseek-flash executor** (hoisted the check into a
+`_check_no_scenario` closure fired at all three requirement-end boundaries + a multi-section
+regression test); re-verified from disk with my own fixtures (all pass). Bundled a trivial prose fix
+(propose skill over-claimed a "Levenshtein neighbor" the shell doesn't implement → clause removed).
+The *simplicity gate* (4 parallel review agents) surfaced four behavior-preserving cleanups — reuse
+`_has_archive_or_hidden` for the change-dir filter; delete a dead/inaccurate comment; remove a dead
+unreachable `.claude/worktrees/` guard in `_scan_file_set`; document `model-id-agreement` in the
+module docstring + fix the stale "six→seven" check count — **re-delegated to a fresh executor** and
+re-verified behavior-preserving (fixtures + suite still green). *Pro behavioral pass:* READY, no
+defects.
+
+**4. As-built deltas (not already in artifacts):**
+- `checks.py --check <name>` writes `<name>.json` into the **current working dir** (out_dir defaults
+  to `.`) — pre-existing `checks.py` behavior for ALL detectors, not introduced here; the
+  `spec-delta-structure` dogfood run therefore drops a disposable `spec-delta-structure.json` at the
+  repo root that must be deleted, never committed. (Flagged as a follow-on below.)
+- The `requirement-no-scenario` multi-section false-negative existed in the frozen tasks.md's design
+  (two-pass state machine) and was fixed at verify as above — the tasks.md/spec are otherwise as-built.
+
+**5. Forward-looking items (fold into knowledge/questions at archive):**
+- **OW-11-residual follow-on** (the four DEFERRED de-bloat items, independent, nothing blocks on
+  them): #1 verify steps 12–16 de-bloat (fuzzy keyword-search → structural scan + coherence note),
+  #2 `notes_lint` for the 5-field verify checkpoint, #3 `freeze-check` script (needs a companion
+  `FREEZE:` prompt token), #8 explore gallery-prose trim. Record as a single parked question.
+- **`_validate_delta` two-pass → single-pass merge** — simplification agent flagged the duplicated
+  boundary state machine; the efficiency agent judged a merge not worth it at this input scale, and I
+  deferred it to avoid churning just-fixed correctness-critical code. Behavior-preserving refactor,
+  low priority.
+- **Factor a shared `_parse_harness_table` + token-scan helper** between `budget-agreement` and
+  `model-id-agreement` in `scaffold_lint.py` (both parse a §-table from delegation-harness + scan
+  `_scan_file_set`; harness file is read twice per lint run). Currently intentional parallel copies;
+  a third such check would justify extraction. Low priority.
+- **`checks.py --check <name>` litters CWD with `<name>.json`** — pre-existing wart affecting every
+  detector, surfaced by the dogfood; consider defaulting `--check` output under `output/` or
+  gitignoring root `/*.json`. Low priority.
+
+**Still owned by archive:** reconcile `knowledge/STATUS.md` (add OW-11 section; 3-section cap drops
+the oldest), `knowledge/decisions/INDEX.md` (add the `spec-delta-structure-detector` +
+`model-id-agreement-lint` decision line), `knowledge/questions/INDEX.md` (park the OW-11-residual +
+the three low-priority follow-ons above); **promote the two spec deltas into `openspec/specs/`**
+(ADDED third detector requirement → `defect-prevention-detectors`; MODIFIED requirement →
+`verify-multimodel-gate`) and run `openspec validate --strict` on them post-promotion;
+`knowledge/ratchet-log.md` is ALREADY updated (ratchet closed at apply T9 — archive just confirms,
+does not duplicate); move the change dir to `openspec/changes/archive/2026-07-14-skill-debloat-gates/`;
+reconcile the `OUTSTANDING-WORK.md`/`roadmap.md` OW-11 status (mechanized half shipped, de-bloat half
+→ residual). Downstream propagation of the scaffold-managed edits is DEFERRED + operator-gated.
