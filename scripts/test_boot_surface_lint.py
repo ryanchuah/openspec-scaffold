@@ -24,13 +24,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # ===================================================================
 
 
-def _make_boot_repo(tmpdir: Path, sizes: dict[str, int]) -> Path:
+def _make_boot_repo(tmpdir: Path, sizes: dict[str, int], checks_toml: str | None = None) -> Path:
     """Create a temporary repo with boot files of exact byte sizes.
 
     For each BOOT_FILES-relative path in *sizes*, parent directories are
     created and a file of ``"x" * n`` ASCII bytes is written (bytes ==
     chars).  A path omitted from *sizes* is left absent (exercises the
     missing-file branch).
+
+    If *checks_toml* is given, it is written verbatim as ``checks.toml`` in
+    the repo root.
 
     Returns
     -------
@@ -43,6 +46,8 @@ def _make_boot_repo(tmpdir: Path, sizes: dict[str, int]) -> Path:
         full_path = repo / rel_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
         full_path.write_text("x" * n_bytes, encoding="ascii")
+    if checks_toml is not None:
+        (repo / "checks.toml").write_text(checks_toml, encoding="utf-8")
     return repo
 
 
@@ -125,6 +130,55 @@ class BootSurfaceLintTest(unittest.TestCase):
         repo = _make_boot_repo(self.tmpdir, {"AGENTS.md": 100})
         rc = boot_surface_lint.main([str(repo)])
         self.assertEqual(rc, 0)
+
+    # ------------------------------------------------------------------
+    # Per-repo config overrides
+    # ------------------------------------------------------------------
+
+    def test_raised_fail_bytes_passes_over_100k(self):
+        """fail_bytes=150000 lets an over-100k surface return 0 or 1 (not 2)."""
+        sizes = {"AGENTS.md": 60_000, "knowledge/STATUS.md": 50_000}
+        checks_toml = "[boot_surface_lint]\nfail_bytes = 150000\n"
+        repo = _make_boot_repo(self.tmpdir, sizes, checks_toml=checks_toml)
+        rc = boot_surface_lint.main([str(repo)])
+        self.assertIn(rc, (0, 1))
+
+    def test_lowered_thresholds_warn_and_fail(self):
+        """Lowered warn_bytes/fail_bytes make a small surface WARN then FAIL."""
+        sizes = {"AGENTS.md": 1_000, "knowledge/STATUS.md": 500}
+        # warn at 1000, fail at 1500 — total is 1500 => FAIL
+        checks_toml = "[boot_surface_lint]\nwarn_bytes = 1000\nfail_bytes = 1500\n"
+        repo = _make_boot_repo(self.tmpdir, sizes, checks_toml=checks_toml)
+        rc = boot_surface_lint.main([str(repo)])
+        self.assertEqual(rc, 2)
+
+    def test_absent_config_falls_back_to_defaults(self):
+        """No checks.toml => defaults of 80k warn / 100k fail."""
+        repo = _make_boot_repo(self.tmpdir, {"AGENTS.md": 40_000, "knowledge/STATUS.md": 40_001})
+        rc = boot_surface_lint.main([str(repo)])
+        self.assertEqual(rc, 1)
+
+    def test_malformed_config_falls_back_to_defaults(self):
+        """Malformed config (float instead of int) falls back to 80k/100k defaults.
+
+        The override floats are chosen to DIFFER from the defaults so the test is
+        non-vacuous: if the isinstance guard did NOT fire, warn=50000.0/fail=60000.0
+        would make total 80001 a FAIL (rc=2); the guard's fallback to 80k/100k makes
+        it a WARN (rc=1). Asserting rc==1 therefore proves the type-check fired.
+        """
+        sizes = {"AGENTS.md": 40_000, "knowledge/STATUS.md": 40_001}
+        checks_toml = "[boot_surface_lint]\nwarn_bytes = 50000.0\nfail_bytes = 60000.0\n"
+        repo = _make_boot_repo(self.tmpdir, sizes, checks_toml=checks_toml)
+        rc = boot_surface_lint.main([str(repo)])
+        self.assertEqual(rc, 1)
+
+    def test_inverted_thresholds_fall_back_to_defaults(self):
+        """warn_bytes > fail_bytes falls back to defaults (warn=80k, fail=100k)."""
+        sizes = {"AGENTS.md": 40_000, "knowledge/STATUS.md": 40_001}
+        checks_toml = "[boot_surface_lint]\nwarn_bytes = 150000\nfail_bytes = 50000\n"
+        repo = _make_boot_repo(self.tmpdir, sizes, checks_toml=checks_toml)
+        rc = boot_surface_lint.main([str(repo)])
+        self.assertEqual(rc, 1)
 
     # ------------------------------------------------------------------
     # Live-tree gate

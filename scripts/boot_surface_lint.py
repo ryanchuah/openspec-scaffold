@@ -14,6 +14,21 @@ File set (fixed):
 
 A missing file is silently skipped (contributes 0 bytes, NOT an error).
 
+Per-repo thresholds
+-------------------
+The WARN and FAIL thresholds may be overridden per-repo via a
+``[boot_surface_lint]`` table in the repo-root ``checks.toml``::
+
+    [boot_surface_lint]
+    warn_bytes = 100000
+    fail_bytes = 120000
+
+Absent file / absent section / absent key falls back to the module-level
+defaults (``WARN_BYTES=80000``, ``FAIL_BYTES=100000``).  If a value is not a
+non-negative integer, or ``warn_bytes > fail_bytes``, the overrides are
+silently ignored and the module defaults are used (one line is printed to
+stderr explaining the fallback).
+
 Exit codes
 ----------
 0  — total < WARN threshold (clean, under budget).
@@ -29,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tomllib
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -44,6 +60,59 @@ BOOT_FILES = (
 
 WARN_BYTES = 80_000
 FAIL_BYTES = 100_000
+
+
+# ---------------------------------------------------------------------------
+# Per-repo config
+# ---------------------------------------------------------------------------
+
+
+def _load_config(root: Path) -> dict:
+    """Load ``[boot_surface_lint]`` from repo-root ``checks.toml``.
+
+    Returns a dict with keys ``warn_bytes`` (default ``WARN_BYTES``) and
+    ``fail_bytes`` (default ``FAIL_BYTES``).  Invalid values (negative,
+    non-integer, or ``warn_bytes > fail_bytes``) cause a fallback to the
+    module-level defaults, with a one-line explanation written to stderr.
+    """
+    cfg: dict = {}
+    config_path = root / "checks.toml"
+    if config_path.is_file():
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+        cfg = data.get("boot_surface_lint", {})
+
+    warn = cfg.get("warn_bytes", WARN_BYTES)
+    fail = cfg.get("fail_bytes", FAIL_BYTES)
+
+    # Validate types — must be int (not a float, str, etc.).
+    if not isinstance(warn, int) or not isinstance(fail, int):
+        print(
+            "boot_surface_lint: [boot_surface_lint] warn_bytes / fail_bytes must be"
+            " integers — falling back to defaults",
+            file=sys.stderr,
+        )
+        return {"warn_bytes": WARN_BYTES, "fail_bytes": FAIL_BYTES}
+
+    # Validate range — must be non-negative.
+    if warn < 0 or fail < 0:
+        print(
+            "boot_surface_lint: [boot_surface_lint] warn_bytes / fail_bytes must be"
+            " non-negative — falling back to defaults",
+            file=sys.stderr,
+        )
+        return {"warn_bytes": WARN_BYTES, "fail_bytes": FAIL_BYTES}
+
+    # Validate ordering.
+    if warn > fail:
+        print(
+            "boot_surface_lint: [boot_surface_lint] warn_bytes must not exceed"
+            " fail_bytes — falling back to defaults",
+            file=sys.stderr,
+        )
+        return {"warn_bytes": WARN_BYTES, "fail_bytes": FAIL_BYTES}
+
+    return {"warn_bytes": warn, "fail_bytes": fail}
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +149,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         repo_root = Path(__file__).resolve().parent.parent
 
+    config = _load_config(repo_root)
+    warn_bytes = config["warn_bytes"]
+    fail_bytes = config["fail_bytes"]
+
     total = 0
     lines: list[str] = []
 
@@ -92,12 +165,12 @@ def main(argv: list[str] | None = None) -> int:
 
     lines.append(f"total: {total}")
 
-    if total >= FAIL_BYTES:
-        lines.append(f"boot_surface_lint: FAIL — {total} bytes exceeds {FAIL_BYTES}")
+    if total >= fail_bytes:
+        lines.append(f"boot_surface_lint: FAIL — {total} bytes exceeds {fail_bytes}")
         print("\n".join(lines))
         return 2
-    elif total >= WARN_BYTES:
-        lines.append(f"boot_surface_lint: WARN — {total} bytes (threshold >= {WARN_BYTES})")
+    elif total >= warn_bytes:
+        lines.append(f"boot_surface_lint: WARN — {total} bytes (threshold >= {warn_bytes})")
         print("\n".join(lines))
         return 1
     else:
