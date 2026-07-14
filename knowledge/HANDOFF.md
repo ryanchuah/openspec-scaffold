@@ -34,7 +34,7 @@ telemetry source for the two scheduled downgrade decisions). It does NOT judge d
 failure ladder — those stay yours. `delegation-wrapper` is a promoted spec capability now.
 
 ## OW-11 exact state (FROZEN) + how to apply
-- **Dir:** `openspec/changes/skill-debloat-gates/` (UNTRACKED on disk — frozen artifacts: `notes.md`,
+- **Dir:** `openspec/changes/archive/2026-07-14-skill-debloat-gates/` (UNTRACKED on disk — frozen artifacts: `notes.md`,
   `tasks.md` T1-T9, `review-log.md` [3 rounds, PASS], `recon-ow11.md`, and two spec deltas under
   `specs/`: ADDED `defect-prevention-detectors`, MODIFIED `verify-multimodel-gate`).
 - **SCOPED to 4 items** (of OW-11's chartered 8): #7 `spec-delta-structure` checks.py detector
@@ -119,7 +119,7 @@ OW-5) + **OW-16** (product-audit skill) — see `roadmap.md` + `OUTSTANDING-WORK
     instruction-surface-coherence (at OW-10 archive). Full record lives in the archive dirs.
 
 ## In-progress artifacts committed with this handoff (pick these up, don't delete)
-- `openspec/changes/skill-debloat-gates/` — OW-11 FROZEN artifacts, committed (apply from here; the
+- `openspec/changes/archive/2026-07-14-skill-debloat-gates/` — OW-11 FROZEN artifacts, committed (apply from here; the
   next "Implement OW-11" commit adds the code + flips the `tasks.md` checkboxes).
 - `openspec/changes/knowledge-surface-bounding-2/` — OW-13 recon (`recon-ow13.md`), committed.
 - `output/delegation-log.jsonl` — the OW-7 telemetry ledger (this session's verify-pro + archive

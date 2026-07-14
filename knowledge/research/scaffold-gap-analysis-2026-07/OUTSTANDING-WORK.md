@@ -216,6 +216,14 @@ distilled-state carry-forward. Attacks the measured ~15–19% crash/timeout→So
 **Deps:** after frozen batch (apply skill file).
 
 ## OW-11 · Skill de-bloat + mechanized gates  ·  Tier: MEDIUM  ·  Orch: **Opus**
+**STATUS 2026-07-14: MECHANIZED HALF SHIPPED** (`openspec/changes/archive/2026-07-14-skill-debloat-gates/`).
+Shipped the low-risk mechanized-gates subset: `spec-delta-structure` detector (`checks.py`, closes
+ratchet `medium-change-spec-delta-unvalidated`), `model-id-agreement` lint (`scaffold_lint.py`),
+concurrent COMPLEX verifier passes, and the explore→propose slug-match warning. The fuzzy
+**de-bloat half is DEFERRED** to the OW-11-residual follow-on
+(`knowledge/questions/skill-debloat-gates-follow-ons.md`): verify steps 12–16 de-bloat, `notes_lint`,
+`freeze-check` (needs a `FREEZE:` token), explore gallery-prose trim — independent, nothing blocks
+on them.
 Replace verify steps 12–16 with deterministic CLI coverage + coherence note; trim explore's
 gallery prose; `freeze-check` script (parse review verdict → FREEZE-OK/BLOCKED); `notes_lint.py`
 five-field gate replacing the step-18 ritual; explore→propose slug-match warning; run COMPLEX's

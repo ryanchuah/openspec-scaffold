@@ -48,3 +48,4 @@
 - Defect-prevention per-rule toggle v2 (notes.md A3, deferred — observed from downstream noise first) → `knowledge/questions/per-rule-toggle-v2.md`
 - repo_lint.py no_fetchall docstring example (notes.md A2, low — wording only) → `knowledge/questions/repo-lint-fetchall-docstring.md`
 - Delegation-wrapper-telemetry follow-ons (OW-7, shipped 2026-07-13) → `knowledge/questions/delegation-wrapper-follow-ons.md`
+- skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual de-bloat + 3 low-priority items) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
