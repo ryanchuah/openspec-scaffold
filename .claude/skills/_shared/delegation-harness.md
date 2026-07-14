@@ -174,6 +174,27 @@ no tier) is permitted.
 
 ---
 
+## (g) Prompt-template shape — variable content last
+
+Every delegated `opencode run` prompt string places its **fixed instruction text first and all
+per-change variable substitutions (paths, names, flags) LAST**, so the byte-identical instruction
+body forms a shared prefix eligible for DeepSeek prefix-caching across invocations. A variable placed
+early zeroes cache credit for every boilerplate word after it, even though that text is identical
+across every apply/archive/review call.
+
+The **verifier prompts are the reference shape**: they inline no path at all (`<repoRoot>` rides the
+`--dir` flag; `<model-id>` is an output token), so the whole prompt is a shared prefix. The apply,
+archive, and reviewer prompts bind their variables in a trailing clause (`… in the change directory:
+<changeRoot>.`, or a trailing `key: <value>;` block).
+
+When editing any delegated prompt, keep variables at the tail **and** do not drop any wrapper-asserted
+output marker the prompt requests: `### Premise Verdict` + `PREMISE: AGREE|DISSENT` (premise passes)
+and `## Verify Pass` + `VERDICT:` + `### Defects` (verifier). (The reviewer's `## Review Round` +
+`(🔴|🟡|💡)` markers come from the agent role prompt, not the call string.) Dropping a requested marker
+breaks the `scripts/opencode_delegate.py --require-marker` assert at runtime.
+
+---
+
 ## Carve-out: verify's in-process self-review
 
 Verify's **in-process self-review pass** is the **orchestrator's own review pass, performed

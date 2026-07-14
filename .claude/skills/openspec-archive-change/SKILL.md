@@ -139,19 +139,19 @@ Archive a completed change in the experimental workflow.
           --agent archive-executor \
           --model deepseek/deepseek-v4-pro \
           --format json \
-          "Archive the OpenSpec change. changeRoot: <changeRoot>. \
-           archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>. \
-           Delta spec sync requested: <yes/no>. \
-           Project docs: knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md. \
-           Move the change dir to the archive path, sync delta specs if requested, \
-           and reconcile the three project docs from the archived notes.md / \
-           proposal.md / design.md. Also run scripts/knowledge_lint.py and re-check \
-           knowledge/reference/, knowledge/roadmap.md, and the individual \
-           knowledge/questions/<item>.md Parked bodies for now-stale claims about this \
-           just-shipped change; surface any findings flag-only — do not edit those wider \
-           bodies. Do not commit. End with a brief completion \
-           report (what was moved, which specs synced, which docs reconciled, any \
-           wider-sweep findings, anything the primary should double-check)." \
+          "Archive an OpenSpec change: move its change dir to the archive path, sync \
+           delta specs if requested, and reconcile the three project docs \
+           (knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md) \
+           from the archived notes.md / proposal.md / design.md. Also run \
+           scripts/knowledge_lint.py and re-check knowledge/reference/, \
+           knowledge/roadmap.md, and the individual knowledge/questions/<item>.md Parked \
+           bodies for now-stale claims about this just-shipped change; surface any findings \
+           flag-only — do not edit those wider bodies. Do not commit. End with a brief \
+           completion report (what was moved, which specs synced, which docs reconciled, \
+           any wider-sweep findings, anything the primary should double-check). \
+           changeRoot: <changeRoot>; \
+           archivePath: <planningHome.changesDir>/archive/YYYY-MM-DD-<name>; \
+           Delta spec sync requested: <yes/no>." \
           > /tmp/archive-out.jsonl 2> /tmp/archive-err.log < /dev/null; \
         echo "EXIT=$?" > /tmp/archive-out.exit
         ```

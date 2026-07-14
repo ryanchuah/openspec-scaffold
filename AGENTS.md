@@ -32,7 +32,11 @@
 > agent needs to orient — project purpose, constraints, process decisions. Current
 > status, recent progress, and changeable decisions belong in `knowledge/STATUS.md`,
 > `openspec/changes/`, and `knowledge/` respectively. Stability means this file caches
-> well across sessions. Adding a new mandatory boot read SHALL displace or shrink an
+> well across sessions. This file is also injected verbatim into every delegated `opencode`
+> executor's system prompt and cannot be surgically excluded without disabling `.opencode/agents/`
+> discovery (see the `delegated-context-caching` decision), so each edit invalidates the DeepSeek
+> prefix cache for all delegated agents at once — **batch related edits** rather than landing them
+> incrementally. Adding a new mandatory boot read SHALL displace or shrink an
 > existing one — the boot set is a fixed budget, not a growing list.
 >
 > If `knowledge/STATUS.md` or `knowledge/` do not exist, create them before doing anything else.
@@ -208,9 +212,9 @@ Without a grant, each phase boundary remains a hard STOP. Governing capability: 
     --agent openspec-reviewer \
     --model deepseek/deepseek-v4-flash \
     --format json \
-    "Review the plan at <planPath>. This is a SMALL change plan — NOT a \
-     structured proposal.md. Emit a ### Premise Verdict block (PREMISE: \
-     AGREE|DISSENT) assessing problem/root-cause/solution." \
+    "Review a SMALL change plan — NOT a structured proposal.md. Emit a ### Premise \
+     Verdict block (PREMISE: AGREE|DISSENT) assessing problem/root-cause/solution. The \
+     plan to review is at <planPath>." \
     > /tmp/small-premise-out.jsonl 2> /tmp/small-premise-err.log < /dev/null
   ```
   If a verified `explore-brief.md` exists, also reference it in the prompt: *"Also read the

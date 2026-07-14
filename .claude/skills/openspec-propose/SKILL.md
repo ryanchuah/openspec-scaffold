@@ -189,9 +189,9 @@ I'll create artifacts with review:
                 --agent openspec-reviewer \
                 --model deepseek/deepseek-v4-pro \
                 --format json \
-                "Review the artifact at <changeRoot>/<artifact>.md. \
-                 Also read the explore-brief if it exists and openspec/specs/ \
-                 for context." \
+                "Review an OpenSpec change artifact. Also read the explore-brief if it \
+                 exists and openspec/specs/ for context. The artifact to review is at \
+                 <changeRoot>/<artifact>.md." \
                 > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
 
              If the user specified a different reviewer model, substitute it

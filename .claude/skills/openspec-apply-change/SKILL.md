@@ -109,12 +109,13 @@ Implement tasks from an OpenSpec change.
          --agent apply-executor \
          --model deepseek/deepseek-v4-flash \
          --format json \
-         "Implement the OpenSpec change in <changeRoot>. Work <changeRoot>/tasks.md \
-          sequentially, top to bottom, following <changeRoot>/design.md and \
-          <changeRoot>/proposal.md. Check off each task ([ ] -> [x]) in tasks.md as it \
-          lands. Do not modify proposal.md or design.md. Do not commit. End with a brief \
-          completion report (what was implemented, deviations, what the primary should \
-          check at verify, and any external-API behavior you ASSUMED rather than verified)." \
+         "Implement an OpenSpec change by working through its tasks.md sequentially, \
+          top to bottom, following its design.md and proposal.md. Check off each task \
+          ([ ] -> [x]) in tasks.md as it lands. Do not modify proposal.md or design.md. \
+          Do not commit. End with a brief completion report (what was implemented, \
+          deviations, what the primary should check at verify, and any external-API \
+          behavior you ASSUMED rather than verified). The change's tasks.md, design.md, \
+          and proposal.md are all in the change directory: <changeRoot>." \
          > /tmp/apply-out.jsonl 2> /tmp/apply-err.log < /dev/null; \
        echo "EXIT=$?" > /tmp/apply-out.exit
        ```
