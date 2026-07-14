@@ -13,11 +13,13 @@ appears.
 `scaffold_lint.py` to keep its own manifest parse. Small follow-on: parameterize it
 (`_read_manifest(path)`) and dedupe.
 
-## Manifest deletion/tombstone gap
+## Manifest deletion/tombstone gap — RESOLVED (2026-07-03)
 
 Deleting a manifest-listed file upstream orphans it downstream silently — `manifest-completeness`
-only checks files that exist. The succession-hardening prune change (portfolio change 3) will
-handle any deletion manually per repo.
+only checks files that exist. RESOLVED by a *mechanism*, not the anticipated manual per-repo
+sweep: the `scaffold_manifest_removed.txt` tombstone list (consumed by `sync_scaffold.py`)
+deterministically deletes removed files downstream. Shipped under clarify-audit-tooling-surface
+and lint-knowledge-tombstone (see `knowledge/decisions/INDEX.md`).
 
 ## Downstream applicability of scaffold_lint
 
