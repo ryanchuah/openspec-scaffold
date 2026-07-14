@@ -220,20 +220,18 @@ distilled-state carry-forward. Attacks the measured ~15–19% crash/timeout→So
 **Deps:** after frozen batch (apply skill file).
 
 ## OW-11 · Skill de-bloat + mechanized gates  ·  Tier: MEDIUM  ·  Orch: **Opus**
-**STATUS 2026-07-14: MECHANIZED HALF SHIPPED** (`openspec/changes/archive/2026-07-14-skill-debloat-gates/`).
-Shipped the low-risk mechanized-gates subset: `spec-delta-structure` detector (`checks.py`, closes
-ratchet `medium-change-spec-delta-unvalidated`), `model-id-agreement` lint (`scaffold_lint.py`),
-concurrent COMPLEX verifier passes, and the explore→propose slug-match warning. The fuzzy
-**de-bloat half is DEFERRED** to the OW-11-residual follow-on
-(`knowledge/questions/skill-debloat-gates-follow-ons.md`): verify steps 12–16 de-bloat, `notes_lint`,
-`freeze-check` (needs a `FREEZE:` token), explore gallery-prose trim — independent, nothing blocks
-on them.
-Replace verify steps 12–16 with deterministic CLI coverage + coherence note; trim explore's
-gallery prose; `freeze-check` script (parse review verdict → FREEZE-OK/BLOCKED); `notes_lint.py`
-five-field gate replacing the step-18 ritual; explore→propose slug-match warning; run COMPLEX's
-two verifier passes concurrently (read-only frozen tree; ~13 min wall-clock saved); model-ID
-agreement lint (deepseek-v4 hardcoded 44×/13 files, no guard). **Deps:** strictly after OW-3
-applies (same file).
+**STATUS 2026-07-14: SHIPPED** — mechanized half in
+`openspec/changes/archive/2026-07-14-skill-debloat-gates/`; residual de-bloat half in
+`openspec/changes/archive/2026-07-14-skill-debloat-residual/`. Mechanized half shipped
+`spec-delta-structure` detector (`checks.py`, closes ratchet `medium-change-spec-delta-unvalidated`),
+`model-id-agreement` lint (`scaffold_lint.py`), concurrent COMPLEX verifier passes, and the
+explore→propose slug-match warning. The residual half then shipped: verify steps 12–16 replaced with a
+deterministic requirement/scenario enumeration + behavioral-evidence coherence note; a
+`notes-checkpoint-structure` detector mechanizing the 5-field `notes.md` checkpoint; `freeze_check.py`
+deriving `FREEZE: READY|BLOCKED` from a strict reviewer `VERDICT:` token; explore gallery-prose trim;
+plus the `checks.py --check` cwd-litter fix and two HANDOFF fixture-guidance lessons. Follow-ons:
+`knowledge/questions/skill-debloat-gates-follow-ons.md` (2 unrelated low-priority items),
+`knowledge/questions/skill-debloat-residual-follow-ons.md` (this change's monitored items).
 
 ## OW-12 · Archive mechanization  ·  Tier: COMPLEX (was SMALL–MEDIUM)  ·  Orch: **Opus**
 **STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-archive-mechanization/`).
@@ -410,9 +408,9 @@ anywhere after the frozen batch. Standard escalation caveat.
   will remove (zero-yield flash passes; hand-rolled delegation) plus deferred telemetry.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
-  **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (mechanized half), OW-13,
-  OW-8, OW-5, OW-15, OW-16, OW-12 are DONE** (SHIPPED — see per-item STATUS lines above); remaining
-  is now only **OW-11's parked residual de-bloat half**.
+  **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (both halves), OW-13,
+  OW-8, OW-5, OW-15, OW-16, OW-12 are DONE** (SHIPPED — see per-item STATUS lines above). **The
+  wave-2 scaffold-hardening backlog is now EMPTY.**
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the

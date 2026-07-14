@@ -7,7 +7,22 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — archive-mechanization (OW-12) SHIPPED (2026-07-14)
+## Latest change — skill-debloat-residual (OW-11 residual) SHIPPED (2026-07-14)
+
+Closed the entire OW-11 residual — the last item on the wave-2 scaffold-hardening backlog, which is
+now **empty**. Verify's fuzzy keyword-coverage prose replaced with a deterministic requirement/scenario
+enumeration plus a behavioral-evidence coherence note; a new `notes-checkpoint-structure` detector
+(`checks.py`) mechanizes the 5-field verify-checkpoint obligation; `freeze_check.py` derives a
+`FREEZE: READY|BLOCKED` verdict from a strict reviewer `VERDICT:` token (+ `PREMISE` for proposals),
+centralizing freeze policy while the reviewer stays decoupled; explore's dead gallery prose trimmed;
+plus two HANDOFF lessons (fixture reconstruction-fidelity/idempotency/exit-code+state guidance) and
+the `checks.py --check` cwd-litter fix. Verify: self-review's 4 adversarial fixtures held clean, pro
+behavioral pass READY, flash test-quality lens READY, simplicity gate PASS (5 behavior-preserving
+cleanups, re-verified); `check.sh` and `scaffold_lint.py` clean; zero Sonnet fallback. Decisions:
+`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-14-skill-debloat-residual/`.
+
+## Prior change — archive-mechanization (OW-12) SHIPPED (2026-07-14)
 
 OW-12, the last item on the scaffold-hardening backlog. The archive phase's mechanical work — the
 change-dir move and ADDED/REMOVED/RENAMED spec-delta promotion — is now deterministic:
@@ -36,31 +51,14 @@ gate clean; `check.sh` and live-tree lint green; zero Sonnet fallback on apply. 
 `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-14-product-audit-skill/`.
 
-## Prior change — correctness-audit-meta-hardening SHIPPED (2026-07-14)
-
-OW-15, MEDIUM. Four deltas to the shipped `correctness-audit` capability: liveness (an in-progress
-dossier stays an Active `knowledge/questions/INDEX.md` item; charter `status:` marker `in-progress`→
-`closed`; remediation programs use a namespace distinct from discovery `WAVE-N` rows); a blind
-close-out coverage-gap review (four-marker taxonomy diff; both the blind-taxonomy and evidence-fanout
-halves load-bearing); a bounded scope-seeding checklist inlined in the skill (11-group dimension seed +
-12 named blind-spot classes; classes 9-12 carried as awareness pointers only — the claims-ledger
-mechanism is OW-16, not built here); and a post-close `POST-CLOSE-LEDGER.md` for persistence-touching
-changes. Two new guarded `knowledge_lint` detectors (`audit-liveness`, `post-close-ledger-format`),
-both gated on the existing format marker so un-adopted repos stay clean. Verify: premise AGREE, pro
-behavioral verifier READY with zero defects, 9 orchestrator-authored adversarial fixtures held,
-`check.sh` green, zero Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
-
 ## Immediate next action
-No proactive build in flight. OW-12 (archive-mechanization) shipped —
-`openspec/changes/archive/2026-07-14-archive-mechanization/`. The wave-2 scaffold-hardening backlog is
-now down to OW-11's fuzzy de-bloat residual (`knowledge/questions/skill-debloat-gates-follow-ons.md`).
-Single source of the backlog: `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
+No proactive build in flight. `skill-debloat-residual` (OW-11 residual) shipped —
+`openspec/changes/archive/2026-07-14-skill-debloat-residual/` — closing the entire wave-2
+scaffold-hardening backlog: it is now **empty**. Single source of the (now-empty) backlog:
+`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
 
-The **Fable-tier design backlog is closed** (2026-07-11 workflow audit:
-`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`) — everything remaining is Opus-tier. Earlier
-portfolios (the frozen OW-2→3→5→6 batch; OW-1/4/7/9/10/11/14; succession-hardening; day-to-day
-tooling A/B/C) are shipped. Downstream propagation of the shipped scaffold changes is
-**operator-gated and deferred** — the running ledger now lives in
-`knowledge/reference/pending-downstream-propagation.md`.
+Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
+**scaffold process optimization is at diminishing returns**: future work is downstream, not new
+scaffold mechanism — chiefly extrends' ~33 open correctness-audit defect classes with zero remediation
+shipped. Downstream propagation of the shipped scaffold changes remains **operator-gated and
+deferred** — the running ledger lives in `knowledge/reference/pending-downstream-propagation.md`.

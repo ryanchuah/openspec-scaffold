@@ -48,10 +48,11 @@
 - Defect-prevention per-rule toggle v2 (notes.md A3, deferred — observed from downstream noise first) → `knowledge/questions/per-rule-toggle-v2.md`
 - repo_lint.py no_fetchall docstring example (notes.md A2, low — wording only) → `knowledge/questions/repo-lint-fetchall-docstring.md`
 - Delegation-wrapper-telemetry follow-ons (OW-7, shipped 2026-07-13) → `knowledge/questions/delegation-wrapper-follow-ons.md`
-- skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual de-bloat + 3 low-priority items) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
+- skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual RESOLVED 2026-07-14 by skill-debloat-residual; 2 unrelated low-priority items remain) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
 - verify-adversarial-fixtures follow-ons (rules.verify registry row; verifier verdict-block adherence, monitored) → `knowledge/questions/verify-adversarial-fixtures-follow-ons.md`
 - knowledge-surface-bounding-2 follow-ons (OW-13, shipped 2026-07-14; decisions/INDEX.md year-split, budget/threshold tuning, boot_surface WARN visibility) → `knowledge/questions/knowledge-surface-bounding-2-follow-ons.md`
 - delegated-context-caching follow-ons (OW-8, shipped 2026-07-14): B — AGENTS.md-injection strip blocked on opencode env-var coupling, revisit on per-agent instruction-scoping / AGENTS.md split; C-drop lint idea → `knowledge/questions/delegated-context-caching-follow-ons.md`
 - correctness-audit-meta-hardening follow-ons (OW-15, shipped 2026-07-14): liveness substring-match false-negative (monitored), Delta-4 ledger should-exist obligation deferred, ledger cell-tolerance decision (monitored), OW-16 is the natural next change → `knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`
 - product-audit-skill follow-ons (OW-16, shipped 2026-07-14) → `knowledge/questions/product-audit-skill-follow-ons.md`
 - archive-mechanization follow-ons (OW-12, shipped 2026-07-14) → `knowledge/questions/archive-mechanization-follow-ons.md`
+- skill-debloat-residual follow-ons (OW-11 residual, shipped 2026-07-14; closes the wave-2 scaffold-hardening backlog) → `knowledge/questions/skill-debloat-residual-follow-ons.md`

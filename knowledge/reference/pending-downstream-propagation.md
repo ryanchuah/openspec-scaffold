@@ -76,6 +76,19 @@ in), so batching them is low-risk:
   The `archive-mechanization` capability spec (`openspec/specs/archive-mechanization/spec.md`) is
   golden-source-only (never synced). Stdlib-only, no new downstream lint/test failures expected on
   first sync. NOT yet synced to extrends/psc-monitor (operator-gated).
+- **skill-debloat-residual** (2026-07-14, OW-11 residual) — new `scripts/freeze_check.py` +
+  `scripts/test_freeze_check.py` (both added to `scripts/scaffold_manifest.txt`); `scripts/checks.py`
+  (new `notes-checkpoint-structure` builtin + `--check` output-dir default to `output/checks/`) and
+  `scripts/test_checks.py`; three skills (`.claude/skills/openspec-verify-change/SKILL.md` — de-bloat
+  coverage steps + notes-checkpoint wiring + step-18 replacement, `.claude/skills/openspec-propose/SKILL.md`
+  — freeze-check wiring + strict `VERDICT:` token in the reviewer prompt, `.claude/skills/openspec-explore/SKILL.md`
+  — gallery trim); `.opencode/agents/openspec-reviewer.md` (emits the strict `VERDICT:` token — no
+  `.claude/agents/` counterpart exists for this agent). The `defect-prevention-detectors` (ADDED
+  requirement) and `premise-review-gate` (MODIFIED requirement) capability specs are golden-source-only,
+  same as every `openspec/specs/` file — `sync_scaffold.py` only propagates manifest-listed
+  skills/scripts/config, never spec files. Stdlib-only script changes; `test_checks.py` already passes
+  `--out` explicitly so the output-dir default change breaks no existing test. NOT yet synced to
+  extrends/psc-monitor (operator-gated).
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
