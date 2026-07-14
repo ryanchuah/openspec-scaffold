@@ -57,6 +57,14 @@ in), so batching them is low-risk:
   in-progress must add a `status:` line to that charter (`in-progress`/`closed`) and, if
   in-progress, an Active `knowledge/questions/INDEX.md` item — a one-time reconciliation the
   liveness check will otherwise (correctly) flag; this is intended behavior, not a regression.
+- **product-audit-skill** (2026-07-14, OW-16) — new `.claude/skills/product-audit/SKILL.md`,
+  `scripts/knowledge_lint.py` + `scripts/test_knowledge_lint.py` (one new guarded
+  `claims-ledger-staleness` detector), `scripts/scaffold_manifest.txt` (+SKILL line), and
+  `scripts/scaffold_lint.py` (`_NON_OPENSPEC_SKILL_TOKENS` +`product-audit`). The `product-audit` (new)
+  and `knowledge-lint` (ADDED requirement) capability specs are golden-source-only (never synced). The
+  new detector is guarded on the `format: product-audit/v1` claims-ledger marker — no downstream repo
+  has a claims ledger yet, so **no new downstream lint failures on first sync**; a repo that later
+  adopts the claims-ledger convention gets the staleness check automatically once the marker is present.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

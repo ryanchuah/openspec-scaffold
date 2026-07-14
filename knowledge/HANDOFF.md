@@ -1,84 +1,82 @@
-# HANDOFF — OW-15 (correctness-audit-meta-hardening) shipped; wave-2 remaining OW-12/OW-16 + OW-11 residual (2026-07-14)
+# HANDOFF — OW-16 (product-audit-skill) shipped; wave-2 remaining OW-12 + OW-11 residual (2026-07-14)
 
-> **Read this right after `knowledge/STATUS.md`.** A session shipped **`correctness-audit-meta-hardening`
-> (OW-15, MEDIUM)** end-to-end — plan → propose → apply → verify → archive, committed on `main`, local &
-> **unpushed** (push is operator-gated). Downstream propagation is **DEFERRED + operator-gated**. Absorb
-> this, pick up from **Remaining work**, and **delete this file once absorbed**. Its normal state is absent.
+> **Read this right after `knowledge/STATUS.md`.** A session shipped **`product-audit-skill` (OW-16,
+> COMPLEX)** end-to-end — explore(+direction gate) → propose → apply → verify → archive, committed on
+> `main`, local & **unpushed** (push is operator-gated). Downstream propagation is **DEFERRED +
+> operator-gated**. Absorb this, pick up from **Remaining work**, and **delete this file once absorbed**
+> (its normal state is absent).
 >
 > **You have NO standing autonomy grant.** Confirm tier+plan per change unless the operator re-grants
-> autonomy.
+> autonomy. (This session HAD an explicit grant; it does not carry over.)
 
-## DONE this session — correctness-audit-meta-hardening (OW-15)
-Four deltas to the shipped `correctness-audit` capability: (1) liveness — an in-progress dossier stays
-an Active `knowledge/questions/INDEX.md` item; charter `status:` marker `in-progress`→`closed`;
-remediation programs use a namespace distinct from discovery `WAVE-N` rows; (2) a blind close-out
-coverage-gap review (four-marker taxonomy diff; blind-taxonomy + evidence-fanout both load-bearing);
-(3) a bounded scope-seeding checklist inlined in the skill (11-group dimension seed + 12 named
-blind-spot classes; **classes 9-12 are awareness pointers only — the claims-ledger mechanism is OW-16,
-not built here**); (4) a post-close `POST-CLOSE-LEDGER.md` requirement for persistence-touching changes.
-Plus two new guarded `knowledge_lint` detectors (`audit-liveness`, `post-close-ledger-format`), both
-gated on the existing `format: correctness-audit/v1` marker. Verify: premise AGREE, pro behavioral
-verifier READY with zero defects, 9 orchestrator-authored adversarial fixtures held, `check.sh` green,
-zero Sonnet fallback anywhere in the lifecycle. Full record: decisions —
-`knowledge/decisions/INDEX.md` (`correctness-audit-meta-hardening`); follow-ons —
-`knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`; archive —
-`openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
+## DONE this session — product-audit-skill (OW-16)
+The seventh audit class: a new operator-invoked, pull-only **`product-audit`** skill whose object is the
+product's promise surface (pricing/landing/README copy) and business thesis, and whose oracle is the code
+and the market — the inverse of the six code-facing audit classes. Protocol: blind attack-list (committed
+before evidence) → five-lane evidence fan-out (impl-as-sold · cost/critical-path · repo+git+GTM sweep ·
+live-web regulatory · live-web competitive; web lanes on the research convention) → per-attack disposition
+diff (CONFIRMED/PARTIAL/SURVIVED-BY-THESIS/OPEN) → operator ratification menu → `PRODUCT:
+CLEAN|FINDINGS-ROUTED|ESCALATE` verdict. Ships the **claims-ledger convention** (promise → delivering
+surface → proving check) with a **content-sha256 covered-file manifest**, guarded by a new marker-gated
+`knowledge_lint` **`claims-ledger-staleness`** detector. Operationalizes OW-15's carried-forward classes
+9–12. New `product-audit` capability spec + `knowledge-lint` ADDED requirement; **no
+`finding-closure-ratchet` change** (existing dispositions suffice). Full record: decisions —
+`knowledge/decisions/INDEX.md` (`product-audit-skill`); follow-ons —
+`knowledge/questions/product-audit-skill-follow-ons.md`; archive —
+`openspec/changes/archive/2026-07-14-product-audit-skill/`.
 
-## ⭐ Corrected stale-tracker finding — verify archive vs tracker STATUS lines before trusting them
-This change's own premise was almost blocked by a stale line: `OUTSTANDING-WORK.md`'s OW-5 entry still
-read "PROPOSE COMPLETE — PAUSED AT APPLY" even though OW-5 (`correctness-audit`) **shipped 2026-07-13**
-(`openspec/changes/archive/2026-07-13-correctness-audit-skill/`). The prior HANDOFF and `STATUS.md` both
-repeated the stale "OW-15 BLOCKED on OW-5" claim, inherited from the tracker without re-checking the
-archive. **Both are now corrected** (OW-5's STATUS line → SHIPPED; OW-15 marked SHIPPED). Lesson: a
-tracker's STATUS line is a snapshot, not a live fact — when a backlog item's actionability hinges on
-another item's ship state, check `openspec/changes/archive/` directly, not just the tracker prose.
+Verify: premise AGREE at every altitude (direction gate + proposal); self-review + 4 orchestrator-authored
+adversarial boundary fixtures + flash test-quality lens all READY; simplicity gate clean; `check.sh` green;
+live-tree lint clean; **zero Sonnet fallback on apply**.
 
 ## Hard-won lessons (process — carried forward)
-1. **Mixed code + load-bearing scaffold prose → split the apply.** The two `knowledge_lint` detectors +
-   tests went to the flash apply-executor (deterministic code, must be delegated); the
-   `.claude/skills/correctness-audit/SKILL.md` prose (nested code fences, downstream-propagated) was
-   applied by the **primary directly**. Relaying fenced markdown through a delegated executor is
-   error-prone — pre-author verbatim insertion blocks (this change's `skill-additions.md`) and let the
-   primary place them. Keeps "no implementation *code* by primary" intact (primary writes prose, flash
-   writes Python). tasks.md tracked both, with the prose group labeled orchestrator-applied.
-2. **"Fold as much as possible" = maximal COHERENT unit, not maximal count.** OW-15 folded psc CG9 +
-   extrends convergence + strategy-pressure-test into one capability amendment. OW-16 was deliberately
-   NOT folded — greenfield new skill, different capability, higher blast radius, shares only the
-   blind-diff method. Scope by coherence and what survives recon (prior-handoff lesson, re-confirmed).
-3. **Any new `knowledge_lint` check MUST be guarded or it breaks the live-tree gate.**
-   `scripts/test_doc_lint_gate.py` asserts `collect_findings(REPO_ROOT) == []` on THIS repo. Mirror the
-   `_check_audit_dossier` marker-gate idiom (glob → `continue` if no marker → only then flag) so this
-   repo and un-adopted downstream repos lint clean. Both OW-15 detectors did this and stayed green.
-4. **Zero Sonnet fallback again** — flash cleanly handled the whole code apply; deepseek-v4-pro handled
-   premise + behavioral verify (real work, re-ran the suite). Sonnet ran only the archive (operator-directed).
+1. **Apply-split worked again (HANDOFF lesson, re-confirmed).** The fence-heavy `SKILL.md` prose was
+   **orchestrator-authored** (checked off `[x]` before delegating), then the deterministic Python
+   (detector + tests + registration) went to the flash apply-executor, which resumed at the first `[ ]`.
+   Clean, zero flash fallback. Keep splitting mixed prose+code applies this way.
+2. **⚠️ `deepseek/deepseek-v4-pro` VERIFIER emitted zero text this session.** In BOTH the concurrent
+   behavioral pass and a focused re-run, the pro-tier *verifier* ran tool calls but produced NO
+   text/verdict (exit 0, but empty). The flash lens pass and the pro *reviewer* (premise/proposal/design/
+   specs/tasks) all worked fine — only the pro `openspec-verifier` behavioral pass failed to emit. Per the
+   verify ladder this fell back to a **Sonnet subagent** for the behavioral pass (clean independent READY).
+   If you hit the same: don't burn 3 retries — one focused re-run, then Sonnet. Monitor whether this is a
+   persistent pro-verifier-tier degradation (routed to the follow-ons file + here).
+3. **`checks.py --check <name>` litters cwd.** Running a single check (e.g. `checks.py --check
+   spec-delta-structure`) writes `<name>.json` to the repo root, NOT `output/`. A `git add -A` after that
+   sweeps the stray json into the commit — I caught and amended it out. Either run checks with
+   `--report --out output/...`, or `git add` specific paths (not `-A`) after a bare `--check`. Candidate
+   tiny follow-on: gitignore `*.json` at repo root, or make `--check` write to a temp/output path.
+4. **Fold-by-coherence, re-confirmed (prior HANDOFF lesson).** OW-16 was shipped ALONE — it is a greenfield
+   capability sharing only the blind-diff *method* with OW-15, so it was never a fold candidate with OW-12
+   (archive tooling) or OW-11-residual (skill de-bloat). "Fold as much as you can" = maximal *coherent*
+   unit (one capability/concern), not maximal count. OW-12 and OW-11-residual are two *separate*
+   mechanization concerns — do not fold them together just because both are "lifecycle tooling."
 
-## Remaining work — OW-12, OW-16, OW-11 residual
+## Remaining work — OW-12, OW-11 residual (the wave-2 tail)
 - **OW-12 · Archive mechanization · SMALL–MEDIUM · lowest priority · no recon yet.** `archive_move.py`
-  for the dir move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM only for MODIFIED merge
-  + reconciliation narrative). Keep the archive-executor on pro.
-- **OW-16 · `product-audit` skill (promise-surface / business-thesis audit) · chain-independent
-  greenfield.** Carries forward this change's classes 9-12 (copy↔capability conformance / claims ledger,
-  entitlement-state reachability, severity-taxonomy completeness, source-class labeling) as the
-  operationalization target, plus the claims-ledger convention itself. Slots anywhere; see
-  `OUTSTANDING-WORK.md` OW-16 entry and `knowledge/roadmap.md`.
-- **OW-11's fuzzy de-bloat half** remains parked (`knowledge/questions/skill-debloat-gates-follow-ons.md`).
-- **OW-15 residual follow-ons** (monitored, none blocking) →
-  `knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`: liveness substring-match
-  false-negative; Delta-4 ledger should-exist-after-close-out obligation (deferred, protocol-level not
-  lint-level); ledger at-least-five cell tolerance.
+  for the dir move; a deterministic delta-applier for ADDED/REMOVED/RENAMED spec promotion (LLM only for
+  MODIFIED merge + the doc reconciliation narrative). Keep the archive-executor on pro — what remains IS
+  the judgment. Backlog: `OUTSTANDING-WORK.md` OW-12.
+- **OW-11 residual (fuzzy de-bloat half)** → `knowledge/questions/skill-debloat-gates-follow-ons.md`:
+  replace verify steps 12–16 with deterministic CLI coverage + a coherence note; trim explore's gallery
+  prose; a `freeze-check` script (parse review verdict → FREEZE-OK/BLOCKED, needs a `FREEZE:` token); a
+  `notes_lint.py` five-field gate. Independent; nothing blocks on them.
+- **After these, scaffold optimization is at diminishing returns** (2026-07-11 workflow-audit verdict) —
+  further sessions should spend downstream (extrends' ~33 open defect classes), not new scaffold mechanism.
+- **OW-16 residual follow-ons** (monitored, none blocking) →
+  `knowledge/questions/product-audit-skill-follow-ons.md`: optional sha256-recompute helper; ledger-home
+  fixed to `knowledge/reference/*.md`; staleness fires on any content change (by-design); manifest
+  completeness deliberately un-linted; + the pro-verifier-no-output infra note.
 
 ## Downstream propagation — DEFERRED + operator-gated
-This change edited scaffold-managed surfaces: `scripts/knowledge_lint.py` + `test_knowledge_lint.py`
-(two new detectors), `.claude/skills/correctness-audit/SKILL.md`, and the `correctness-audit` +
-`knowledge-lint` capability specs. NOT synced to extrends/psc-monitor without fresh operator
-authorization. Both new lint checks are guarded on the existing format marker — no new downstream lint
-failures expected on first sync. Migration note for whoever runs the propagation: a downstream dossier
-that later adopts the marker while genuinely still in-progress needs a `status:` line added (a one-time
-reconciliation the liveness check will otherwise correctly flag). Running ledger:
-`knowledge/reference/pending-downstream-propagation.md`.
+OW-16 edited scaffold-managed surfaces: `.claude/skills/product-audit/SKILL.md` (new),
+`scripts/knowledge_lint.py` + `scripts/test_knowledge_lint.py` (new `claims-ledger-staleness` detector),
+`scripts/scaffold_manifest.txt`, `scripts/scaffold_lint.py`. The two capability specs are golden-source-
+only (never synced). The new lint is guarded on `format: product-audit/v1` — no downstream repo has a
+claims ledger yet, so **no new downstream lint failures on first sync**. NOT synced to extrends/psc-monitor
+without fresh operator authorization. Running ledger: `knowledge/reference/pending-downstream-propagation.md`.
 
 ## Pointers
 - Backlog + per-item STATUS: `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
-- Evidence sources for OW-15: `psc-coverage-gap-review-2026-07-11.md`,
-  `extrends-coverage-gap-review-2026-07-12.md`, `psc-strategy-pressure-test-2026-07-12.md` (same dir).
-- This change (full record): `openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
+- OW-16 evidence: `knowledge/research/scaffold-gap-analysis-2026-07/psc-strategy-pressure-test-2026-07-12.md`.
+- This change (full record): `openspec/changes/archive/2026-07-14-product-audit-skill/`.

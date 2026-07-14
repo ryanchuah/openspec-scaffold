@@ -334,6 +334,7 @@ interaction with OW-2/3/6. Alternative at operator discretion: fold into OW-5's 
 as an immediate follow-on. Standard escalation caveat.
 
 ## OW-16 · `product-audit` scaffold skill (promise surface + business thesis)  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-product-audit-skill/`).
 **Why:** a launch-gate defect (pricing page selling unbuilt features) survived three chartered
 code audits in a heavily-audited repo because **no audit class owns the promise surface** — every
 existing class is code-facing (object = code, oracle = spec); this class inverts it (object =
@@ -403,11 +404,8 @@ anywhere after the frozen batch. Standard escalation caveat.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
   **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (mechanized half), OW-13,
-  OW-8, OW-5, OW-15 are DONE** (SHIPPED — see per-item STATUS lines above); remaining order is
-  **OW-12** (plus OW-11's parked residual de-bloat half) and **OW-16**.
-  **OW-16** (late addition 2026-07-12) is chain-independent greenfield — slots anywhere after the
-  frozen batch; if a downstream repo approaches a launch, its claims-ledger half is the urgent
-  slice and can be run by hand from the psc reference impl before the skill exists.
+  OW-8, OW-5, OW-15, OW-16 are DONE** (SHIPPED — see per-item STATUS lines above); remaining is
+  now only **OW-12** (plus OW-11's parked residual de-bloat half).
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the
