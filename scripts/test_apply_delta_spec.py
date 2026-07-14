@@ -18,7 +18,11 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import apply_delta_spec  # noqa: E402
+# I001 is load-bearing for downstream repos: a repo with a top-level `checks/` package
+# (e.g. psc-monitor) makes isort classify `import checks` as first-party and split it
+# from `import apply_delta_spec`, so the block that is sorted upstream is "unsorted" there.
+# Suppress rather than reformat — the shared file must stay byte-identical across repos.
+import apply_delta_spec  # noqa: E402, I001
 import checks  # noqa: E402
 
 # ===================================================================
