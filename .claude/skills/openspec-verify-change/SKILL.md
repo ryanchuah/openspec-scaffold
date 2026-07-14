@@ -53,6 +53,16 @@ So during the self-review (Step 5), when the change's diff carries **decision lo
 - **State machine / doc-walking parser:** exercise EVERY transition and flush boundary — section headers, first/last item, EOF, empty input — not only the happy middle. (The canonical miss was a per-item flush that fired at two of three boundaries.)
 - **Detector / validator:** feed inputs that SHOULD trip each rule AND inputs that SHOULD NOT, including the empty, single, first, last, and multi-item cases.
 - **Any branch-taking transform:** cover each branch and the edges between them.
+- **Doc-rewrite / transform tool** (a parser that re-emits a document — a spec promoter, delta applier,
+  or doc rewriter): "did it apply the op" unit tests are not enough. Author **reconstruction-fidelity**
+  fixtures (round-trip an *unchanged* input through the tool and assert byte-identity — no blank-line
+  drift, no section reordering, no trailing-whitespace churn) and **idempotency** fixtures (apply the
+  transform twice and assert the second application is a no-op ≡ applying once). This is the exact class
+  that shipped 3 real defects past OW-12's promoter's green op-level tests (ratchet
+  `doc-rewrite-tool-reconstruction-fidelity`).
+- **Every fixture asserts BOTH the exit code AND the state:** a fixture that checks only the process
+  exit code can pass on a silent wrong-write, and one that checks only the file/report state can pass on
+  a spurious anomaly-exit. Assert both — the exit code *and* the resulting file/report contents.
 
 This is **distinct from the test-quality lens**: that lens judges the quality of the tests the executor *already wrote*; this obligation has the orchestrator *author the boundary tests the executor never wrote*. A defect surfaced this way takes the existing defect path (Step 8: diagnose, re-delegate a fix-spec, re-verify). A change whose diff carries **no** decision logic — pure prose, docs, config, or data-free rewiring — does not trigger this; record that determination in `notes.md` and proceed.
 
@@ -125,7 +135,7 @@ The orchestrator SHALL select one lens per change and record the selection with 
 ```text
 You are the OpenSpec Change Verifier performing a test-quality lens pass. Focus on test integrity:
 
-FIRST run `checks.py --check test-quality` (from the repo root) and confirm its findings from disk — these are the mechanical test-smell results the detector already found.
+FIRST run `checks.py --check test-quality` (from the repo root) and confirm its findings from `output/checks/test-quality.json` — these are the mechanical test-smell results the detector already found.
 
 THEN, for each test the change adds or modifies, apply the residual lens judgment: would the test fail if the behavior it claims to cover broke? Name the assertion that would trip. Specifically flag:
 - Tautological or forced-green assertions (e.g. `assert True`, `assert 1 == 1`) — the detector catches these already; confirm its findings
@@ -141,7 +151,7 @@ Emit your findings in the standard ## Verify Pass — <model-id> / VERDICT: / ##
 ```text
 You are the OpenSpec Change Verifier performing a data-scale lens pass. Focus on data-path safety:
 
-FIRST run `checks.py --check data-scale` (from the repo root) and confirm its findings from disk — the mechanical `.fetchall()` results the detector already found.
+FIRST run `checks.py --check data-scale` (from the repo root) and confirm its findings from `output/checks/data-scale.json` — the mechanical `.fetchall()` results the detector already found.
 
 THEN apply the residual lens judgment the detector cannot make mechanically:
 - Which input domains are unbounded in production?
@@ -332,41 +342,35 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
       is correct. The change-specific acceptance criteria you verify behaviorally against live
       in design.md's **Verification** section, not in `tasks.md`. (Rule canonical: `openspec/config.yaml` `rules.tasks`.)
 
-    **Spec Coverage**:
-    - If delta specs exist in `contextFiles.specs`:
-      - Extract all requirements (marked with "### Requirement:")
-      - For each requirement:
-        - Search codebase for keywords related to the requirement
-        - Assess if implementation likely exists
-      - If requirements appear unimplemented:
-        - Add CRITICAL issue: "Requirement not found: <requirement name>"
-        - Recommendation: "Implement requirement X: <description>"
-
     **Structural spec-delta validation**:
     - When the change has spec deltas (`specs/**/spec.md`), the orchestrator SHALL run
-      `checks.py --check spec-delta-structure` and resolve any finding BEFORE advancing to archive.
-      (This is the deterministic replacement for the hand-checked SHALL-on-first-line rule; it is
-      enforcing at verify time even though the detector's own findings are advisory at the audit
-      level.)
+      `checks.py --check spec-delta-structure` and resolve any finding (read from
+      `output/checks/spec-delta-structure.json`) BEFORE advancing to archive. (This is the deterministic
+      replacement for the hand-checked SHALL-on-first-line rule; it is enforcing at verify time even
+      though the detector's own findings are advisory at the audit level.)
 
-14. **Verify Correctness**
+14. **Verify Correctness — the requirement-coverage note (MANDATORY)**
 
-    **Requirement Implementation Mapping**:
-    - For each requirement from delta specs:
-      - Search codebase for implementation evidence
-      - If found, note file paths and line ranges
-      - Assess if implementation matches requirement intent
-      - If divergence detected:
-        - Add WARNING: "Implementation may diverge from spec: <details>"
-        - Recommendation: "Review <file>:<lines> against requirement X"
+    Do **not** re-derive coverage by keyword search. The mandatory behavioral review (Steps 4–8) already
+    exercised the change against real output — that is the authoritative coverage evidence. This step
+    records it as a coherence note, in two parts:
 
-    **Scenario Coverage**:
-    - For each scenario in delta specs (marked with "#### Scenario:"):
-      - Check if conditions are handled in code
-      - Check if tests exist covering the scenario
-      - If scenario appears uncovered:
-        - Add WARNING: "Scenario not covered: <scenario name>"
-        - Recommendation: "Add test or implementation for scenario: <description>"
+    **(a) Deterministic enumeration.** Enumerate every `### Requirement:` and `#### Scenario:` in the
+    delta specs (`contextFiles.specs`) — a plain structural list (grep/parse), not a judgment.
+
+    **(b) Coverage note (you MUST write this — it does not decay into a skipped step).** Map each
+    enumerated requirement to the behavioral evidence you gathered in Steps 4–8 (the real output you
+    eyeballed, the smoke you ran, the fixtures you authored). The trigger for an issue is *observed
+    absence of evidence*, NOT "keyword not found in code":
+    - A requirement whose behavior the review did **not** exercise → **CRITICAL** coverage gap
+      ("Requirement <name> not exercised by the behavioral review — <what is missing>").
+    - A scenario with no covering test or behavioral evidence → **WARNING**
+      ("Scenario <name> uncovered — add a test or exercise it").
+    - A requirement whose observed behavior diverges from its intent → **WARNING**
+      ("Implementation diverges from <name>: <cite the file:line and the observed behavior>").
+
+    This is judgment grounded in observed behavior, not inference from a string match — which is exactly
+    why it replaces the old keyword search.
 
 15. **Verify Coherence**
 
@@ -429,9 +433,11 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
 17. **Checkpoint verify findings to the change dir (MANDATORY before archive handoff)**
 
     After emitting the report and BEFORE telling the user to run archive, append the verification
-    outcome to the change's `notes.md` (`<changeRoot>/notes.md`). You MUST capture **all five** of the
-    following — treat each as a required field, and if one is genuinely empty, write "none" plus one
-    line of *why*, never silently omit it:
+    outcome to the change's `notes.md` (`<changeRoot>/notes.md`) under a `## Verify checkpoint` heading
+    (the `notes-checkpoint-structure` detector keys on that heading and on each field below — Step 18
+    runs it as the mechanical backstop). You MUST capture **all five** of the following — treat each as a
+    required field, and if one is genuinely empty, write "none" plus one line of *why*, never silently
+    omit it:
 
     1. the **verdict** (ready for archive / needs revision);
     2. **what you confirmed by eyeballing live output** during the behavioral review — recorded as
@@ -471,29 +477,23 @@ Absence of both, on a data-path change, is a verify defect the orchestrator reso
     the project silently forgets a decision it meant to revisit. This write is cheap because the
     context is already loaded. Do not skip it even when the verdict is a clean pass.
 
-18. **Verbally acknowledge documentation persistence (MANDATORY — do not end the turn without it)**
+18. **Enforce the checkpoint mechanically, then confirm field 5 (MANDATORY — do not end the turn without it)**
 
-    After writing `notes.md`, you MUST close your response to the user with an explicit, itemised
-    acknowledgement that confirms each required `notes.md` field was persisted. This is a forcing
-    function: stating it out loud catches the silent-omission failure that field 5 is most prone to.
+    Field *presence* is now enforced by a detector, not by a verbal ritual. After writing `notes.md`:
 
-    Use exactly this shape (fill in the real content; do not paraphrase the labels away):
+    a. **Run the detector:** `checks.py --check notes-checkpoint-structure` and read
+       `output/checks/notes-checkpoint-structure.json`. It flags a missing checkpoint section or any
+       missing field (`checkpoint-missing` / `checkpoint-field-missing` / `notes-missing`) for this
+       verify-due change. Resolve every finding for this change (write the missing field) BEFORE the
+       archive handoff — this is the deterministic replacement for the old itemised echo of fields 1–4.
 
-    ```
-    ✅ Documentation persisted to <changeRoot>/notes.md:
-      1. Verdict — <ready for archive / needs revision>
-      2. Live output eyeballed — <one-line pointer to the real sample recorded>
-      3. Defects + fixes — <summary, or "none">
-      4. As-built deltas — <summary, or "none">
-      5. Forward-looking open-questions / tuning items / follow-ons — <explicit list, or "none + why">
-      Still owned by archive — <knowledge/STATUS.md, knowledge/decisions/INDEX.md, knowledge/questions/INDEX.md, spec promotion, cleanup>
-    ```
-
-    For field 5 you MUST either **name each item** carried forward (so the user can sanity-check that
-    nothing was dropped) or state "none" with a one-line justification. A bare "docs updated" or
-    "ready for archive" WITHOUT this itemised confirmation is non-compliant — losing an open-question
-    or tuning item to the session boundary is a critical documentation failure, and this step exists to
-    make that failure impossible to commit silently.
+    b. **Confirm field 5 to the user (the one the detector cannot judge for completeness).** The detector
+       only checks that field 5 is *present*; it cannot know whether an open-question was silently
+       omitted. So you MUST close your response by **enumerating each forward-looking item** carried into
+       `knowledge/questions/INDEX.md` at archive — or stating "none" with a one-line justification — so the
+       user can sanity-check that nothing was dropped. Losing an open-question or tuning item to the
+       session boundary is a critical documentation failure; the detector guards fields 1–4's presence,
+       and this explicit field-5 enumeration guards its *completeness*.
 
 **Verification Heuristics**
 

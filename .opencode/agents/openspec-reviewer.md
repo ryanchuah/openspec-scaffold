@@ -154,7 +154,19 @@ PASS — ready to freeze and move to next artifact
   or
 NEEDS REVISION — address 🔴 issues before proceeding
 
+VERDICT: PASS
+  or
+VERDICT: NEEDS REVISION
+
 ```
+
+**Strict verdict token (MANDATORY).** The **last line** of the `### Verdict` section MUST be a strict,
+machine-parseable line — exactly `VERDICT: PASS` or `VERDICT: NEEDS REVISION` — on its own line, in
+addition to any human-readable summary above it. `VERDICT: PASS` denotes zero 🔴 (ready to freeze);
+`VERDICT: NEEDS REVISION` denotes one or more 🔴. A deterministic `freeze_check.py` parses this token
+(with the `PREMISE:` line for direction artifacts) to compute the freeze gate, so it must be present and
+exact — do not decorate it with backticks, prose, or trailing commentary on the same line. Your judgment
+and the 🔴/🟡/💡 severities are unchanged; this only formalizes the verdict line.
 
 ### Premise Verdict
 

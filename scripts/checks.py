@@ -254,6 +254,14 @@ _REGISTRY: list[dict] = [
         "trigger": "openspec change deltas present",
         "coverage_note": "disabling drops MEDIUM spec-delta structural validation",
     },
+    {
+        "name": "notes-checkpoint-structure",
+        "tier": "floor",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "openspec changes with all-[x] tasks.md present",
+        "coverage_note": "disabling drops notes-checkpoint structural validation",
+    },
     {"name": "data-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "repo-lint", "tier": "floor", "kind": "delegate", "family": "check"},
     {"name": "radon", "tier": "heavy", "kind": "builtin", "family": "fact"},
@@ -342,6 +350,7 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "test-quality": True,
         "data-scale": True,
         "spec-delta-structure": True,
+        "notes-checkpoint-structure": True,
         "radon": False,
         "jscpd": False,
         "vulture": False,
@@ -451,7 +460,13 @@ def _availability_for_check(check: dict, pins: dict[str, str]) -> dict:
         return {"status": "available", "version": None, "expected": None}
     if kind == "custom":
         return _custom_availability(check.get("command", []))
-    if check["name"] in ("inventory", "test-quality", "data-scale", "spec-delta-structure"):
+    if check["name"] in (
+        "inventory",
+        "test-quality",
+        "data-scale",
+        "spec-delta-structure",
+        "notes-checkpoint-structure",
+    ):
         return {"status": "available", "version": None, "expected": None}
     tool_bin = _BUILTIN_TOOL_BIN[check["name"]]
     return _tool_status(tool_bin, pins)
@@ -620,6 +635,7 @@ _PARSERS = {
     "test-quality": lambda _stdout: [],
     "data-scale": lambda _stdout: [],
     "spec-delta-structure": lambda _stdout: [],
+    "notes-checkpoint-structure": lambda _stdout: [],
 }
 
 
@@ -1173,6 +1189,16 @@ def _run_data_scale(check: dict, config: dict, out_path: Path) -> dict:
 _SECTION_HEADER_RE = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
 _REQUIREMENT_HEADER_RE = re.compile(r"^### Requirement:\s*(.*)")
 _SCENARIO_HEADER_RE = re.compile(r"^#### Scenario:")
+_CHECKBOX_RE = re.compile(r"^[ \t]*[-*]\s*\[\s*[x ]\s*\]")
+_UNCHECKED_RE = re.compile(r"^[ \t]*[-*]\s*\[\s* \s*\]")
+_CHECKPOINT_HEADING_RE = re.compile(r"^#{1,6}\s+.*verify\s+checkpoint", re.IGNORECASE)
+_CHECKPOINT_FIELDS = [
+    (1, "'verdict'", r"\bverdict\b"),
+    (2, "'live output' or 'eyeball'", r"\blive\s+output\b|\beyeball\b"),
+    (3, "'defect'", r"\bdefect\b"),
+    (4, "'as-built'", r"\bas-built\b"),
+    (5, "'forward-looking'", r"\bforward-looking\b"),
+]
 
 
 def _has_archive_or_hidden(parts: tuple[str, ...]) -> bool:
@@ -1181,6 +1207,19 @@ def _has_archive_or_hidden(parts: tuple[str, ...]) -> bool:
         if part == "archive" or part.startswith("."):
             return True
     return False
+
+
+def _iter_active_change_dirs(repo_root: Path):
+    """Yield each non-archived, non-hidden change dir under openspec/changes/*/."""
+    changes_dir = repo_root / "openspec" / "changes"
+    if not changes_dir.is_dir():
+        return
+    for change_dir in sorted(changes_dir.iterdir()):
+        if not change_dir.is_dir():
+            continue
+        if _has_archive_or_hidden((change_dir.name,)):
+            continue
+        yield change_dir
 
 
 def _validate_delta(spec_path: Path, check_name: str, repo_root: Path) -> list[dict]:
@@ -1328,22 +1367,115 @@ def _run_spec_delta_structure(check: dict, config: dict, out_path: Path) -> dict
     check_name = "spec-delta-structure"
 
     changes_dir = repo_root / "openspec" / "changes"
-    if not changes_dir.is_dir():
-        _write_json(out_path, [])
-        return {"status": "ok", "findings": []}
 
-    for change_dir in sorted(changes_dir.iterdir()):
-        if not change_dir.is_dir():
-            continue
-        change_rel = change_dir.name
-        if _has_archive_or_hidden((change_rel,)):
-            continue
-
+    for change_dir in _iter_active_change_dirs(repo_root):
         for spec_path in sorted(change_dir.glob("specs/**/spec.md")):
             spec_rel = spec_path.relative_to(changes_dir)
             if _has_archive_or_hidden(spec_rel.parts):
                 continue
             findings.extend(_validate_delta(spec_path, check_name, repo_root))
+
+    _write_json(out_path, findings)
+    return {"status": "FINDINGS" if findings else "ok", "findings": findings}
+
+
+def _run_notes_checkpoint_structure(check: dict, config: dict, out_path: Path) -> dict:
+    """In-process structural validator for verify-checkpoint fields in notes.md.
+
+    Discovers change dirs by directory presence under ``openspec/changes/*/``
+    (excluding ``archive`` and dot-prefixed dirs). For each change dir:
+    reads ``tasks.md`` and activates only when all checkboxes are ``- [x]``
+    (apply complete, verify due). Checks ``notes.md`` for the five required
+    verify-checkpoint fields by number+keyword.
+    """
+    repo_root = _resolve_repo_root()
+    findings: list[dict] = []
+    check_name = "notes-checkpoint-structure"
+
+    for change_dir in _iter_active_change_dirs(repo_root):
+        # ---- Read and evaluate tasks.md ----
+        tasks_md = change_dir / "tasks.md"
+        if not tasks_md.exists():
+            continue  # no tasks.md → skip (no verify obligation)
+        try:
+            tasks_lines = tasks_md.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+
+        checkbox_lines = [ln for ln in tasks_lines if _CHECKBOX_RE.match(ln)]
+        if not checkbox_lines:
+            continue  # zero checkbox lines → skip (non-standard change)
+
+        unchecked_lines = [ln for ln in tasks_lines if _UNCHECKED_RE.match(ln)]
+        if unchecked_lines:
+            continue  # WIP change → skip, verify not due
+
+        # All checkboxes are [x] → verify is due, evaluate checkpoint
+        notes_md = change_dir / "notes.md"
+        notes_exists = notes_md.exists()
+        rel_path = str(notes_md.relative_to(repo_root)) if notes_exists else ""
+
+        if not notes_exists:
+            findings.append(
+                {
+                    "check": check_name,
+                    "rule": "notes-missing",
+                    "path": rel_path or str(change_dir.relative_to(repo_root)),
+                    "line": 1,
+                    "message": "notes.md is missing for a completed change with all-[x] tasks",
+                }
+            )
+            continue
+
+        try:
+            notes_text = notes_md.read_text(encoding="utf-8")
+            notes_lines = notes_text.splitlines()
+        except OSError:
+            continue
+
+        # Look for a heading containing "verify checkpoint"
+        checkpoint_lineno = None
+        for lineno, line in enumerate(notes_lines, start=1):
+            if _CHECKPOINT_HEADING_RE.match(line):
+                checkpoint_lineno = lineno
+                break
+
+        if checkpoint_lineno is None:
+            findings.append(
+                {
+                    "check": check_name,
+                    "rule": "checkpoint-missing",
+                    "path": rel_path,
+                    "line": 1,
+                    "message": "notes.md lacks a heading containing 'Verify Checkpoint'",
+                }
+            )
+            continue
+
+        # Extract checkpoint section content: from heading until next heading
+        # of same or higher level (fewer # prefix chars = higher level).
+        heading_match = re.match(r"^(#+)", notes_lines[checkpoint_lineno - 1])
+        checkpoint_level = len(heading_match.group(1)) if heading_match else 2
+        checkpoint_text_lines = []
+        for line in notes_lines[checkpoint_lineno:]:  # skip heading line itself
+            next_heading = re.match(r"^#{1,%d}\s" % (checkpoint_level,), line)
+            if next_heading:
+                break
+            checkpoint_text_lines.append(line)
+        checkpoint_text = "\n".join(checkpoint_text_lines)
+
+        # Check five fields by keyword (drift-tolerant) using _CHECKPOINT_FIELDS table
+        for n, label, pattern in _CHECKPOINT_FIELDS:
+            if not re.search(pattern, checkpoint_text, re.IGNORECASE):
+                findings.append(
+                    {
+                        "check": check_name,
+                        "rule": "checkpoint-field-missing",
+                        "path": rel_path,
+                        "line": checkpoint_lineno,
+                        "message": f"checkpoint missing field {n}: {label}",
+                    }
+                )
 
     _write_json(out_path, findings)
     return {"status": "FINDINGS" if findings else "ok", "findings": findings}
@@ -1393,6 +1525,7 @@ _BUILTIN_RUNNERS = {
     "test-quality": _run_test_quality,
     "data-scale": _run_data_scale,
     "spec-delta-structure": _run_spec_delta_structure,
+    "notes-checkpoint-structure": _run_notes_checkpoint_structure,
 }
 
 
@@ -2054,7 +2187,7 @@ def main(argv: list[str] | None = None) -> int:
         return _mode_list(config, defaults, pins, repo_root)
 
     if args.check:
-        out_dir = Path(args.out) if args.out else Path(".")
+        out_dir = Path(args.out) if args.out else Path("output") / "checks"
         return _mode_check(args.check, config, defaults, pins, repo_root, out_dir)
 
     if args.floor:

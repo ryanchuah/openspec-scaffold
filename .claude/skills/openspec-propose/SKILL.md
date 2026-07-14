@@ -135,24 +135,34 @@ I'll create artifacts with review:
          of the problem. E.g., instead of "return value semantics differ" (paraphrase), decide:
          "returns 0 — zero Document rows inserted" (concrete). If a reviewer flags a gap, close it
          with a specific choice.
-       - If 🔴 blocking issues exist → fix them in the artifact → **re-review is MANDATORY**
-         (return to the platform-specific invocation step for a fresh pass). A fix you made to
-         clear a 🔴 is never self-certified — you may NOT freeze the artifact on the strength of
-         your own fix. Only a review round that comes back with zero 🔴 can freeze it. (Max 3
-         reviewer passes total; escalate to the user if still unresolved after 3.)
-       - If no 🔴 issues → the freeze condition depends on the artifact:
-         - **`design.md` / `tasks.md`**: the artifact is frozen; move to the next one (unchanged).
-         - **`proposal.md`**: check the premise verdict:
-           - `PREMISE: AGREE` → the artifact is frozen; move to the next one.
-           - `PREMISE: DISSENT` → **Stop the freeze loop.** Present the cited concern(s) to the
-             operator via **AskUserQuestion** with three options:
-             1. **Re-frame the proposal** — address the dissent's concern and revise the proposal, then re-review.
-             2. **Re-scope** — narrow/change scope and revise, then re-review.
-             3. **Override-to-proceed** — operator accepts the dissent and wants to proceed anyway.
-             Record the operator's choice and rationale in `review-log.md`. On override (option 3),
-             freeze the proposal on zero 🔴 only — the DISSENT is the operator's call and is not
-             re-litigated on re-review. On re-frame/re-scope (options 1/2), loop back to revise the
-             proposal and re-review.
+       - **Run the deterministic freeze gate** instead of eyeballing 🔴 counts from free-text prose:
+         ```bash
+         python3 scripts/freeze_check.py --artifact <proposal|design|tasks> \
+           --review /tmp/review-out.jsonl.text.txt
+         ```
+         It parses the reviewer's strict `VERDICT:` token (and, for a proposal, the `PREMISE:` line) and
+         prints exactly one verdict. Branch on it:
+         - **`FREEZE: READY`** → the artifact is frozen; move to the next one. (For a proposal, `READY`
+           already implies `PREMISE: AGREE`.)
+         - **`FREEZE: BLOCKED — needs-revision`** → one or more 🔴. Fix them in the artifact →
+           **re-review is MANDATORY** (return to the invocation step for a fresh pass). A fix you made to
+           clear a 🔴 is never self-certified — only a fresh review round whose `freeze_check` returns
+           `READY` can freeze it. (Max 3 reviewer passes total; escalate to the user after 3.)
+         - **`FREEZE: BLOCKED — premise-dissent`** (proposal only) → **Stop the freeze loop.** Present the
+           cited concern(s) to the operator via **AskUserQuestion** with three options:
+           1. **Re-frame the proposal** — address the dissent's concern and revise, then re-review.
+           2. **Re-scope** — narrow/change scope and revise, then re-review.
+           3. **Override-to-proceed** — operator accepts the dissent and proceeds anyway.
+           Record the operator's choice and rationale in `review-log.md`. On override (option 3), freeze
+           the proposal when `freeze_check` returns `READY` on the same review's `VERDICT: PASS` (the
+           DISSENT is the operator's call and is not re-litigated on re-review — record the override so a
+           re-run treats direction as settled). On re-frame/re-scope, loop back to revise and re-review.
+         - **`FREEZE: BLOCKED — missing-verdict`** → the review lacks a parseable `VERDICT:` (or a proposal
+           lacks a `PREMISE:`) → treat as a **failed pass**: do NOT freeze, re-run the review.
+       - **Orchestrator overrule (reviewer can be wrong).** If `freeze_check` returns `BLOCKED` on a
+         finding you can demonstrate from the artifact/codebase is false, you MAY freeze anyway — but ONLY
+         after recording the overrule and its concrete rationale in `review-log.md` (same authority as the
+         "reviewer can be wrong" rule below). Never overrule a genuine defect merely to move on.
 
        The platforms diverge only on **invocation** (how the reviewer is run and how its output is
        asserted-real) and **failure handling** (crash/timeout salvage vs. halt-and-escalate) — the
@@ -190,8 +200,9 @@ I'll create artifacts with review:
                 --model deepseek/deepseek-v4-pro \
                 --format json \
                 "Review an OpenSpec change artifact. Also read the explore-brief if it \
-                 exists and openspec/specs/ for context. The artifact to review is at \
-                 <changeRoot>/<artifact>.md." \
+                 exists and openspec/specs/ for context. Emit a strict VERDICT: PASS|NEEDS \
+                 REVISION line as the last line of your ### Verdict section (freeze_check.py \
+                 parses it). The artifact to review is at <changeRoot>/<artifact>.md." \
                 > /tmp/review-out.jsonl 2> /tmp/review-err.log < /dev/null
 
              If the user specified a different reviewer model, substitute it
@@ -216,11 +227,12 @@ I'll create artifacts with review:
                 --out /tmp/review-out.jsonl --err /tmp/review-err.log \
                 --exit $? \
                 --require-marker "## Review Round" --require-marker "(🔴|🟡|💡)" \
+                --require-marker "VERDICT:" \
                 --quiet
               ```
               Read the extracted text from `/tmp/review-out.jsonl.text.txt` and confirm
-              it carries the reviewer's own output format (minimum: `## Review Round` heading
-              + at least one severity marker).
+              it carries the reviewer's own output format (minimum: `## Review Round` heading,
+              at least one severity marker, and the strict `VERDICT:` token freeze_check parses).
 
               **For `proposal.md` only**, also include the premise-verdict regex:
               ```bash
@@ -230,6 +242,7 @@ I'll create artifacts with review:
                 --out /tmp/review-out.jsonl --err /tmp/review-err.log \
                 --exit $? \
                 --require-marker "## Review Round" --require-marker "(🔴|🟡|💡)" \
+                --require-marker "VERDICT:" \
                 --verdict-regex "PREMISE: (AGREE|DISSENT)" \
                 --quiet
               ```

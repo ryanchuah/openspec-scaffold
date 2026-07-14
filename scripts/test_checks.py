@@ -208,6 +208,7 @@ class ListModeTest(AuditBundleTestBase):
             "test-quality",
             "data-scale",
             "spec-delta-structure",
+            "notes-checkpoint-structure",
             "data-lint",
             "repo-lint",
             "radon",
@@ -1016,6 +1017,7 @@ class FloorNoChecksEnabledTest(unittest.TestCase):
             "[checks.test-quality]\nenabled = false\n"
             "[checks.data-scale]\nenabled = false\n"
             "[checks.spec-delta-structure]\nenabled = false\n"
+            "[checks.notes-checkpoint-structure]\nenabled = false\n"
         )
         buf = io.StringIO()
         with redirect_stdout(buf):
@@ -1565,6 +1567,237 @@ class SpecDeltaStructureDetectorTest(AuditBundleTestBase):
         self.assertEqual(rc, 0)
         data = json.loads((out_dir / "spec-delta-structure.json").read_text())
         self.assertEqual(data, [])
+
+
+class NotesCheckpointStructureDetectorTest(AuditBundleTestBase):
+    """Tests for the notes-checkpoint-structure in-process detector."""
+
+    def _write_all_x_tasks(self, change_name: str = "active") -> Path:
+        """Create a change dir with all-[x] tasks.md (verify-due)."""
+        change_dir = self.repo / "openspec" / "changes" / change_name
+        change_dir.mkdir(parents=True, exist_ok=True)
+        tasks = change_dir / "tasks.md"
+        tasks.write_text(
+            "- [x] T1: First task done\n- [x] T2: Second task done\n",
+            encoding="utf-8",
+        )
+        self._git("add", str(tasks))
+        self._git("commit", "-m", f"add all-x tasks.md for {change_name}")
+        return change_dir
+
+    def _write_wip_tasks(self, change_name: str = "wip") -> Path:
+        """Create a change dir with a mix of [x] and [ ] tasks (WIP)."""
+        change_dir = self.repo / "openspec" / "changes" / change_name
+        change_dir.mkdir(parents=True, exist_ok=True)
+        tasks = change_dir / "tasks.md"
+        tasks.write_text(
+            "- [x] T1: Done\n- [ ] T2: Still working\n",
+            encoding="utf-8",
+        )
+        self._git("add", str(tasks))
+        self._git("commit", "-m", f"add wip tasks.md for {change_name}")
+        return change_dir
+
+    def _write_no_checkbox_tasks(self, change_name: str = "no-checkbox") -> Path:
+        """Create a change dir with tasks.md but no checkbox lines."""
+        change_dir = self.repo / "openspec" / "changes" / change_name
+        change_dir.mkdir(parents=True, exist_ok=True)
+        tasks = change_dir / "tasks.md"
+        tasks.write_text("# Just a list\n- A bullet\n- Another bullet\n", encoding="utf-8")
+        self._git("add", str(tasks))
+        self._git("commit", "-m", f"add no-checkbox tasks.md for {change_name}")
+        return change_dir
+
+    def _write_checkpoint_notes(
+        self, change_dir: Path, *, missing_fields: list[str] | None = None, no_heading: bool = False
+    ) -> None:
+        """Write notes.md with a verify-checkpoint section.
+        If *missing_fields* is given, those field keywords are omitted from the checkpoint.
+        If *no_heading* is True, the heading is omitted entirely.
+        """
+        lines = []
+        lines.append("# Change Notes\n\n")
+        if not no_heading:
+            lines.append("## Verify Checkpoint\n\n")
+            lines.append("**Verdict:** ready for archive\n\n")
+            lines.append("**Live output:** ran the suite, all passed\n\n")
+            lines.append("**Defect:** none found\n\n")
+            lines.append("**As-built delta:** no drift from design\n\n")
+            lines.append("**Forward-looking items:** confirm in next session\n\n")
+
+        if missing_fields:
+            # Remove sections whose keyword matches
+            field_keywords = {
+                1: "verdict",
+                2: "live output",
+                3: "defect",
+                4: "as-built",
+                5: "forward-looking",
+            }
+            filtered = []
+            skip_keywords = set()
+            for fid in missing_fields:
+                skip_keywords.add(field_keywords[fid].lower())
+            for line in lines:
+                should_skip = False
+                for kw in skip_keywords:
+                    if kw in line.lower():
+                        should_skip = True
+                        break
+                if not should_skip:
+                    filtered.append(line)
+            lines = filtered
+
+        notes = change_dir / "notes.md"
+        notes.write_text("".join(lines), encoding="utf-8")
+        self._git("add", str(notes))
+        self._git("commit", "-m", "add notes.md")
+
+    def test_registry_entries(self):
+        """notes-checkpoint-structure is registered, floor, check, builtin."""
+        entry = next(c for c in checks._REGISTRY if c["name"] == "notes-checkpoint-structure")
+        self.assertEqual(entry["tier"], "floor")
+        self.assertEqual(entry["family"], "check")
+        self.assertEqual(entry["kind"], "builtin")
+
+    def test_list_shows_enabled(self):
+        """--list shows notes-checkpoint-structure as enabled."""
+        rc, out = self._capture(["--list"])
+        self.assertEqual(rc, 0)
+        lines = {line.split()[0]: line.split()[3] for line in out.splitlines()}
+        self.assertEqual(lines.get("notes-checkpoint-structure"), "enabled")
+
+    def test_autodetect_enables(self):
+        """notes-checkpoint-structure is enabled by default (autodetect)."""
+        defaults = checks._autodetect_defaults(self.repo)
+        self.assertTrue(defaults.get("notes-checkpoint-structure", False))
+
+    def test_always_available(self):
+        """notes-checkpoint-structure reports available without probing a binary."""
+        entry = next(c for c in checks._REGISTRY if c["name"] == "notes-checkpoint-structure")
+        avail = checks._availability_for_check(entry, {})
+        self.assertEqual(avail["status"], "available")
+
+    def test_checkpoint_missing_flagged(self):
+        """All-[x] tasks + notes.md without checkpoint heading => checkpoint-missing."""
+        change_dir = self._write_all_x_tasks("checkpoint-missing")
+        self._write_checkpoint_notes(change_dir, no_heading=True)
+
+        out_dir = self.tmpdir / "out-ncs-cpm"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("checkpoint-missing", rules)
+        for f in data:
+            self.assertEqual(f["check"], "notes-checkpoint-structure")
+
+    def test_notes_missing_flagged(self):
+        """All-[x] tasks + no notes.md => notes-missing."""
+        self._write_all_x_tasks("notes-missing")
+        out_dir = self.tmpdir / "out-ncs-nm"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        rules = {f["rule"] for f in data}
+        self.assertIn("notes-missing", rules)
+
+    def test_checkpoint_field_missing_flagged(self):
+        """Checkpoint present but one field missing => checkpoint-field-missing."""
+        change_dir = self._write_all_x_tasks("field-missing")
+        self._write_checkpoint_notes(change_dir, missing_fields=[3])  # omit "defect"
+
+        out_dir = self.tmpdir / "out-ncs-cfm"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 2)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        field_findings = [f for f in data if f["rule"] == "checkpoint-field-missing"]
+        self.assertGreaterEqual(len(field_findings), 1)
+        # The missing field message should mention "defect"
+        self.assertTrue(
+            any("defect" in f["message"].lower() for f in field_findings),
+            msg=f"No finding mentions defect among {field_findings}",
+        )
+
+    def test_clean_checkpoint_zero_findings(self):
+        """Well-formed all-[x] tasks + fully populated checkpoint => no findings."""
+        change_dir = self._write_all_x_tasks("clean-chk")
+        self._write_checkpoint_notes(change_dir)
+
+        out_dir = self.tmpdir / "out-ncs-clean"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_wip_tasks_skipped(self):
+        """A change with any unchecked [ ] produces no findings (WIP skip)."""
+        self._write_wip_tasks("wip-change")
+
+        out_dir = self.tmpdir / "out-ncs-wip"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_no_checkbox_tasks_skipped(self):
+        """tasks.md with zero checkbox lines => skip (no findings)."""
+        self._write_no_checkbox_tasks("no-checkbox")
+
+        out_dir = self.tmpdir / "out-ncs-nocb"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_absent_tasks_skipped(self):
+        """No tasks.md file => skip (no findings)."""
+        change_dir = self.repo / "openspec" / "changes" / "no-tasks"
+        change_dir.mkdir(parents=True, exist_ok=True)
+        notes = change_dir / "notes.md"
+        notes.write_text("## Verify Checkpoint\n\n**Verdict:** pass\n", encoding="utf-8")
+        self._git("add", str(notes))
+        self._git("commit", "-m", "add notes without tasks.md")
+
+        out_dir = self.tmpdir / "out-ncs-notasks"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        self.assertEqual(data, [])
+
+    def test_archive_dir_not_scanned(self):
+        """Changes under openspec/changes/archive/ are not scanned."""
+        archive_dir = self.repo / "openspec" / "changes" / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        archived = archive_dir / "old"
+        archived.mkdir()
+        tasks = archived / "tasks.md"
+        tasks.write_text("- [x] T1: Done\n", encoding="utf-8")
+        self._git("add", str(tasks))
+        self._git("commit", "-m", "add archived change")
+
+        out_dir = self.tmpdir / "out-ncs-archive"
+        rc, out = self._capture(["--check", "notes-checkpoint-structure", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        data = json.loads((out_dir / "notes-checkpoint-structure.json").read_text())
+        self.assertEqual(data, [])
+
+
+class CheckOutputDirDefaultTest(AuditBundleTestBase):
+    """Tests for the --check output dir default change (D6 / L5)."""
+
+    def test_check_default_writes_to_output_checks(self):
+        """--check <name> without --out writes output/checks/<name>.json."""
+        rc, out = self._capture(["--check", "inventory"])
+        self.assertEqual(rc, 0)
+        expected = self.repo / "output" / "checks" / "inventory.json"
+        self.assertTrue(
+            expected.exists(),
+            msg=f"expected output/checks/inventory.json, cwd files: {list(self.repo.iterdir())}",
+        )
+        # CWD should remain clean — no inventory.json at repo root
+        cwd_json = self.repo / "inventory.json"
+        self.assertFalse(cwd_json.exists(), msg="inventory.json should NOT be at repo root")
 
 
 if __name__ == "__main__":
