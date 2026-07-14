@@ -235,10 +235,17 @@ two verifier passes concurrently (read-only frozen tree; ~13 min wall-clock save
 agreement lint (deepseek-v4 hardcoded 44×/13 files, no guard). **Deps:** strictly after OW-3
 applies (same file).
 
-## OW-12 · Archive mechanization  ·  Tier: SMALL–MEDIUM  ·  Orch: **Opus**  ·  lowest priority
-`archive_move.py` for the dir move; deterministic delta-applier for ADDED/REMOVED/RENAMED (LLM
-only for MODIFIED merge + reconciliation narrative). Keep the executor on pro — what remains IS
-the judgment. **Deps:** after frozen batch.
+## OW-12 · Archive mechanization  ·  Tier: COMPLEX (was SMALL–MEDIUM)  ·  Orch: **Opus**
+**STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-archive-mechanization/`).
+Classified COMPLEX at explore (mutates canonical specs — correctness-critical). Shipped
+`scripts/apply_delta_spec.py` (deterministic ADDED/REMOVED/RENAMED promotion, plan-all-in-memory +
+write-all-or-nothing atomicity, MODIFIED-deferral, D4 truth-table skip/anomaly semantics) +
+`scripts/archive_move.py` (conflict-guarded move); rewired the archive/sync-specs skills + both
+archive-executor bodies to promote-then-move, reserving the LLM for MODIFIED merges + reconciliation.
+Dogfooded on its own archive. Verify READY (self-review's 16 adversarial fixtures caught 3 real
+defects → fixed, zero Sonnet fallback; pro + flash-lens READY). ADDED-name-collision is no longer a
+silent overwrite (BREAKING contract change). `archive_move.py` for the dir move; deterministic
+delta-applier for ADDED/REMOVED/RENAMED (LLM only for MODIFIED merge + reconciliation narrative).
 
 ## OW-13 · Knowledge-surface bounding, round 2  ·  Tier: SMALL  ·  Orch: **Opus**
 **STATUS 2026-07-14: SHIPPED** (`openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`).
@@ -404,8 +411,8 @@ anywhere after the frozen batch. Standard escalation caveat.
   Recommended Opus session order: **frozen batch OW-2→3→5→6 first** (OW-7/9/11/14 edit files
   OW-3 rewrites), then OW-9 → OW-14 → OW-1 → OW-4 → OW-7 → OW-10 → OW-11 → OW-8 → OW-13 → OW-12.
   **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (mechanized half), OW-13,
-  OW-8, OW-5, OW-15, OW-16 are DONE** (SHIPPED — see per-item STATUS lines above); remaining is
-  now only **OW-12** (plus OW-11's parked residual de-bloat half).
+  OW-8, OW-5, OW-15, OW-16, OW-12 are DONE** (SHIPPED — see per-item STATUS lines above); remaining
+  is now only **OW-11's parked residual de-bloat half**.
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the

@@ -65,6 +65,17 @@ in), so batching them is low-risk:
   new detector is guarded on the `format: product-audit/v1` claims-ledger marker — no downstream repo
   has a claims ledger yet, so **no new downstream lint failures on first sync**; a repo that later
   adopts the claims-ledger convention gets the staleness check automatically once the marker is present.
+- **archive-mechanization** (2026-07-14, OW-12) — new scripts `scripts/apply_delta_spec.py` +
+  `scripts/archive_move.py` + their tests (`scripts/test_apply_delta_spec.py`,
+  `scripts/test_apply_delta_spec_adversarial.py`, `scripts/test_archive_move.py`), all added to
+  `scripts/scaffold_manifest.txt`; rewired `.claude/skills/openspec-sync-specs/SKILL.md`,
+  `.claude/skills/openspec-archive-change/SKILL.md`, and BOTH `archive-executor.md` bodies
+  (`.claude/agents/` + `.opencode/agents/`) to promote-then-move via the new scripts. **Coupling
+  note:** the rewired skills/executors REFERENCE `apply_delta_spec.py`/`archive_move.py`, and those
+  scripts are in the manifest, so a sync delivers both together — no broken reference downstream.
+  The `archive-mechanization` capability spec (`openspec/specs/archive-mechanization/spec.md`) is
+  golden-source-only (never synced). Stdlib-only, no new downstream lint/test failures expected on
+  first sync. NOT yet synced to extrends/psc-monitor (operator-gated).
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

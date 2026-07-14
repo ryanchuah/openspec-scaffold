@@ -54,3 +54,4 @@
 - delegated-context-caching follow-ons (OW-8, shipped 2026-07-14): B — AGENTS.md-injection strip blocked on opencode env-var coupling, revisit on per-agent instruction-scoping / AGENTS.md split; C-drop lint idea → `knowledge/questions/delegated-context-caching-follow-ons.md`
 - correctness-audit-meta-hardening follow-ons (OW-15, shipped 2026-07-14): liveness substring-match false-negative (monitored), Delta-4 ledger should-exist obligation deferred, ledger cell-tolerance decision (monitored), OW-16 is the natural next change → `knowledge/questions/correctness-audit-meta-hardening-follow-ons.md`
 - product-audit-skill follow-ons (OW-16, shipped 2026-07-14) → `knowledge/questions/product-audit-skill-follow-ons.md`
+- archive-mechanization follow-ons (OW-12, shipped 2026-07-14) → `knowledge/questions/archive-mechanization-follow-ons.md`

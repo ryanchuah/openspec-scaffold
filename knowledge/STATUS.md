@@ -7,7 +7,22 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — product-audit-skill (OW-16) SHIPPED (2026-07-14)
+## Latest change — archive-mechanization (OW-12) SHIPPED (2026-07-14)
+
+OW-12, the last item on the scaffold-hardening backlog. The archive phase's mechanical work — the
+change-dir move and ADDED/REMOVED/RENAMED spec-delta promotion — is now deterministic:
+`scripts/apply_delta_spec.py` (plan-all-in-memory, write-all-or-nothing, any anomaly halts and
+writes nothing) and `scripts/archive_move.py` (conflict-guarded move). The LLM now does only
+MODIFIED merges and doc reconciliation. Dogfooded on its own archive: the promoter created
+`openspec/specs/archive-mechanization/spec.md` from this change's own all-ADDED delta, zero
+anomalies. Verify: self-review's 16 adversarial fixtures caught 3 real product defects (a
+new-capability self-collision gap, blank-line drift, and a trailing-section reorder that would have
+corrupted a canonical spec), fixed by a fresh flash executor with zero Sonnet fallback; pro
+behavioral pass READY, flash test-quality lens READY, simplicity gate PASS; tests pass and the
+system ran clean. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
+Archive: `openspec/changes/archive/2026-07-14-archive-mechanization/`.
+
+## Prior change — product-audit-skill (OW-16) SHIPPED (2026-07-14)
 
 New operator-invoked, pull-only `product-audit` skill (new capability) plus one guarded
 `knowledge_lint` claims-ledger-staleness detector (`knowledge-lint` MODIFIED). Operationalizes OW-15's
@@ -37,25 +52,11 @@ behavioral verifier READY with zero defects, 9 orchestrator-authored adversarial
 `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-14-correctness-audit-meta-hardening/`.
 
-## Prior change — delegated-context-caching SHIPPED (2026-07-14)
-
-OW-8 caching hygiene, SMALL. Shipped A (reshaped the 4 delegated `opencode run` prompt strings —
-apply/archive/propose-reviewer/AGENTS.md SMALL-premise — to put per-change variable paths LAST for
-DeepSeek prefix-cache credit; markers preserved) + D (codified the variable-last convention as
-`delegation-harness.md` §(g); batch-AGENTS.md-edits note added). **B DEFERRED (blocked):**
-`OPENCODE_DISABLE_PROJECT_CONFIG` proven (binary+empirical) to also disable `.opencode/agents/`
-discovery → would silently swap the executor for a built-in default. **C DROPPED:** premise prompt
-only ~7 words truly shared → over-engineering. No spec delta. Verify: premise AGREE, flash verifier
-READY zero defects, `check.sh` green, zero Sonnet fallback. Decisions: `knowledge/decisions/INDEX.md`;
-follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-14-delegated-context-caching/`.
-
 ## Immediate next action
-No proactive build in flight. OW-16 (product-audit-skill) shipped —
-`openspec/changes/archive/2026-07-14-product-audit-skill/`. The wave-2 scaffold-hardening remainder is
-now only **OW-12** (archive mechanization, lowest priority) and OW-11's fuzzy de-bloat residual
-(`knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source of the backlog:
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
+No proactive build in flight. OW-12 (archive-mechanization) shipped —
+`openspec/changes/archive/2026-07-14-archive-mechanization/`. The wave-2 scaffold-hardening backlog is
+now down to OW-11's fuzzy de-bloat residual (`knowledge/questions/skill-debloat-gates-follow-ons.md`).
+Single source of the backlog: `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
 
 The **Fable-tier design backlog is closed** (2026-07-11 workflow audit:
 `knowledge/research/workflow-audit-2026-07-11/AUDIT.md`) — everything remaining is Opus-tier. Earlier
