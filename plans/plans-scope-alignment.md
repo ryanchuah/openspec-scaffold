@@ -7,10 +7,12 @@ change, archived at `openspec/changes/archive/2026-07-09-outstanding-work-collec
 
 The outstanding-work gather (`scripts/outstanding.py`, `_enumerate_prose_files`) enumerates
 `plans/` **recursively** (`plans_dir.rglob("*.md")`, excluding `plans/archive/`). The operator
-decided (2026-07-09) to **keep the recursive behavior**: this repo genuinely nests live plans in
-subdirectories (`plans/day-to-day-tooling/`, `plans/succession-hardening/`,
-`plans/sync-deletion-manifest/`), so recursive is what keeps the snapshot honest — its whole
-promise is "never silently skip a source."
+decided (2026-07-09) to **keep the recursive behavior**: this repo nests plans in subdirectories,
+so recursive is what keeps the snapshot honest — its whole promise is "never silently skip a
+source." The three bundles that motivated this (`day-to-day-tooling/`, `succession-hardening/`,
+`sync-deletion-manifest/`) were archived to `plans/archive/` on 2026-07-15, so the *current* live
+set has no nested subdirs — but the decision stands on the general principle (nesting can recur),
+and the gather/lint/spec must agree regardless of what happens to be live today.
 
 ## Problem — three places disagree on what "a plan" is
 
