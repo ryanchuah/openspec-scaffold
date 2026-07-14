@@ -52,12 +52,14 @@ Runs each `checks/*.sql` as a violating-rows SELECT (zero rows = pass). Needs
 .venv/bin/python scripts/data_lint.py   # honored via checks.py when [checks.data-lint] enabled
 ```
 
-## 5. Doc-tree integrity — `knowledge_lint.py` + `status_lint.py`
-Deterministic structural lints (citations, stale refs, STATUS structure). Pair with the
-**`knowledge-drift-review`** skill for the semantic layer they can't see (LLM, not deterministic).
+## 5. Doc-tree integrity — `knowledge_lint.py` + `status_lint.py` + `boot_surface_lint.py`
+Deterministic structural lints (citations, stale refs, STATUS structure, boot-surface byte budget).
+Pair with the **`knowledge-drift-review`** skill for the semantic layer they can't see (LLM, not
+deterministic).
 ```bash
 .venv/bin/python scripts/knowledge_lint.py
 .venv/bin/python scripts/status_lint.py
+.venv/bin/python scripts/boot_surface_lint.py   # 0 clean / 1 WARN >=80KB / 2 FAIL >=100KB
 ```
 
 ## 6. Scaffold-drift check — run FROM the scaffold repo, not downstream

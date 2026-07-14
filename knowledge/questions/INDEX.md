@@ -50,3 +50,4 @@
 - Delegation-wrapper-telemetry follow-ons (OW-7, shipped 2026-07-13) → `knowledge/questions/delegation-wrapper-follow-ons.md`
 - skill-debloat-gates follow-ons (OW-11, mechanized half shipped 2026-07-14; residual de-bloat + 3 low-priority items) → `knowledge/questions/skill-debloat-gates-follow-ons.md`
 - verify-adversarial-fixtures follow-ons (rules.verify registry row; verifier verdict-block adherence, monitored) → `knowledge/questions/verify-adversarial-fixtures-follow-ons.md`
+- knowledge-surface-bounding-2 follow-ons (OW-13, shipped 2026-07-14; decisions/INDEX.md year-split, budget/threshold tuning, boot_surface WARN visibility) → `knowledge/questions/knowledge-surface-bounding-2-follow-ons.md`

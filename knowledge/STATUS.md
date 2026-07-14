@@ -7,7 +7,21 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — verify-adversarial-fixtures SHIPPED (2026-07-14)
+## Latest change — knowledge-surface-bounding-2 SHIPPED (2026-07-14)
+
+Mechanized two boot-surface bounds that AGENTS.md's prose already states but nothing enforced:
+`status_lint.py` gained a C3 check bounding each cap-exempt STATUS.md section (current
+state/immediate next action/done/pointers) by a per-heading word budget, and a new
+`scripts/boot_surface_lint.py` sums the four mandatory boot-read files against WARN/FAIL byte
+thresholds. No spec delta — both mechanize existing canonical AGENTS.md rules, not new ones. A
+companion STATUS prune relocated the shipped-but-unpropagated ledger to
+`knowledge/reference/pending-downstream-propagation.md`, bringing the boot surface itself under
+budget. Verify: self-review PASS, 21 independently authored adversarial/boundary fixtures held,
+pro behavioral verifier READY with zero defects, `check.sh` green, zero Sonnet fallback.
+Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`.
+
+## Prior change — verify-adversarial-fixtures SHIPPED (2026-07-14)
 
 Promoted the carried-forward verify lesson (an executor's green tests passed over a real
 `spec-delta-structure` detector false-negative on multi-section deltas; ratchet
@@ -37,23 +51,11 @@ simplicity gate landed four behavior-preserving cleanups; `check.sh` green; zero
 Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-14-skill-debloat-gates/`.
 
-## Prior change — apply-throughput-resume SHIPPED (2026-07-14)
-
-Shipped green-path targeted-test cadence in both apply-executor bodies (byte-synced): per-task
-scope-narrowed check using the same test tool, then the full documented suite once before
-completion — replacing the old unconditional full-suite-per-task. Added a four-point
-fresh-executor resume contract to the apply skill's failure ladder (skip `[x]` tasks, resume at
-first `[ ]`, reconcile the in-flight task, carry distilled state). Promoted a MODIFIED
-apply-convergence-guard delta: scope-narrowing the same tool is permitted; the full suite gates
-before completion; two new scenarios. Verify: self-review PASS → pro behavioral READY; check.sh
-green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
-Archive: `openspec/changes/archive/2026-07-14-apply-throughput-resume/`.
-
 ## Immediate next action
-No proactive build in flight beyond the change being worked. The wave-2 scaffold-hardening remainder
-is **OW-8 → OW-13 → OW-12** (recommended order; `OW-13 = knowledge-surface-bounding-2`, in flight
-this session), plus **OW-15** (BLOCKED on unshipped OW-5) and **OW-16** (chain-independent
-greenfield). OW-11's fuzzy de-bloat half is a parked residual follow-on
+No proactive build in flight. OW-13 (knowledge-surface-bounding-2) shipped —
+`openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/`. The wave-2 scaffold-hardening
+remainder is **OW-8 → OW-12** (recommended order), plus **OW-15** (BLOCKED on unshipped OW-5) and
+**OW-16** (chain-independent greenfield). OW-11's fuzzy de-bloat half is a parked residual follow-on
 (`knowledge/questions/skill-debloat-gates-follow-ons.md`). Single source of the backlog:
 `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
 

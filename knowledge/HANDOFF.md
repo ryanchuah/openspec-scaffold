@@ -62,7 +62,7 @@ subsection). A pure-prose/config/data-free-rewiring diff is exempt: record that 
   cache-invalidation event). Variable-paths-LAST in apply/archive/reviewer templates; single-source the
   triplicated premise prompt; test `OPENCODE_DISABLE_PROJECT_CONFIG=1` for executors. AUDIT finding 2.
 - **OW-13 · Knowledge-surface bounding round 2 · SMALL. RECON DONE →**
-  `openspec/changes/knowledge-surface-bounding-2/recon-ow13.md` (tracked; this is a still-open change dir).
+  `openspec/changes/archive/2026-07-14-knowledge-surface-bounding-2/recon-ow13.md` (tracked; now archived).
   New `boot_surface_lint.py` + test + manifest entry. Key: year-split + plans-count lints are NO-OPS on
   the scaffold — build/test via fixtures. **Re-measure STATUS "Immediate next action" word budget** (it was
   rewritten again this session). Self-contained, low-risk.
