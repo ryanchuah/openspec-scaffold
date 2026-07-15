@@ -60,5 +60,6 @@ scaffold-hardening backlog: it is now **empty**. Single source of the (now-empty
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new
 scaffold mechanism — chiefly extrends' ~33 open correctness-audit defect classes with zero remediation
-shipped. Downstream propagation of the shipped scaffold changes remains **operator-gated and
-deferred** — the running ledger lives in `knowledge/reference/pending-downstream-propagation.md`.
+shipped. Downstream propagation of the shipped scaffold backlog was **executed 2026-07-15**
+(extrends + psc-monitor now scaffold-content-current, local/unpushed); future scaffold changes stay
+operator-gated — running ledger: `knowledge/reference/pending-downstream-propagation.md`.

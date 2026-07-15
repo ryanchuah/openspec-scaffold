@@ -6,89 +6,30 @@ records scaffold changes that shipped **locally** (to scaffold `main`, unpushed)
 propagated**, plus any per-change caveat that matters at propagation time. It is per-repo state (not
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
-## Last full propagation — 2026-07-04 (both downstreams, local & unpushed)
-- **extrends** — converged to scaffold HEAD (beacon `a879317`); audit layer wired. Data-lint stays
-  off (repo DB is SQLite, blocked on the upstream `data_lint` SQLite backend —
-  `knowledge/questions/data-lint-sqlite-backend.md`). Operator pruning of the relocated
-  handoffs-archive dir + 2 untracked root handoff files still pending.
-- **psc-monitor** — propagated (commit `0485daa`, beacon `511843b`); audit layer wired (4 Postgres
-  `data-lint` invariants live). osv-scanner (no root lockfile) + deptry (no pip dev-extra) idle by
-  choice.
+## Frontier — both downstreams current as of 2026-07-15
+- **extrends** — converged to scaffold HEAD (beacon `6ba66dc`), commit `1853b78` (local, unpushed).
+  This sync carried the entire 2026-07-04 → 2026-07-15 backlog (wave-1/2 hardening, the audit skills,
+  archive-mechanization + apply-delta/archive-move, repo-lint, boot-surface, freeze-check,
+  opencode-delegate, delegation-harness single-sourcing, finding-closure-ratchet). Per-repo caveats:
+  `[boot_surface_lint]` override 120K/140K in `checks.toml` (boot surface ~113.5 KB after a STATUS
+  condense); the ~27 handoff-named files were renamed `*-handoff.md` → `*-notes.md`;
+  `knowledge/ratchet-log.md` seeded (zero entries). Data-lint stays **off** (repo DB is SQLite,
+  blocked on the upstream `data_lint` SQLite backend — `knowledge/questions/data-lint-sqlite-backend.md`).
+- **psc-monitor** — at beacon `c8d344a`, commits `274c0e4` + `7d0875d` (local, unpushed) from its
+  2026-07-15 sync. Scaffold HEAD `6ba66dc`'s only later commit added a non-scaffold `plans/` doc, so
+  psc-monitor is scaffold-content-current. Per-repo caveats: `[boot_surface_lint]` override 100K/120K;
+  ratchet-log seeded; 4 Postgres `data-lint` invariants live; osv-scanner (no root lockfile) + deptry
+  (no pip dev-extra) idle by choice.
 
-Two scaffold fixes shipped **during** that propagation: the lint-knowledge removed-manifest
-tombstone (`9ea6076`) and the ruff `target-version=py311` cross-repo determinism pin (`a879317`).
+Neither downstream is pushed — push is operator-gated.
 
-## Shipped since 2026-07-04 — NOT yet propagated (deferred, operator-gated)
-All shipped to scaffold `main` locally (unpushed), awaiting a fresh operator propagation
-authorization. Several arrive **INERT** on first sync (auto-disabled until a downstream repo opts
-in), so batching them is low-risk:
-- **correctness-audit-skill** (2026-07-13) — new skill + marker-gated dossier lint; INERT until a
-  repo authors a marked dossier.
-- **verify-stack-redirect** (2026-07-13) — manifest-tracked skill/agent/AGENTS.md edits. (Root
-  `README.md`, not scaffold-managed, was reconciled directly — no downstream sweep.)
-- **lesson-check-ratchet** (2026-07-13) — `repo_lint.py` / `knowledge_lint.py` ratchet checks + two
-  skill triage steps; framework arrives INERT (no `checks/*.py`, no per-repo ledger → auto-disabled,
-  lint-guarded); per-repo adoption is separate downstream SMALL work.
-- **outstanding-and-continuity-hardening** (2026-07-13) — widened handoff-file lint; **coupled** to a
-  downstream cleanup: extrends (~27) + psc-monitor handoff-named files must be renamed/archived
-  first, else the widened lint reddens both repos' pytest gates. See
-  `knowledge/questions/continuity-file-downstream-cleanup.md`.
-- **lifecycle-skill-hardening** (2026-07-13) — scaffold-only SMALL lifecycle-skill fixes.
-- **Wave-1/2 hardening batch** (2026-07-13/14) — `defect-prevention-detectors` (OW-1+4),
-  `instruction-surface-coherence` (OW-9+14), `delegation-wrapper-telemetry` (OW-7),
-  `apply-throughput-resume` (OW-10), `skill-debloat-gates` (OW-11 mechanized half), and
-  `verify-adversarial-fixtures` — all edit scaffold-managed skills / config / detectors.
-- **knowledge-surface-bounding-2** (2026-07-14) — `status_lint.py`, new `boot_surface_lint.py`,
-  `scaffold_manifest.txt`. Downstream will **FAIL** `boot_surface_lint` on first sync (extrends is
-  ~122KB boot surface today) — the intended signal; cleaning that up is separate downstream work.
-- **delegated-context-caching** (2026-07-14) — AGENTS.md shared span (stability batch-edits note +
-  the SMALL-premise reviewer prompt reshape) + the 3 delegating skills (apply/archive/propose prompt
-  reshapes) + `_shared/delegation-harness.md` (new §(g) variable-last convention). All behavior-
-  preserving prompt reshapes + doc conventions; low-risk to propagate, no new lint failures expected
-  downstream.
-- **correctness-audit-meta-hardening** (2026-07-14) — `scripts/knowledge_lint.py` +
-  `scripts/test_knowledge_lint.py` (two new detectors: `audit-liveness`, `post-close-ledger-format`)
-  and `.claude/skills/correctness-audit/SKILL.md` (liveness/status-marker prose, blind coverage-gap
-  review step, scope-seeding checklist, post-close ledger step), plus the `correctness-audit` +
-  `knowledge-lint` capability specs. Both new lint checks are guarded on the existing
-  `format: correctness-audit/v1` charter marker, same idiom as the shipped `audit-dossier-lint`
-  check — no new downstream lint failures expected on first sync. **Migration note for the
-  propagate-scaffold operator:** a downstream repo whose marked dossier is genuinely still
-  in-progress must add a `status:` line to that charter (`in-progress`/`closed`) and, if
-  in-progress, an Active `knowledge/questions/INDEX.md` item — a one-time reconciliation the
-  liveness check will otherwise (correctly) flag; this is intended behavior, not a regression.
-- **product-audit-skill** (2026-07-14, OW-16) — new `.claude/skills/product-audit/SKILL.md`,
-  `scripts/knowledge_lint.py` + `scripts/test_knowledge_lint.py` (one new guarded
-  `claims-ledger-staleness` detector), `scripts/scaffold_manifest.txt` (+SKILL line), and
-  `scripts/scaffold_lint.py` (`_NON_OPENSPEC_SKILL_TOKENS` +`product-audit`). The `product-audit` (new)
-  and `knowledge-lint` (ADDED requirement) capability specs are golden-source-only (never synced). The
-  new detector is guarded on the `format: product-audit/v1` claims-ledger marker — no downstream repo
-  has a claims ledger yet, so **no new downstream lint failures on first sync**; a repo that later
-  adopts the claims-ledger convention gets the staleness check automatically once the marker is present.
-- **archive-mechanization** (2026-07-14, OW-12) — new scripts `scripts/apply_delta_spec.py` +
-  `scripts/archive_move.py` + their tests (`scripts/test_apply_delta_spec.py`,
-  `scripts/test_apply_delta_spec_adversarial.py`, `scripts/test_archive_move.py`), all added to
-  `scripts/scaffold_manifest.txt`; rewired `.claude/skills/openspec-sync-specs/SKILL.md`,
-  `.claude/skills/openspec-archive-change/SKILL.md`, and BOTH `archive-executor.md` bodies
-  (`.claude/agents/` + `.opencode/agents/`) to promote-then-move via the new scripts. **Coupling
-  note:** the rewired skills/executors REFERENCE `apply_delta_spec.py`/`archive_move.py`, and those
-  scripts are in the manifest, so a sync delivers both together — no broken reference downstream.
-  The `archive-mechanization` capability spec (`openspec/specs/archive-mechanization/spec.md`) is
-  golden-source-only (never synced). Stdlib-only, no new downstream lint/test failures expected on
-  first sync. NOT yet synced to extrends/psc-monitor (operator-gated).
-- **skill-debloat-residual** (2026-07-14, OW-11 residual) — new `scripts/freeze_check.py` +
-  `scripts/test_freeze_check.py` (both added to `scripts/scaffold_manifest.txt`); `scripts/checks.py`
-  (new `notes-checkpoint-structure` builtin + `--check` output-dir default to `output/checks/`) and
-  `scripts/test_checks.py`; three skills (`.claude/skills/openspec-verify-change/SKILL.md` — de-bloat
-  coverage steps + notes-checkpoint wiring + step-18 replacement, `.claude/skills/openspec-propose/SKILL.md`
-  — freeze-check wiring + strict `VERDICT:` token in the reviewer prompt, `.claude/skills/openspec-explore/SKILL.md`
-  — gallery trim); `.opencode/agents/openspec-reviewer.md` (emits the strict `VERDICT:` token — no
-  `.claude/agents/` counterpart exists for this agent). The `defect-prevention-detectors` (ADDED
-  requirement) and `premise-review-gate` (MODIFIED requirement) capability specs are golden-source-only,
-  same as every `openspec/specs/` file — `sync_scaffold.py` only propagates manifest-listed
-  skills/scripts/config, never spec files. Stdlib-only script changes; `test_checks.py` already passes
-  `--out` explicitly so the output-dir default change breaks no existing test. NOT yet synced to
-  extrends/psc-monitor (operator-gated).
+## Prior full propagation — 2026-07-04 (historical)
+Both downstreams were previously converged 2026-07-04 (extrends beacon `a879317`; psc-monitor commit
+`0485daa` / beacon `511843b`); audit layer wired. Superseded by the 2026-07-15 frontier above.
+
+## Shipped locally since 2026-07-15 — NOT yet propagated
+None — both downstreams are current. New scaffold-managed changes land here as they ship, awaiting the
+next operator-authorized propagation.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
