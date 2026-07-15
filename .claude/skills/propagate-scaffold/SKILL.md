@@ -88,10 +88,19 @@ unwired — surface it to the operator.
 ## Step 4 — Run the downstream test suite
 
 Run the downstream repo's full suite (e.g. `cd <repo> && .venv/bin/pytest -q`, or its
-`scripts/test-cmd`). **Expect the knowledge-lint live-tree test to fail when the sync brought
-a stricter `knowledge_lint.py`** — new checks (`closed-but-unpruned`, `untriaged-finding-stale`,
-…) fire against *pre-existing* per-repo knowledge. This is the "manual per-repo sweep" AGENTS.md
-warns about, not a sync bug. Reconcile in Step 5.
+`scripts/test-cmd`). **Expect a stricter synced check to fail against *pre-existing* per-repo
+content** — this is the "manual per-repo sweep" AGENTS.md warns about, not a sync bug. Two
+recurring classes (reconcile in Step 5):
+- **`knowledge_lint` live-tree test** — new checks (`closed-but-unpruned`,
+  `untriaged-finding-stale`, …) fire against pre-existing per-repo knowledge.
+- **`boot_surface_lint` live-tree test** (`test_boot_surface_live_tree_not_fail`) — a
+  legitimately larger downstream repo can exceed the scaffold's default 100 KB boot budget and
+  hard-FAIL (exit 2), breaking the commit gate. Reconcile via the per-repo budget (Step 5).
+
+Also re-run **`--check-refs` after the sync** (not just `--check`): a synced `AGENTS.md` /
+`knowledge/README.md` can newly cite a per-repo file that does not exist downstream yet (e.g.
+`knowledge/ratchet-log.md` — a per-repo ledger, NOT scaffold-managed, so the sync never creates
+it). That surfaces as a `DANGLING` ref even though `--check` is converged. Seed it in Step 5.
 
 ## Step 5 — Reconcile per-repo knowledge (info-preserving — see the disclaimer)
 
@@ -109,11 +118,30 @@ Fix each finding **additively**. Common cases:
   the full record is durably elsewhere (archive + `STATUS.md`) **and** no navigational pointer
   is lost; or (b) **retain in place** with a `<!-- lint:keep -->` marker plus a `<!-- … -->`
   rationale comment (anywhere between the heading and the next `##`). Prefer (b) when unsure.
+- **`--check-refs` DANGLING to an unseeded per-repo ledger** — a synced `AGENTS.md` /
+  `knowledge/README.md` references a per-repo file the downstream lacks (the recurring case is
+  `knowledge/ratchet-log.md`, added by the finding-closure-ratchet capability). **Seed it**, do
+  not delete the reference. The seed is the scaffold ledger's **header/format template ONLY, with
+  ZERO entries** — never copy the scaffold's own ratchet entries: their `check:`/`test:` pointers
+  cite scaffold files (`scripts/scaffold_lint.py`, …) absent downstream, which `knowledge_lint`
+  would then flag as unresolvable. Also repoint the header's "See … spec" line: the
+  `finding-closure-ratchet` capability spec is **upstream-only** (scaffold capability specs are not
+  propagated), so point to the downstream **AGENTS.md `Finding closure ratchet` rule** instead of
+  `openspec/specs/…`. Re-run `--check-refs` + `knowledge_lint` (both clean) after seeding.
+- **`boot_surface_lint` FAIL (boot surface over budget)** — the mandatory-boot-read byte budget
+  is **per-repo configurable** (added 2026-07-15). Add a top-level `[boot_surface_lint]` table to
+  the downstream `checks.toml` (per-repo, NOT scaffold-managed) with `warn_bytes` / `fail_bytes`
+  raised to fit a legitimately larger repo — e.g. `warn_bytes = 100000`, `fail_bytes = 120000`.
+  This is info-preserving (touches no knowledge). The alternative — condensing the boot files per
+  the AGENTS.md Active/Parked split rule — risks burying live gates, so when the overage is large
+  **surface the choice to the operator** (raise-budget vs condense) rather than unilaterally
+  restructuring live deploy/status knowledge.
 - **Wider drift** — run the downstream `scripts/knowledge_lint.py` directly and skim
   `knowledge/reference/`, `roadmap.md`, and parked questions for now-stale claims about
   scaffold changes; flag, don't silently rewrite.
 
-Re-run the suite until the knowledge-lint gate is green.
+Re-run the suite until the knowledge-lint **and** boot-surface gates are green (a boot-surface
+WARN, exit 1, is acceptable — only FAIL, exit 2, blocks).
 
 ## Step 6 — Handle lint drift on byte-identical files (fix UPSTREAM)
 
