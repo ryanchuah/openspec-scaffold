@@ -28,8 +28,14 @@ Both downstreams were previously converged 2026-07-04 (extrends beacon `a879317`
 `0485daa` / beacon `511843b`); audit layer wired. Superseded by the 2026-07-15 frontier above.
 
 ## Shipped locally since 2026-07-15 — NOT yet propagated
-None — both downstreams are current. New scaffold-managed changes land here as they ship, awaiting the
-next operator-authorized propagation.
+- **`7f23eda` — knowledge_lint gitignored-citation exemption (scaffold-managed `scripts/knowledge_lint.py`
+  + `scripts/test_knowledge_lint.py`).** **psc-monitor needs this** to restore its own green commit gate:
+  psc-monitor's install docs cite `deploy/rendered/crontab.txt` (a gitignored, deploy-time-rendered file),
+  which the pre-fix broken-citation check flagged whenever the rendered artifact was absent on a clean tree
+  (`test_doc_lint_gate::test_knowledge_lint_live_tree_clean` red after `git clean -x`). The fix exempts any
+  gitignored citation target. Propagate to psc-monitor (and extrends, byte-identical scaffold file) at the
+  next operator-authorized sync: `python3 scripts/sync_scaffold.py --check <repo>` then the real sync. No
+  per-repo caveat — the file is byte-identical across repos.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
