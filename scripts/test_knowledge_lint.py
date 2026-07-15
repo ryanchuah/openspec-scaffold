@@ -403,6 +403,35 @@ def test_ephemeral_handoff_citation_not_flagged(tmp_path):
     assert any("does-not-exist.md" in f.message for f in citation_findings)
 
 
+def test_gitignored_citation_target_not_flagged(tmp_path):
+    """A citation to a gitignored (generated/rendered/ephemeral) target is NOT a
+    broken citation even when the file is absent — generalizes the `output/`
+    exemption to any path git ignores (e.g. a downstream repo's deploy-time
+    rendered `deploy/rendered/…` install artifact). A citation to a genuinely
+    missing, NON-ignored path must still flag (guards against over-broad
+    suppression). Requires a real git repo so `make_git_ignore_checker` is live."""
+    _write_tree(
+        tmp_path,
+        {
+            ".gitignore": "deploy/rendered/\n",
+            "deploy/install.sh": "#!/usr/bin/env bash\necho install\n",
+            "knowledge/reference/notes.md": (
+                "Install the rendered artifact: `deploy/rendered/crontab.txt` "
+                "(gitignored, absent on a clean tree, not flagged).\n"
+                "\n"
+                "See `deploy/does-not-exist.md` for a genuinely missing, "
+                "non-ignored path (must still flag).\n"
+            ),
+        },
+    )
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    citation_findings = [f for f in findings if f.check == "broken-prose-path-citation"]
+    assert not any("deploy/rendered/crontab.txt" in f.message for f in citation_findings)
+    assert any("deploy/does-not-exist.md" in f.message for f in citation_findings)
+
+
 def test_dangling_archive_pointer_placeholder_not_flagged(tmp_path):
     """A literal format-doc example (`openspec/changes/archive/<dir>/`) is
     NOT a real dangling pointer — only a genuine, non-placeholder `<dir>/`

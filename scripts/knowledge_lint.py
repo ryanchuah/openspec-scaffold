@@ -422,7 +422,9 @@ def _check_retired_paths(root: Path, files: list[Path], tokens: list[str]) -> li
 # ---------------------------------------------------------------------------
 
 
-def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
+def _check_broken_citations(
+    root: Path, files: list[Path], is_ignored: Callable[[str], bool]
+) -> list[Finding]:
     findings: list[Finding] = []
     top_level_dirs = _top_level_dirs(root)
     for path in files:
@@ -472,6 +474,15 @@ def _check_broken_citations(root: Path, files: list[Path]) -> list[Finding]:
                 line_range_m = _LINE_RANGE_RE.search(check_token)
                 if line_range_m:
                     check_token = check_token[: line_range_m.start()]
+                if is_ignored(check_token):
+                    # A citation to a gitignored (generated/rendered/ephemeral)
+                    # target is not drift — its steady-state absence on a clean
+                    # tree is expected. This generalizes the literal `output/`
+                    # guard above; that literal remains as the git-unavailable
+                    # fallback (design D2: is_ignored returns False when root is
+                    # not a git repo). Covers e.g. a downstream repo's
+                    # deploy-time-rendered `deploy/rendered/…` install artifact.
+                    continue
                 if not (root / check_token).exists():
                     findings.append(
                         Finding(
@@ -1622,7 +1633,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     findings.extend(_check_orphan_duplicate(root, is_ignored))
     findings.extend(_check_retired_paths(root, content_check_md, retired_paths))
-    findings.extend(_check_broken_citations(root, content_check_md))
+    findings.extend(_check_broken_citations(root, content_check_md, is_ignored))
     findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
     findings.extend(_check_audit_log(root))
     findings.extend(_check_ratchet_log(root))
