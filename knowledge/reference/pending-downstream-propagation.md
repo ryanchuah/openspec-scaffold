@@ -15,12 +15,13 @@ multi-ruff PATH fix (`_env_without_ruff` now scrubs every ruff dir from PATH, no
 needed once a repo carries ruff in its own venv alongside a system ruff). No per-repo knowledge
 reconciliation was needed (the knowledge_lint change is a relaxation — no new checks fired;
 `--check`/`--check-refs` clean; full suites + ruff green on both before commit).
-- **extrends** — beacon `a2a450c`, commits `f671791` + `416a163` (local, unpushed). Standing per-repo
-  caveats (unchanged): `[boot_surface_lint]` override 120K/140K in `checks.toml`; handoff-named files
-  renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero entries). Data-lint
-  stays **off** (repo DB is SQLite, blocked on the upstream `data_lint` SQLite backend —
-  `knowledge/questions/data-lint-sqlite-backend.md`). Lints via a machine-global `ruff` (no venv-local
-  ruff, none declared in pyproject) — a candidate for the same pin+install psc-monitor now has.
+- **extrends** — beacon `a2a450c`, commits `f671791` + `416a163` + `8271c3b` (local, unpushed).
+  Standing per-repo caveats (unchanged): `[boot_surface_lint]` override 120K/140K in `checks.toml`;
+  handoff-named files renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero
+  entries). Data-lint stays **off** (repo DB is SQLite, blocked on the upstream `data_lint` SQLite
+  backend — `knowledge/questions/data-lint-sqlite-backend.md`). **New 2026-07-16:** pyproject `dev`
+  extra now declares `ruff==0.15.16`, installed into `.venv` (same self-contained-lint fix as
+  psc-monitor). Full gate verified green with the venv activated.
 - **psc-monitor** — beacon `a2a450c`, commits `c83fed5` + `677240d` (local, unpushed). Standing
   per-repo caveats (unchanged): `[boot_surface_lint]` override 100K/120K; ratchet-log seeded; 4
   Postgres `data-lint` invariants live; osv-scanner (no root lockfile) + deptry (no pip dev-extra)
