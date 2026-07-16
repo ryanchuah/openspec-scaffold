@@ -7,22 +7,27 @@ propagated**, plus any per-change caveat that matters at propagation time. It is
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
 ## Frontier — both downstreams current as of 2026-07-16
-Both converged to scaffold HEAD (beacon `432345e`) in the 2026-07-16 sync, which carried the two
-items formerly in "NOT yet propagated": `split-outstanding-work-skills` (outstanding-work-review →
+Both converged to scaffold HEAD (beacon `a2a450c`) in the 2026-07-16 sync. It carried the two items
+formerly in "NOT yet propagated" — `split-outstanding-work-skills` (outstanding-work-review →
 outstanding-work-scan + new outstanding-work-deep-sweep; old dir removed via tombstone) and the
-`7f23eda` knowledge_lint gitignored-citation exemption. No per-repo knowledge reconciliation was
-needed (the knowledge_lint change is a relaxation — no new checks fired; `--check`/`--check-refs`
-clean; full suites + ruff green on both before commit).
-- **extrends** — beacon `432345e`, commit `f671791` (local, unpushed). Standing per-repo caveats
-  (unchanged by this sync): `[boot_surface_lint]` override 120K/140K in `checks.toml`; handoff-named
-  files renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero entries).
-  Data-lint stays **off** (repo DB is SQLite, blocked on the upstream `data_lint` SQLite backend —
-  `knowledge/questions/data-lint-sqlite-backend.md`).
-- **psc-monitor** — beacon `432345e`, commit `c83fed5` (local, unpushed). Standing per-repo caveats
-  (unchanged by this sync): `[boot_surface_lint]` override 100K/120K; ratchet-log seeded; 4 Postgres
-  `data-lint` invariants live; osv-scanner (no root lockfile) + deptry (no pip dev-extra) idle by
-  choice. Note: psc-monitor's gate resolves `ruff` from the system PATH (`~/.local/bin/ruff`), not a
-  venv-local binary.
+`7f23eda` knowledge_lint gitignored-citation exemption — plus the `a2a450c` `test_check_sh`
+multi-ruff PATH fix (`_env_without_ruff` now scrubs every ruff dir from PATH, not just the first —
+needed once a repo carries ruff in its own venv alongside a system ruff). No per-repo knowledge
+reconciliation was needed (the knowledge_lint change is a relaxation — no new checks fired;
+`--check`/`--check-refs` clean; full suites + ruff green on both before commit).
+- **extrends** — beacon `a2a450c`, commits `f671791` + `416a163` (local, unpushed). Standing per-repo
+  caveats (unchanged): `[boot_surface_lint]` override 120K/140K in `checks.toml`; handoff-named files
+  renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero entries). Data-lint
+  stays **off** (repo DB is SQLite, blocked on the upstream `data_lint` SQLite backend —
+  `knowledge/questions/data-lint-sqlite-backend.md`). Lints via a machine-global `ruff` (no venv-local
+  ruff, none declared in pyproject) — a candidate for the same pin+install psc-monitor now has.
+- **psc-monitor** — beacon `a2a450c`, commits `c83fed5` + `677240d` (local, unpushed). Standing
+  per-repo caveats (unchanged): `[boot_surface_lint]` override 100K/120K; ratchet-log seeded; 4
+  Postgres `data-lint` invariants live; osv-scanner (no root lockfile) + deptry (no pip dev-extra)
+  idle by choice. **New 2026-07-16:** pyproject `dev` extra now declares `ruff==0.15.16`, installed
+  into `.venv` — the lint gate no longer silently depends on a machine-global ruff (`check.sh`
+  degrades to WARNING+skip when ruff is unresolvable, so an undeclared ruff meant lint could stop
+  running unnoticed). Full gate verified green with the venv activated.
 
 Neither downstream is pushed — push is operator-gated.
 
