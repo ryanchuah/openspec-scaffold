@@ -75,16 +75,19 @@ def _run_check(workspace: Path, extra_env: dict[str, str] | None = None):
 
 
 def _env_without_ruff() -> dict[str, str]:
-    """Return env dict with ruff removed from PATH (if present)."""
-    ruff_path = shutil.which("ruff")
-    if not ruff_path:
-        return {}
-    ruff_dir = os.path.dirname(os.path.realpath(ruff_path))
-    env = {}
+    """Return env dict with ruff removed from PATH (if present).
+
+    Drops EVERY PATH entry that carries a ruff executable, not just the first
+    `shutil.which` hit: a machine can have ruff in several dirs at once (e.g. a
+    project `.venv/bin` AND a user `~/.local/bin`), and scrubbing only one leaves
+    check.sh able to find the other — defeating the 'ruff absent' simulation.
+    """
     old_path = os.environ.get("PATH", "")
-    new_entries = [p for p in old_path.split(":") if p and os.path.realpath(p) != ruff_dir]
-    env["PATH"] = ":".join(new_entries)
-    return env
+    entries = [p for p in old_path.split(":") if p]
+    kept = [p for p in entries if not shutil.which("ruff", path=p)]
+    if len(kept) == len(entries):
+        return {}  # ruff not on PATH anywhere → nothing to scrub
+    return {"PATH": ":".join(kept)}
 
 
 # ===================================================================
