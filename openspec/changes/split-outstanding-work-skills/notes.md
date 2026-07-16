@@ -59,6 +59,10 @@ the operator MAY pre-route this apply to **Sonnet-first** rather than the deepse
 Recommendation: Sonnet-first for tasks 1–2 (prose), flash is fine for 3–5 (manifest/AGENTS/verify),
 or Sonnet-first throughout for simplicity. Surface at the apply gate.
 
+**DECISION (operator, 2026-07-16): apply routed to Sonnet throughout** ("apply using sonnet"). The
+whole `tasks.md` loop runs on a Sonnet `apply-executor` subagent, not the deepseek-flash default.
+This is operator pre-routing (AGENTS.md-sanctioned), NOT a fallback — no deepseek failure occurred.
+
 ## Out of scope
 
 - Changing `scripts/outstanding.py` enumeration, `finding_id_pattern` defaults, or automated

@@ -16,7 +16,8 @@
 .claude/skills/openspec-propose/SKILL.md
 .claude/skills/openspec-sync-specs/SKILL.md
 .claude/skills/openspec-verify-change/SKILL.md
-.claude/skills/outstanding-work-review/SKILL.md
+.claude/skills/outstanding-work-scan/SKILL.md
+.claude/skills/outstanding-work-deep-sweep/SKILL.md
 .claude/skills/run-audit/SKILL.md
 
 # Agent definitions (.opencode)

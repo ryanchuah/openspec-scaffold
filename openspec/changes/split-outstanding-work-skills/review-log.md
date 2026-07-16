@@ -65,3 +65,23 @@ Reviewer: `openspec-reviewer` @ `deepseek/deepseek-v4-flash` (operator-chosen ti
   dependency order sound. → frozen.
 
 Full reviewer text captured at review time from `/tmp/review-out.jsonl.text.txt`.
+
+## Apply — 2026-07-16
+
+- **Executor:** Sonnet `apply-executor` subagent (operator pre-routing "apply using sonnet" — NOT a
+  fallback; no deepseek failure). All 17 tasks implemented.
+- **Task 5.4** left unchecked by the executor (correct escalation): it found one ref outside the
+  allowlist — `openspec/changes/knowledge-lint-gitignored-citation-exempt/plan.md:53` — and prudently
+  declined to edit another change's frozen artifact. **Orchestrator disposition: allowlisted as a
+  legitimate period-correct historical reference** (shipped SMALL change's out-of-scope note); not
+  edited. 5.4 now checked.
+- **Executor self-verify:** `check.sh` green, `scaffold_lint.py` clean, `openspec validate --strict`
+  exit 0.
+- **Orchestrator smoke review** (light — deep behavioral review is the verify phase): rename preserved
+  history (`git mv`); manifest repointed + deep-sweep added (grouped-not-alphabetical order, fine);
+  tombstone appended with dated comment; single AGENTS.md bullet edit. Read both skill files — scan
+  step 3 correctly narrowed (pointer + untriaged dedup + record only; roadmap-prioritization moved
+  out; guardrails consistent); deep-sweep faithfully condenses all five categories, retains the
+  parent-ID-disposition discipline + 51/52 fact, correct pull-only guardrails. Two small
+  in-spirit consistency edits by the executor (roadmap-mention cleanup in scan) noted and endorsed.
+  Satisfies all five NEW spec requirements + the MODIFIED requirement.

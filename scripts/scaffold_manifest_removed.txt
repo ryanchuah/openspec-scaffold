@@ -18,3 +18,9 @@ scripts/test_audit_bundle.py
 # renamed to knowledge-drift-review. Downstream copies still carry the old
 # skill dir (extrends, psc-monitor) — delete it on sync.
 .claude/skills/lint-knowledge/
+
+# split-outstanding-work-skills (2026-07-16): outstanding-work-review was
+# renamed/narrowed to outstanding-work-scan, with a new sibling
+# outstanding-work-deep-sweep skill for the heavy residual sweep. Downstream
+# copies still carry the old skill dir — delete it on sync.
+.claude/skills/outstanding-work-review/SKILL.md

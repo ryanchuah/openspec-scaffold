@@ -368,7 +368,7 @@ Two tiers of state, with deliberately different write rules:
   **non-blocking** ambiguity gets a recorded default in the change's `notes.md`
   `Assumptions` block and is batch-surfaced at the next operator gate; only a
   **blocking** ambiguity interrupts immediately.
-- To find what work is outstanding, invoke the pull-only `outstanding-work-review` skill
+- To find what work is outstanding, invoke the pull-only `outstanding-work-scan` skill
   — deliberately never boot-wired into any auto-run path.
 - **Finding closure ratchet:** a generalizable finding is not closed until
   `knowledge/ratchet-log.md` records exactly one disposition — check (enforcing
