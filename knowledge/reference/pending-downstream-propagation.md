@@ -36,6 +36,13 @@ Both downstreams were previously converged 2026-07-04 (extrends beacon `a879317`
   gitignored citation target. Propagate to psc-monitor (and extrends, byte-identical scaffold file) at the
   next operator-authorized sync: `python3 scripts/sync_scaffold.py --check <repo>` then the real sync. No
   per-repo caveat — the file is byte-identical across repos.
+- **2026-07-16 — `split-outstanding-work-skills`** (new scaffold-managed skills `outstanding-work-scan` +
+  `outstanding-work-deep-sweep`; tombstone entry for the old `outstanding-work-review/` dir in
+  `scripts/scaffold_manifest_removed.txt`). Repoints `scripts/scaffold_manifest.txt` and updates the
+  MODIFIED `outstanding-work-view` + NEW `outstanding-work-deep-sweep` capability specs. Confirmed via
+  read-only `sync_scaffold.py --check ../psc-monitor`: psc-monitor is MISSING both new skills and STALE
+  on the old `outstanding-work-review/` dir (the tombstone will rmtree it on real sync) — the intended
+  downstream behavior. Propagate to psc-monitor + extrends at the next operator-authorized sync.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

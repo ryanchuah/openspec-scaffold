@@ -57,3 +57,4 @@
 - product-audit-skill follow-ons (OW-16, shipped 2026-07-14) → `knowledge/questions/product-audit-skill-follow-ons.md`
 - archive-mechanization follow-ons (OW-12, shipped 2026-07-14) → `knowledge/questions/archive-mechanization-follow-ons.md`
 - skill-debloat-residual follow-ons (OW-11 residual, shipped 2026-07-14; closes the wave-2 scaffold-hardening backlog) → `knowledge/questions/skill-debloat-residual-follow-ons.md`
+- split-outstanding-work-skills follow-ons (shipped 2026-07-16): freeze_check bold-`**`-tolerance gap, downstream propagation pending → `knowledge/questions/split-outstanding-work-skills-follow-ons.md`

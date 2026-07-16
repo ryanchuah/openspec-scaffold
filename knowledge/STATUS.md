@@ -7,7 +7,20 @@ pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill remo
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
 the single green gate) is now scaffold-managed.
 
-## Latest change — skill-debloat-residual (OW-11 residual) SHIPPED (2026-07-14)
+## Latest change — split-outstanding-work-skills SHIPPED (2026-07-16)
+
+Split the overloaded `outstanding-work-review` skill in two: renamed to `outstanding-work-scan`
+(cheap deterministic gather + untriaged-bucket dedup only) and added `outstanding-work-deep-sweep`
+(pull-only, operator-invoked five-category residual prose sweep as parallel subagents), mirroring
+the deterministic-check-vs-deep-audit split. Verify: self-review + pro behavioral pass + flash
+test-quality lens all READY, simplicity gate PASS; one defect (tombstone written file-form instead
+of dir-form) found by orchestrator self-review and fixed inline, confirmed via read-only
+`sync_scaffold.py --check`; `check.sh` and `openspec validate --strict` clean. Decisions:
+`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Downstream propagation
+to psc-monitor/extrends is operator-gated (`knowledge/reference/pending-downstream-propagation.md`).
+Archive: `openspec/changes/archive/2026-07-16-split-outstanding-work-skills/`.
+
+## Prior change — skill-debloat-residual (OW-11 residual) SHIPPED (2026-07-14)
 
 Closed the entire OW-11 residual — the last item on the wave-2 scaffold-hardening backlog, which is
 now **empty**. Verify's fuzzy keyword-coverage prose replaced with a deterministic requirement/scenario
@@ -36,20 +49,6 @@ corrupted a canonical spec), fixed by a fresh flash executor with zero Sonnet fa
 behavioral pass READY, flash test-quality lens READY, simplicity gate PASS; tests pass and the
 system ran clean. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
 Archive: `openspec/changes/archive/2026-07-14-archive-mechanization/`.
-
-## Prior change — product-audit-skill (OW-16) SHIPPED (2026-07-14)
-
-New operator-invoked, pull-only `product-audit` skill (new capability) plus one guarded
-`knowledge_lint` claims-ledger-staleness detector (`knowledge-lint` MODIFIED). Operationalizes OW-15's
-carried-forward classes 9–12: the claims-ledger convention (promise → delivering code surface → proving
-check), entitlement-state reachability, severity-taxonomy completeness, and source-class labeling for
-durable web claims. Findings route into the existing finding-closure ratchet, no new machinery;
-single-session design, no liveness obligation. Verify: premise AGREE throughout; self-review, adversarial
-fixtures, and the flash test-quality lens all READY zero defects; the pro-tier behavioral verifier
-emitted no verdict (operational failure) so a Sonnet fallback completed that pass, also READY; simplicity
-gate clean; `check.sh` and live-tree lint green; zero Sonnet fallback on apply. Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-14-product-audit-skill/`.
 
 ## Immediate next action
 No proactive build in flight. `skill-debloat-residual` (OW-11 residual) shipped —

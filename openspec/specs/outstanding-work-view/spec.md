@@ -6,7 +6,7 @@ enumerates every configured source — `knowledge/questions/` (Active + Parked),
 unchecked items, `plans/`, `knowledge/roadmap.md` non-closed entries, and audit `FINDINGS*` files — into a
 single `output/facts/outstanding.{md,json}` snapshot with `source:line` provenance. An untriaged-findings bucket
 surfaces Fable/similar findings the moment they are written, separate from triaged work. The companion
-`outstanding-work-review` skill (agent-neutral, pull-only, zero boot-context cost) runs the gather and drives
+`outstanding-work-scan` skill (agent-neutral, pull-only, zero boot-context cost) runs the gather and drives
 LLM judgment. The gather is scaffold-managed and propagates byte-identical to downstream repos via
 `sync_scaffold.py`.
 
@@ -96,14 +96,14 @@ list; top-level `plans/*.md` SHALL be treated as live and listed.
 
 ### Requirement: pull-only-agent-neutral-invocation
 
-The capability SHALL be invoked on demand through the scaffold-managed `outstanding-work-review`
+The capability SHALL be invoked on demand through the scaffold-managed `outstanding-work-scan`
 skill under `.claude/skills/` (auto-discovered by both Claude and OpenCode), and SHALL NOT be wired
 into any boot-loaded file (no session-start hook, no procedure embedded in `AGENTS.md`), so it
 carries zero boot-context cost.
 
 #### Scenario: skill is the invocation surface
 - **WHEN** the operator wants the outstanding-work view
-- **THEN** the `outstanding-work-review` skill SHALL exist under `.claude/skills/`, run the gather, and consume `output/facts/outstanding.json`
+- **THEN** the `outstanding-work-scan` skill SHALL exist under `.claude/skills/`, run the gather, and consume `output/facts/outstanding.json`
 
 #### Scenario: no boot-path wiring
 - **WHEN** the scaffold's mandatory-read boot set is inspected (`AGENTS.md`, `knowledge/STATUS.md`, `knowledge/questions/INDEX.md` Active)
