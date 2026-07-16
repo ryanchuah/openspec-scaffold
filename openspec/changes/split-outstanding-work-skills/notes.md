@@ -63,6 +63,75 @@ or Sonnet-first throughout for simplicity. Surface at the apply gate.
 whole `tasks.md` loop runs on a Sonnet `apply-executor` subagent, not the deepseek-flash default.
 This is operator pre-routing (AGENTS.md-sanctioned), NOT a fallback — no deepseek failure occurred.
 
+## Verify checkpoint (2026-07-16)
+
+1. **Verdict:** READY for archive. COMPLEX verify: my behavioral self-review + pro behavioral pass
+   (READY, no defects) + flash test-quality lens pass (READY, change confirmed test-neutral) + the
+   simplicity gate. No decision logic / external API / data path / auth-credential surface in the
+   diff, so adversarial fixtures, live smoke, the data-scale rule, and the security review do not
+   trigger (recorded determination).
+
+2. **What I confirmed by eyeballing live output** (behavior, not counts): both new/renamed skills are
+   discoverable and structurally valid (the harness skill list now surfaces `outstanding-work-scan`
+   and `outstanding-work-deep-sweep`); the scan skill's step 3 is correctly narrowed (pointer to the
+   deep skill + untriaged-bucket dedup + record only; roadmap-prioritization moved out); the
+   deep-sweep skill covers all five residual categories and retains the parent-ID-disposition
+   discipline; `scaffold_manifest.txt` repointed to scan + deep-sweep added; `openspec validate
+   --strict` passes; `spec-delta-structure` clean; full suite green. Crucially, a read-only
+   `sync_scaffold.py --check ../psc-monitor` shows the dir-form tombstone emits
+   `STALE .claude/skills/outstanding-work-review/` (sync would rmtree the whole old dir) and the two
+   new skills as MISSING — the intended downstream behavior.
+
+3. **Defect found & fix (who):** the apply-executor wrote the removal tombstone in **file form**
+   (`.claude/skills/outstanding-work-review/SKILL.md`) instead of **dir form**
+   (`.claude/skills/outstanding-work-review/`). Per the file's own header ("a trailing '/' marks a
+   directory entry") and the `lint-knowledge` precedent + tasks.md 3.3, file form would only unlink
+   the SKILL.md downstream and leave an empty stale dir. **Found by orchestrator self-review** —
+   neither multi-model pass flagged it (both returned READY). **Fixed inline by the orchestrator**
+   (one-line path-format correction; qualifies as the trivial one-line exception), then confirmed via
+   the read-only `--check` above (STALE now fires on the dir).
+   *Re-run judgment (recorded):* I did NOT re-run the two paid multi-model passes after this fix. It
+   is a one-line downstream-sync tombstone path-format correction, behaviorally inert to both passes'
+   assessment domains (pro = skill/spec behavioral correctness; flash lens = test quality), the file
+   was already in both passes' review surface, and the fix was independently confirmed correct from
+   disk. Re-running a pro-tier pass for a trailing-slash fix contradicts the operator's stated
+   cost-consciousness (flash reviewers, "COMPLEX is heavy"). Orchestrator judgment per the skill's
+   judge-from-disk / overrule-with-rationale discipline.
+
+4. **As-built delta:** the Sonnet apply-executor made two small in-spirit consistency edits to the
+   scan skill beyond the literal wording of tasks 1.3/1.4 — removing residual `knowledge/roadmap.md`
+   write mentions from the post-step-3 paragraph and the first Guardrails bullet, to match the
+   narrowed scope. Endorsed (on-scope with the narrowing). No other as-built delta.
+
+5. **Forward-looking items for the project docs** (fold into `knowledge/questions/INDEX.md` /
+   `knowledge/decisions/INDEX.md` at archive — recorded nowhere else):
+   - **`freeze_check.py` bold-tolerance follow-on:** during this change's propose reviews the flash
+     reviewer bold-wrapped `**VERDICT:**` / `**PREMISE:**` on 3 of 4 artifacts, which
+     `freeze_check.py`'s anchored regex rejects as `missing-verdict` (false negative; each overruled
+     with recorded rationale). `freeze_check` should tolerate optional `**` emphasis around the
+     VERDICT/PREMISE tokens. New follow-on — track it.
+   - **Downstream propagation pending:** syncing this change (new `outstanding-work-scan` +
+     `outstanding-work-deep-sweep`; tombstone deletes old dir) to psc-monitor + extrends is
+     operator-gated. Confirmed via read-only `--check`: psc-monitor is MISSING both new skills and
+     STALE the old dir. Queue on `knowledge/reference/pending-downstream-propagation.md`.
+   - **Archive-deferred renames** (also in the Archive-reconciliation reminders above, restated so
+     nothing is lost): `knowledge/decisions/INDEX.md` skill-name ref; the main
+     `openspec/specs/outstanding-work-view/spec.md` Purpose + requirement rename (MODIFIED delta
+     promotion); optional `## Purpose` on the promoted `outstanding-work-deep-sweep` spec.
+   - **Observation (not this change's work):** the shipped SMALL change
+     `openspec/changes/knowledge-lint-gitignored-citation-exempt/` has an unarchived lingering
+     `plan.md` (with the allowlisted period-correct old-skill-name ref at line 53). Cleanup is a
+     separate matter for the operator, noted only so it isn't lost.
+
+**Still owned by archive** (do NOT reconcile here — write-discipline): `knowledge/STATUS.md`,
+`knowledge/decisions/INDEX.md` (skill-name rename + a new decision entry for this change),
+`knowledge/questions/INDEX.md` (the freeze_check follow-on + a follow-ons pointer for this change),
+spec promotion into `openspec/specs/` (MODIFIED `outstanding-work-view` incl. the Purpose-preamble
+rename + NEW `outstanding-work-deep-sweep` with optional Purpose),
+`knowledge/reference/pending-downstream-propagation.md` update, and deletion of the now-absorbed
+source plan `plans/outstanding-work-review-residual-sweep.md` if the archive-executor deems it
+consumed.
+
 ## Out of scope
 
 - Changing `scripts/outstanding.py` enumeration, `finding_id_pattern` defaults, or automated

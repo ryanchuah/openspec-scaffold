@@ -23,4 +23,4 @@ scripts/test_audit_bundle.py
 # renamed/narrowed to outstanding-work-scan, with a new sibling
 # outstanding-work-deep-sweep skill for the heavy residual sweep. Downstream
 # copies still carry the old skill dir — delete it on sync.
-.claude/skills/outstanding-work-review/SKILL.md
+.claude/skills/outstanding-work-review/

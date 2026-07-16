@@ -85,3 +85,27 @@ Full reviewer text captured at review time from `/tmp/review-out.jsonl.text.txt`
   parent-ID-disposition discipline + 51/52 fact, correct pull-only guardrails. Two small
   in-spirit consistency edits by the executor (roadmap-mention cleanup in scan) noted and endorsed.
   Satisfies all five NEW spec requirements + the MODIFIED requirement.
+
+## Verify — 2026-07-16 (COMPLEX)
+
+- **Behavioral self-review (mine, non-delegable):** full suite green; `spec-delta-structure` clean;
+  skill files + manifest + AGENTS.md edits correct. **Found 1 defect:** removal tombstone in file
+  form instead of dir form → would leave an empty stale dir downstream. **Fixed inline** (one-line
+  dir-form correction), confirmed via read-only `sync_scaffold.py --check ../psc-monitor` →
+  `STALE .claude/skills/outstanding-work-review/` now fires (whole-dir delete). Re-ran self-review
+  (green). Did NOT re-run the paid multi-model passes — rationale in notes.md field 3 (behaviorally
+  inert one-line downstream-sync fix; operator cost-consciousness).
+- **No adversarial fixtures / live smoke / data-scale / security review:** diff is pure docs/config —
+  no decision logic, external API, data path, or auth/credential surface. Recorded determination.
+- **Multi-model passes (COMPLEX, launched concurrently):**
+  - pro behavioral (`deepseek/deepseek-v4-pro`): **READY**, no defects. Real agent, no fallback.
+  - flash lens (`deepseek/deepseek-v4-flash`, **test-quality** lens — selected by default; no
+    data-path risk): **READY**. Confirmed the change is test-neutral (zero code/test surface); the 22
+    advisory `test-quality` findings are all in pre-existing files untouched by this change. Real
+    agent, no fallback.
+- **Simplicity/quality gate:** diff carries no code surface for `simplify`/`/code-review` to act on;
+  applied the 4-point checklist by judgment — (a) no functionality duplication (the split REDUCES
+  duplication by removing the residual sweep from the scan skill); (b) no single-use abstractions;
+  (c) no dead/unreachable paths; (d) no over-parameterization. PASS.
+- **notes-checkpoint-structure detector:** 0 findings (all 5 checkpoint fields present).
+- **Verdict: READY for archive.**
