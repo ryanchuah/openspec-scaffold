@@ -6,6 +6,7 @@
 
 ## Parked
 
+- Commit-test-gate bypassable — `if: Bash(git commit*)` matcher is prefix-anchored (compound/`-C`/env-prefixed/bang commits skip it silently); also Claude-only (non-Claude agents never run it). Consider a git-native `core.hooksPath` pre-commit hook. Evidence: psc-monitor `0e5a823`. → `knowledge/questions/commit-gate-bypass.md`
 - Growth-trigger (restructure-project-knowledge follow-on) → `knowledge/questions/restructure-growth-trigger.md`
 
 - Harden-delegation follow-ons → `knowledge/questions/harden-delegation-follow-ons.md`
