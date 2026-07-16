@@ -51,6 +51,14 @@
 6. Downstream propagation (sync to psc-monitor + extrends) is OPERATOR-GATED — NOT part of this
    apply; recorded on `knowledge/reference/pending-downstream-propagation.md` at archive.
 
+## Apply-phase routing (operator decision at the apply gate)
+
+This change is largely **prose surgery on skill files** (narrowing step 3; condensing the
+five-category checklist into a new SKILL.md) — judgment-heavier than mechanical apply. Per AGENTS.md,
+the operator MAY pre-route this apply to **Sonnet-first** rather than the deepseek-flash default.
+Recommendation: Sonnet-first for tasks 1–2 (prose), flash is fine for 3–5 (manifest/AGENTS/verify),
+or Sonnet-first throughout for simplicity. Surface at the apply gate.
+
 ## Out of scope
 
 - Changing `scripts/outstanding.py` enumeration, `finding_id_pattern` defaults, or automated
