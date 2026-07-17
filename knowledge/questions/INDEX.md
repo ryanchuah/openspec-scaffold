@@ -2,7 +2,9 @@
 
 ## Active
 
-<!-- No current scaffold blockers. (rename-memory-to-knowledge push/merge to all 3 mains: DONE 2026-06-19.) -->
+- `knowledge-lint-gitignored-citation-exempt` is verified and landed (`7f23eda`) but still sits
+  unarchived at `openspec/changes/knowledge-lint-gitignored-citation-exempt/` — needs only an
+  operator go-ahead to archive-move. Surfaced during `reconcile-parked-backlog` (2026-07-17).
 
 ## Parked
 
@@ -48,3 +50,5 @@
 - archive-mechanization follow-ons (OW-12, shipped 2026-07-14) → `knowledge/questions/archive-mechanization-follow-ons.md`
 - skill-debloat-residual follow-ons (OW-11 residual, shipped 2026-07-14; closes the wave-2 scaffold-hardening backlog) → `knowledge/questions/skill-debloat-residual-follow-ons.md`
 - split-outstanding-work-skills follow-ons (shipped 2026-07-16): unarchived-plan.md lingering (operator cleanup) → `knowledge/questions/split-outstanding-work-skills-follow-ons.md`
+- Bare (non-backtick) path citations dangle invisibly to `knowledge_lint` (monitored, low priority) → `knowledge/questions/bare-path-citation-blind-spot.md`
+- An apply-executor wrote directly to `openspec/specs/`, bypassing archive promotion — task-authoring smell; one instance, no damage (monitored, low priority) → `knowledge/questions/apply-wrote-canonical-spec.md`

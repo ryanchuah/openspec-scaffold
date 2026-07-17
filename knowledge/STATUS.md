@@ -5,9 +5,29 @@ Project initialised from openspec-scaffold. Delegated-work governance hardened: 
 scaffold's own `knowledge/` tree now passes `scripts/knowledge_lint.py` clean under a live-tree
 pytest gate (shared-lint-layer), with the `openspec-onboard` teaching-skill removed as a standing
 drift risk. A shared lint layer (`ruff.toml` with E,F,I,B + enforced format, `scripts/check.sh` as
-the single green gate) is now scaffold-managed.
+the single green gate) is now scaffold-managed. The propose freeze gate tolerates bold-emphasis
+`VERDICT:`/`PREMISE:` markdown while staying line-anchored; `scaffold_lint`'s non-openspec
+skill-reference vocabulary is derived from the removal-tombstone manifest rather than a
+hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing with the `outstanding`
+fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
+by the very change being archived before filing it.
 
-## Latest change — split-outstanding-work-skills SHIPPED (2026-07-16)
+## Latest change — reconcile-parked-backlog SHIPPED (2026-07-17)
+
+Swept the parked-questions backlog after finding two tracker files were filed stale by their own
+change's archive commit; fixed the root cause (the archive step must verify a follow-on was not
+already resolved by the very change being archived before filing it) and closed every genuinely-stale
+item against an adversarially re-verified evidence list. Also shipped three small mechanical fixes the
+sweep surfaced: `freeze_check` bold-emphasis tolerance (still line-anchored), `scaffold_lint`'s
+tombstone-derived skill vocabulary (closing a removed-name blind spot structurally), and
+`knowledge_lint`'s recursive `plans/` gather (agreeing with `outstanding.py`). Verify: self-review and
+an independent behavioral pass both READY; live probes were eyeballed directly (planted nested-plan
+fixtures; reverted-then-restored `scaffold_lint.py` to confirm the new test isn't vacuous) rather than
+inferred; the system ran clean end to end. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-17-reconcile-parked-backlog/`.
+
+## Prior change — split-outstanding-work-skills SHIPPED (2026-07-16)
 
 Split the overloaded `outstanding-work-review` skill in two: renamed to `outstanding-work-scan`
 (cheap deterministic gather + untriaged-bucket dedup only) and added `outstanding-work-deep-sweep`
@@ -35,30 +55,18 @@ cleanups, re-verified); `check.sh` and `scaffold_lint.py` clean; zero Sonnet fal
 `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-14-skill-debloat-residual/`.
 
-## Prior change — archive-mechanization (OW-12) SHIPPED (2026-07-14)
-
-OW-12, the last item on the scaffold-hardening backlog. The archive phase's mechanical work — the
-change-dir move and ADDED/REMOVED/RENAMED spec-delta promotion — is now deterministic:
-`scripts/apply_delta_spec.py` (plan-all-in-memory, write-all-or-nothing, any anomaly halts and
-writes nothing) and `scripts/archive_move.py` (conflict-guarded move). The LLM now does only
-MODIFIED merges and doc reconciliation. Dogfooded on its own archive: the promoter created
-`openspec/specs/archive-mechanization/spec.md` from this change's own all-ADDED delta, zero
-anomalies. Verify: self-review's 16 adversarial fixtures caught 3 real product defects (a
-new-capability self-collision gap, blank-line drift, and a trailing-section reorder that would have
-corrupted a canonical spec), fixed by a fresh flash executor with zero Sonnet fallback; pro
-behavioral pass READY, flash test-quality lens READY, simplicity gate PASS; tests pass and the
-system ran clean. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
-Archive: `openspec/changes/archive/2026-07-14-archive-mechanization/`.
-
 ## Immediate next action
-No proactive build in flight. `skill-debloat-residual` (OW-11 residual) shipped —
-`openspec/changes/archive/2026-07-14-skill-debloat-residual/` — closing the entire wave-2
-scaffold-hardening backlog: it is now **empty**. Single source of the (now-empty) backlog:
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`.
+No proactive build in flight. `reconcile-parked-backlog` shipped —
+`openspec/changes/archive/2026-07-17-reconcile-parked-backlog/` — sweeping the parked
+`knowledge/questions/` backlog and root-causing the archive step's own follow-on-filing gap. Two
+concrete items are ready for an operator call: the composition-audit ceremony is now **DUE** (both
+the archived-change and commit thresholds are crossed — an operator ceremony, not a scaffold change;
+the live signal is self-computed, run `facts.py --check outstanding` for the current figures rather
+than trusting a number written here); and `openspec/changes/knowledge-lint-gitignored-citation-exempt/`
+is already verified and landed (`7f23eda`) and needs only an archive-move.
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new
 scaffold mechanism — chiefly extrends' ~33 open correctness-audit defect classes with zero remediation
-shipped. Downstream propagation of the shipped scaffold backlog was **executed 2026-07-15**
-(extrends + psc-monitor now scaffold-content-current, local/unpushed); future scaffold changes stay
-operator-gated — running ledger: `knowledge/reference/pending-downstream-propagation.md`.
+shipped. Downstream propagation stays operator-gated — running ledger:
+`knowledge/reference/pending-downstream-propagation.md`.
