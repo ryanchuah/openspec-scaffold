@@ -60,13 +60,15 @@ Archive: `openspec/changes/archive/2026-07-16-split-outstanding-work-skills/`.
 ## Immediate next action
 No proactive build in flight. `handoff-lint-exempt` shipped —
 `openspec/changes/archive/2026-07-17-handoff-lint-exempt/` — restoring the mandated
-`knowledge/HANDOFF.md` handoff mechanism to committable. Three concrete items are ready for an
+`knowledge/HANDOFF.md` handoff mechanism to committable. Downstream propagation to
+psc-monitor/extrends **is done** (2026-07-17): both converged to beacon `27adff6` and committed
+locally (unpushed — push stays operator-gated); per-repo detail and standing caveats in
+`knowledge/reference/pending-downstream-propagation.md`. Two concrete items remain ready for an
 operator call: the composition-audit ceremony is now **DUE** (both the archived-change and commit
 thresholds are crossed — an operator ceremony, not a scaffold change; the live signal is
 self-computed, run `facts.py --check outstanding` for the current figures rather than trusting a
-number written here); `openspec/changes/knowledge-lint-gitignored-citation-exempt/` is already
-verified and landed (`7f23eda`) and needs only an archive-move; and downstream propagation to
-psc-monitor/extrends is due — `knowledge/reference/pending-downstream-propagation.md`.
+number written here); and `openspec/changes/knowledge-lint-gitignored-citation-exempt/` is already
+verified and landed (`7f23eda`) and needs only an archive-move.
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new

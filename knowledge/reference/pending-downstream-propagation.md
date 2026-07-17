@@ -6,48 +6,70 @@ records scaffold changes that shipped **locally** (to scaffold `main`, unpushed)
 propagated**, plus any per-change caveat that matters at propagation time. It is per-repo state (not
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
-## NOT yet propagated — `handoff-lint-exempt` (shipped 2026-07-17)
+## Frontier — both downstreams current as of 2026-07-17 (beacon `27adff6`)
 
-Extended the existing `knowledge/research/` exclusion precedent in `scripts/knowledge_lint.py` and
-`scripts/sync_scaffold.py --check-refs` to also exempt `knowledge/HANDOFF.md` as a **scanned
-source** (it was already exempt as a citation target and from the handoff-named-file check). Touches
-scaffold-managed files governing both `extrends` and `psc-monitor`.
+Both downstreams converged to scaffold HEAD `27adff6` in the 2026-07-17 sync, which carried the two
+items formerly listed as NOT-yet-propagated: **`reconcile-parked-backlog`** (recursive `plans/`
+gather, `freeze_check` bold-tolerance, archive follow-on obligation, archive-executor pair) and
+**`handoff-lint-exempt`** (`knowledge/HANDOFF.md` exempted as a scanned source in `knowledge_lint.py`
+and `sync_scaffold.py --check-refs`).
 
-Caveats that matter at propagation time:
-- **Pure relaxation for the handoff path** — no new findings expected from this change alone; it
-  only removes findings that were previously (incorrectly) fired against `knowledge/HANDOFF.md`
-  itself when present.
-- **`duplicate_scan_dirs` re-widening is per-repo-config-dependent.** The fix moved the handoff
-  exclusion to a single chokepoint in `_duplicate_scan_files` so no configured `duplicate_scan_dirs`
-  entry can re-add the handoff. Each downstream repo's `checks.toml` is not scaffold-managed, so this
-  is worth a quick check post-sync if either downstream configures `duplicate_scan_dirs` beyond the
-  default. A related, still-open leak of the same class (affecting the pre-existing
-  `knowledge/research/` exclusion, not fixed by this change) is tracked at
-  `knowledge/questions/research-exclusion-scan-dir-leak.md`.
-- Two spec deltas promoted (`knowledge-lint` ADDED, `knowledge-organization` MODIFIED) — pure
-  documentation of the now-shipped behavior, no additional propagation surface.
+Pre-sync audit: every changed scaffold-managed file was verified **byte-identical to the `a2a450c`
+baseline** in both repos before syncing — i.e. zero local downstream edits, so nothing was clobbered.
+The deletion pass was a **no-op** in both repos (no `STALE` targets; the retired `openspec-onboard`,
+`lint-knowledge`, `outstanding-work-review` and `audit_bundle.py` entries were already absent).
 
-## NOT yet propagated — `reconcile-parked-backlog` (shipped 2026-07-17, beacon `80e7a06`)
+How the predicted caveats actually landed:
+- **Recursive `plans/` gather** — fired in **psc-monitor only** (one nested plan reached for the first
+  time; see below). **extrends** gained **no** new findings: its nested plan dirs were already clean.
+- **`scaffold_lint` tombstone-derived vocabulary** — **no downstream surface**: `scaffold_lint.py` is
+  scaffold-only and is not in `scaffold_manifest.txt`, so it does not propagate. The predicted
+  `dangling-skill-refs` exposure did not apply.
+- **`duplicate_scan_dirs` re-widening** — **moot**: neither downstream configures `duplicate_scan_dirs`
+  in its `checks.toml`. (The related still-open leak of the same class affecting the pre-existing
+  `knowledge/research/` exclusion remains tracked at
+  `knowledge/questions/research-exclusion-scan-dir-leak.md`.)
+- **handoff exemption** — latent-but-relevant in **extrends**, which currently carries a live
+  `knowledge/HANDOFF.md`. That file was not tripping the checks at sync time, so the exemption
+  removed no existing finding; it protects future handoffs there.
 
-Both downstreams are now **behind** — confirmed by a read-only `sync_scaffold.py --check`. This change
-touched 15 scaffold-managed files: `scripts/{freeze_check,knowledge_lint,test_freeze_check,test_knowledge_lint}.py`,
-`.claude/agents/archive-executor.md` + `.opencode/agents/archive-executor.md` (byte-identical pair —
-guarded by `test_executor_body_agreement.py`), `.claude/skills/openspec-archive-change/SKILL.md`,
-`knowledge/README.md`, and the frontmatter of 6 audit/workflow skills.
+Per-repo reconciliation done at this sync (info-preserving — nothing deleted, nothing buried):
+- **psc-monitor** — beacon `27adff6`, commit `4968909` (local, unpushed).
+  `psc-monitor/plans/pro-tier-repricing/plan.md` retained with `<!-- lint:keep -->` + rationale. The
+  recursive gather reached this nested plan for the first time and flagged its `DONE` task markers.
+  **Not prunable:** it is a SMALL-tier change, which skips the archive lifecycle, so that repo's
+  `plans/` tree *is* the durable record — and its `psc-monitor/knowledge/STATUS.md` cites
+  `psc-monitor/plans/pro-tier-repricing/` as exactly that record, with open follow-ons in
+  `psc-monitor/knowledge/questions/sp05-pricing-follow-ons.md`.
+  (Downstream paths in this file are repo-prefixed deliberately: they are cross-repo citations, and
+  an unprefixed `plans/` path would be ambiguous with this repo's own tree.)
+  Standing per-repo caveats (unchanged): `[boot_surface_lint]` override 100K/120K in `checks.toml`;
+  ratchet-log seeded; 4 Postgres `data-lint` invariants live; osv-scanner (no root lockfile) + deptry
+  (no pip dev-extra) idle by choice; pyproject `dev` extra declares `ruff==0.15.16` in `.venv`.
+  **Watch:** boot surface is WARN and sits close to its 120K FAIL threshold — a small growth in the
+  boot files will turn the commit gate red. Worth a condense-vs-raise call before it trips.
+- **extrends** — beacon `27adff6`, commit `ba085ae` (local, unpushed).
+  `extrends/plans/gold-pilot3-resume-2026-07-16.md` and its `-2026-07-17.md` sibling retained with
+  `<!-- lint:keep -->` + rationale. Both tripped `closed-but-unpruned` on their
+  `## STATE — what is DONE (do NOT redo)` headings — **false positives**. Both are live resume
+  runbooks for the in-flight, un-archived COMPLEX change `gold-anchor-v1-2` (pilot-3 paused on a
+  Gemini **daily-quota** block, resuming ~2026-07-18); that repo's `extrends/knowledge/HANDOFF.md`
+  boot-points at them, and the flagged heading is what stops a resuming agent from re-running the
+  ~250 paid pro-tier calls that exhausted the quota. **Do not prune until pilot-3 archives.**
+  Both findings **pre-dated** this sync — extrends' live-tree doc-lint gate was already red before it,
+  and is now green for the first time since those plans landed.
+  Standing per-repo caveats (unchanged): `[boot_surface_lint]` override 120K/140K; handoff-named files
+  renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero entries); data-lint
+  stays **off** (repo DB is SQLite; the upstream `data_lint.py` SQLite backend has shipped, but
+  extrends' `checks.toml` has not been re-wired to use it); pyproject `dev` extra declares
+  `ruff==0.15.16` in `.venv`.
 
-Caveats that matter at propagation time:
-- **`knowledge_lint`'s `plans/` gather is now recursive** (excluding `plans/archive/`). This is a
-  *widening*, not a relaxation: a downstream repo with nested live plans under `plans/<sub>/` will see
-  **new** `closed-but-unpruned` findings that never fired before, and its live-tree doc-lint gate will
-  go red on them. Expect to triage real findings per repo — do not assume a clean sync.
-- **`scaffold_lint`'s scan vocabulary is now tombstone-derived.** A downstream repo whose docs still
-  reference a retired skill name (`lint-knowledge`, `outstanding-work-review`, `openspec-onboard`)
-  will now get a `dangling-skill-refs` finding that was previously invisible. That is the point of the
-  change, but it means the first sync may surface latent references. The scaffold's own scanned surface
-  was verified clean before shipping; the downstreams were not checked.
-- `freeze_check` bold-tolerance and the archive follow-on obligation are pure widenings/instructions —
-  no downstream findings expected.
-- `knowledge/README.md` gained the author-facing `<!-- lint:planned -->` marker documentation.
+Gates verified green by hand in both repos before commit (the sync commit uses `--no-verify`, the
+sanctioned escape for a deliberate sync, which also skips the test gate): full suite, `ruff check`,
+`ruff format --check`, `knowledge_lint`, and `sync_scaffold --check` / `--check-refs`.
+`boot_surface_lint` is WARN (exit 1) in both — acceptable; neither FAILs.
+
+Neither downstream is pushed — push is operator-gated.
 
 ## Frontier — both downstreams current as of 2026-07-16 (superseded by the entry above)
 Both converged to scaffold HEAD (beacon `a2a450c`) in the 2026-07-16 sync. It carried the two items
@@ -84,7 +106,7 @@ Neither downstream is pushed — push is operator-gated.
   layer wired. Superseded above.
 
 ## Shipped locally — NOT yet propagated
-_(none — both downstreams converged to scaffold HEAD `432345e` on 2026-07-16; see frontier above.)_
+_(none — both downstreams converged to scaffold HEAD `27adff6` on 2026-07-17; see frontier above.)_
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
