@@ -12,7 +12,24 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — reconcile-parked-backlog SHIPPED (2026-07-17)
+## Latest change — handoff-lint-exempt SHIPPED (2026-07-17)
+
+`knowledge_lint.py` was scanning the mandated `knowledge/HANDOFF.md` mid-session handoff as ordinary
+steady-state prose, so its forward references, retired-path tokens, planned archive pointers, and
+quoted blocks tripped four check families and turned the commit gate red — making the handoff
+un-committable and driving agents to delete it. Fixed by extending the existing `knowledge/research/`
+exclusion precedent to this mirror-image case (a forward-looking source, not a backward-looking one),
+keyed to the exact `knowledge/HANDOFF.md` path in both `knowledge_lint.py` and
+`sync_scaffold.py --check-refs`. Verify: self-review found and fixed one real defect (a
+configured-scan-dir leak that could re-arm the trap); the `deepseek/deepseek-v4-pro` behavioral pass
+returned READY zero-defect on the fixed tree; live probes on the real tree confirmed a tripping
+handoff produces zero findings while `check.sh` stays green, and the identical prose in a non-handoff
+file still flags (no over-broad suppression). Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Downstream propagation to psc-monitor/extrends is operator-gated
+(`knowledge/reference/pending-downstream-propagation.md`). Archive:
+`openspec/changes/archive/2026-07-17-handoff-lint-exempt/`.
+
+## Prior change — reconcile-parked-backlog SHIPPED (2026-07-17)
 
 Swept the parked-questions backlog after finding two tracker files were filed stale by their own
 change's archive commit; fixed the root cause (the archive step must verify a follow-on was not
@@ -40,30 +57,16 @@ of dir-form) found by orchestrator self-review and fixed inline, confirmed via r
 to psc-monitor/extrends is operator-gated (`knowledge/reference/pending-downstream-propagation.md`).
 Archive: `openspec/changes/archive/2026-07-16-split-outstanding-work-skills/`.
 
-## Prior change — skill-debloat-residual (OW-11 residual) SHIPPED (2026-07-14)
-
-Closed the entire OW-11 residual — the last item on the wave-2 scaffold-hardening backlog, which is
-now **empty**. Verify's fuzzy keyword-coverage prose replaced with a deterministic requirement/scenario
-enumeration plus a behavioral-evidence coherence note; a new `notes-checkpoint-structure` detector
-(`checks.py`) mechanizes the 5-field verify-checkpoint obligation; `freeze_check.py` derives a
-`FREEZE: READY|BLOCKED` verdict from a strict reviewer `VERDICT:` token (+ `PREMISE` for proposals),
-centralizing freeze policy while the reviewer stays decoupled; explore's dead gallery prose trimmed;
-plus two HANDOFF lessons (fixture reconstruction-fidelity/idempotency/exit-code+state guidance) and
-the `checks.py --check` cwd-litter fix. Verify: self-review's 4 adversarial fixtures held clean, pro
-behavioral pass READY, flash test-quality lens READY, simplicity gate PASS (5 behavior-preserving
-cleanups, re-verified); `check.sh` and `scaffold_lint.py` clean; zero Sonnet fallback. Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-14-skill-debloat-residual/`.
-
 ## Immediate next action
-No proactive build in flight. `reconcile-parked-backlog` shipped —
-`openspec/changes/archive/2026-07-17-reconcile-parked-backlog/` — sweeping the parked
-`knowledge/questions/` backlog and root-causing the archive step's own follow-on-filing gap. Two
-concrete items are ready for an operator call: the composition-audit ceremony is now **DUE** (both
-the archived-change and commit thresholds are crossed — an operator ceremony, not a scaffold change;
-the live signal is self-computed, run `facts.py --check outstanding` for the current figures rather
-than trusting a number written here); and `openspec/changes/knowledge-lint-gitignored-citation-exempt/`
-is already verified and landed (`7f23eda`) and needs only an archive-move.
+No proactive build in flight. `handoff-lint-exempt` shipped —
+`openspec/changes/archive/2026-07-17-handoff-lint-exempt/` — restoring the mandated
+`knowledge/HANDOFF.md` handoff mechanism to committable. Three concrete items are ready for an
+operator call: the composition-audit ceremony is now **DUE** (both the archived-change and commit
+thresholds are crossed — an operator ceremony, not a scaffold change; the live signal is
+self-computed, run `facts.py --check outstanding` for the current figures rather than trusting a
+number written here); `openspec/changes/knowledge-lint-gitignored-citation-exempt/` is already
+verified and landed (`7f23eda`) and needs only an archive-move; and downstream propagation to
+psc-monitor/extrends is due — `knowledge/reference/pending-downstream-propagation.md`.
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new

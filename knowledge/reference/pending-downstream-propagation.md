@@ -6,6 +6,27 @@ records scaffold changes that shipped **locally** (to scaffold `main`, unpushed)
 propagated**, plus any per-change caveat that matters at propagation time. It is per-repo state (not
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
+## NOT yet propagated — `handoff-lint-exempt` (shipped 2026-07-17)
+
+Extended the existing `knowledge/research/` exclusion precedent in `scripts/knowledge_lint.py` and
+`scripts/sync_scaffold.py --check-refs` to also exempt `knowledge/HANDOFF.md` as a **scanned
+source** (it was already exempt as a citation target and from the handoff-named-file check). Touches
+scaffold-managed files governing both `extrends` and `psc-monitor`.
+
+Caveats that matter at propagation time:
+- **Pure relaxation for the handoff path** — no new findings expected from this change alone; it
+  only removes findings that were previously (incorrectly) fired against `knowledge/HANDOFF.md`
+  itself when present.
+- **`duplicate_scan_dirs` re-widening is per-repo-config-dependent.** The fix moved the handoff
+  exclusion to a single chokepoint in `_duplicate_scan_files` so no configured `duplicate_scan_dirs`
+  entry can re-add the handoff. Each downstream repo's `checks.toml` is not scaffold-managed, so this
+  is worth a quick check post-sync if either downstream configures `duplicate_scan_dirs` beyond the
+  default. A related, still-open leak of the same class (affecting the pre-existing
+  `knowledge/research/` exclusion, not fixed by this change) is tracked at
+  `knowledge/questions/research-exclusion-scan-dir-leak.md`.
+- Two spec deltas promoted (`knowledge-lint` ADDED, `knowledge-organization` MODIFIED) — pure
+  documentation of the now-shipped behavior, no additional propagation surface.
+
 ## NOT yet propagated — `reconcile-parked-backlog` (shipped 2026-07-17, beacon `80e7a06`)
 
 Both downstreams are now **behind** — confirmed by a read-only `sync_scaffold.py --check`. This change
