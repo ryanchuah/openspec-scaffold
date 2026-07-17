@@ -2207,3 +2207,153 @@ def test_claims_ledger_empty_manifest_section_skipped(tmp_path):
     findings = knowledge_lint.collect_findings(tmp_path)
     claims_findings = [f for f in findings if f.check == "claims-ledger-staleness"]
     assert claims_findings == []
+
+
+# ===================================================================
+# handoff-lint-exempt — the sanctioned `knowledge/HANDOFF.md` is exempt
+# from the four prose-hygiene checks (retired-path-token,
+# broken-prose-path-citation, dangling-archive-pointer,
+# duplicate-content-block), keyed on EXACT path equality only.
+# ===================================================================
+
+# A quoted block, >=8 non-blank lines, identical (whitespace-normalized)
+# across two files — trips duplicate-content-block.
+_HANDOFF_QUOTED_BLOCK = "\n".join(
+    f"Handoff quoted line {n} carried forward verbatim." for n in range(1, 10)
+)
+
+
+def _handoff_four_trips_content() -> str:
+    """Prose that simultaneously trips all four prose-hygiene checks:
+    a forward citation to a not-yet-created file (first path segment
+    `knowledge` must already exist under the tree for the first-segment
+    gate to treat it as a citation at all), a retired-path token, a
+    planned archive pointer, and a quoted >=8-line block."""
+    return (
+        "# Session Handoff\n"
+        "\n"
+        "## Forward reference\n"
+        "\n"
+        "See `knowledge/reference/not-built-yet.md` for the module this "
+        "session was building.\n"
+        "\n"
+        "## Retired-path note\n"
+        "\n"
+        "The old `ai-docs/` layout is gone; do not resurrect it.\n"
+        "\n"
+        "## Planned archive landing\n"
+        "\n"
+        "Follow-up tracked in "
+        "openspec/changes/archive/2026-01-01-not-yet-landed/design.md.\n"
+        "\n"
+        "## Quoted context carried forward\n"
+        "\n"
+        f"{_HANDOFF_QUOTED_BLOCK}\n"
+        "\n"
+        "Tail content unique to the handoff.\n"
+    )
+
+
+def test_sanctioned_handoff_exempt_from_all_four_prose_hygiene_checks(tmp_path):
+    """(4.1/4.2) `knowledge/HANDOFF.md` simultaneously trips all four
+    prose-hygiene checks — a forward citation, a retired-path token, a
+    planned archive pointer, and a quoted >=8-line block copied verbatim
+    from `knowledge/README.md`. Assert ZERO findings against the handoff,
+    AND zero collateral duplicate-content-block findings against the
+    quoted file — proving the collateral finding is gone too, not just the
+    handoff-side one."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/HANDOFF.md": _handoff_four_trips_content(),
+            "knowledge/README.md": (
+                "# Knowledge README\n"
+                "\n"
+                f"{_HANDOFF_QUOTED_BLOCK}\n"
+                "\n"
+                "Tail content unique to the README.\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+
+    handoff_findings = [f for f in findings if f.path == "knowledge/HANDOFF.md"]
+    assert handoff_findings == []
+
+    dup_findings_on_quoted_file = [
+        f
+        for f in findings
+        if f.check == "duplicate-content-block" and f.path == "knowledge/README.md"
+    ]
+    assert dup_findings_on_quoted_file == []
+
+
+def test_over_broad_suppression_guard_non_handoff_file_still_flagged(tmp_path):
+    """(4.3, load-bearing) The IDENTICAL four constructs, placed in a
+    NON-handoff knowledge file, are still flagged by all four checks.
+    Without this guard the exemption could be widened to `knowledge/*`
+    (or any substring match) and the rest of this suite would stay green
+    while the linter went blind generally."""
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/reference/notes.md": _handoff_four_trips_content(),
+            "knowledge/README.md": (
+                "# Knowledge README\n"
+                "\n"
+                f"{_HANDOFF_QUOTED_BLOCK}\n"
+                "\n"
+                "Tail content unique to the README.\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    notes_findings = [f for f in findings if f.path == "knowledge/reference/notes.md"]
+
+    assert any(f.check == "broken-prose-path-citation" for f in notes_findings)
+    assert any(f.check == "retired-path-token" for f in notes_findings)
+    assert any(f.check == "dangling-archive-pointer" for f in notes_findings)
+    assert any(f.check == "duplicate-content-block" for f in notes_findings)
+
+
+def test_handoff_named_file_at_other_path_still_flagged_both_checks(tmp_path):
+    """(4.4) A handoff-NAMED file at a path OTHER than the exact sanctioned
+    `knowledge/HANDOFF.md` is still flagged by both the handoff-named-file
+    check AND the broken-prose-path-citation check — proving the exemption
+    keys on the exact path and does not leak to other handoff-named files.
+
+    Placed under `knowledge/` (rather than e.g. `plans/session-handoff.md`,
+    which the handoff-named check alone already covers at line ~845 above)
+    because `broken-prose-path-citation` only ever scans
+    `knowledge/**/*.md` by design (unrelated to this change) — a file
+    outside `knowledge/` could never exercise that check regardless of the
+    exemption, so it would not be a load-bearing guard for it.
+    """
+    _write_tree(
+        tmp_path,
+        {
+            "knowledge/session-handoff.md": (
+                "# Old handoff (not the sanctioned one)\n"
+                "\n"
+                "See `knowledge/does-not-exist.md` for details.\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+
+    handoff_named_findings = [
+        f
+        for f in findings
+        if f.check == "handoff-file" and f.path == "knowledge/session-handoff.md"
+    ]
+    assert len(handoff_named_findings) == 1
+
+    citation_findings = [
+        f
+        for f in findings
+        if f.check == "broken-prose-path-citation" and f.path == "knowledge/session-handoff.md"
+    ]
+    assert len(citation_findings) == 1

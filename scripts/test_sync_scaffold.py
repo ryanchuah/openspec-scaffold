@@ -720,6 +720,57 @@ class TestCheckReferences(unittest.TestCase):
         self.assertNotIn("openspec/changes/c/proposal.md", rels)
         self.assertNotIn("knowledge/research/old-analysis.md", rels)
 
+    def test_tracked_markdown_excludes_sanctioned_handoff_as_source(self):
+        """(3.1) `knowledge/HANDOFF.md` is excluded from `_tracked_markdown`'s
+        returned SOURCE list by exact-path match — a handoff-named file at
+        another path is NOT excluded (the exclusion does not widen to a
+        substring/filename match)."""
+        self._write("knowledge/HANDOFF.md", "x\n")
+        self._write("knowledge/reference/notes.md", "x\n")
+        self._write("plans/session-handoff.md", "x\n")
+        rels = sync_scaffold._tracked_markdown(self.tmpdir)
+        self.assertNotIn("knowledge/HANDOFF.md", rels)
+        self.assertIn("knowledge/reference/notes.md", rels)
+        self.assertIn("plans/session-handoff.md", rels)
+
+    def test_check_refs_no_dangling_sourced_from_sanctioned_handoff(self):
+        """(5.1/5.2) `--check-refs` reports NO dangling ref sourced FROM a
+        target repo's `knowledge/HANDOFF.md` when the handoff cites a
+        non-existent `knowledge/...` path via the `§ "..."` section-citation
+        form — its forward-referencing prose is not drift, mirroring the
+        knowledge_lint.py source-scan exemption. A dangling ref from a
+        non-handoff tracked doc in the same target repo is still reported —
+        the source-exclusion must not blind the check generally."""
+        self._write(
+            "knowledge/HANDOFF.md",
+            '# Session Handoff\n\nSee `knowledge/does-not-exist.md` § "Anything".\n',
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir))
+        self.assertEqual(rc, 0)
+
+        # A dangling ref from a non-handoff tracked doc is still reported.
+        self._write(
+            "knowledge/reference/notes.md",
+            'See `knowledge/also-missing.md` § "Anything".\n',
+        )
+        rc = sync_scaffold.check_references(str(self.tmpdir))
+        self.assertEqual(rc, 1)
+
+    def test_tracked_markdown_excludes_handoff_on_git_unavailable_fallback(self):
+        """(5.4) The handoff exclusion applies on the git-unavailable
+        `rglob` fallback branch too, not just the `git ls-files` branch —
+        the exclusion is applied after both enumerations, so this passes on
+        the first run; the test exists to keep the branch from silently
+        regressing."""
+        self._write("knowledge/HANDOFF.md", "x\n")
+        self._write("knowledge/reference/notes.md", "x\n")
+        with patch.object(
+            sync_scaffold.subprocess, "run", side_effect=FileNotFoundError("git not found")
+        ):
+            rels = sync_scaffold._tracked_markdown(self.tmpdir)
+        self.assertNotIn("knowledge/HANDOFF.md", rels)
+        self.assertIn("knowledge/reference/notes.md", rels)
+
 
 class SyncConfigYamlTest(unittest.TestCase):
     """Tests for sync_config_yaml and the openspec/config.yaml rules-block sync (task 6.1)."""

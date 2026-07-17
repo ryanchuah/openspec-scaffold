@@ -489,6 +489,12 @@ _REF_SCAN_EXCLUDE = ("openspec/changes/", "knowledge/research/")
 # handoff file (written mid-change, deleted on absorption). knowledge/audit-log.md is
 # created on first audit run (also legitimately absent).  Keep this set in step with
 # knowledge_lint.EPHEMERAL_PATHS (the single source of truth).
+#
+# knowledge/HANDOFF.md is excluded in BOTH directions: as a citation TARGET via
+# _EPHEMERAL_PATHS below, and as a scanned SOURCE via the exact-match exclusion
+# in `_tracked_markdown` (its forward-referencing prose is not drift when read
+# as a source either) — keep both in step with knowledge_lint.EPHEMERAL_PATHS /
+# knowledge_lint.SANCTIONED_HANDOFF.
 _EPHEMERAL_PATHS = ("knowledge/HANDOFF.md", "knowledge/audit-log.md")
 # `knowledge/....md` path citations (e.g. in synced rules).
 _KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")
@@ -510,7 +516,12 @@ def _norm(s: str) -> str:
 def _tracked_markdown(repo: Path) -> list[str]:
     """Repo-relative markdown to scan: git-tracked if available, else a walk.
 
-    Excludes frozen/historical record directories (`_REF_SCAN_EXCLUDE`).
+    Excludes frozen/historical record directories (`_REF_SCAN_EXCLUDE`), and
+    excludes the sanctioned handoff (`knowledge/HANDOFF.md`) as a scanned
+    SOURCE — an exact-match exclusion (not a substring match, unlike
+    `_REF_SCAN_EXCLUDE`) so it never widens to e.g. `plans/knowledge/HANDOFF.md`.
+    Applied after both the git-tracked and the rglob-fallback enumeration, so
+    the exclusion holds on either branch.
     """
     try:
         out = subprocess.run(
@@ -522,7 +533,8 @@ def _tracked_markdown(repo: Path) -> list[str]:
         rels = [ln for ln in out.splitlines() if ln]
     except (FileNotFoundError, subprocess.CalledProcessError):
         rels = [str(p.relative_to(repo)) for p in sorted(repo.rglob("*.md"))]
-    return [r for r in rels if not any(x in r for x in _REF_SCAN_EXCLUDE)]
+    rels = [r for r in rels if not any(x in r for x in _REF_SCAN_EXCLUDE)]
+    return [r for r in rels if r != "knowledge/HANDOFF.md"]
 
 
 _BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")

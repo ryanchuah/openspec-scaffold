@@ -131,12 +131,19 @@ DEFAULT_RETIRED_PATHS: tuple[str, ...] = (
     "docs/reviews/",
 )
 
+# The sole sanctioned mid-session handoff file (written mid-change, deleted
+# on absorption) — see the knowledge taxonomy (knowledge/README.md). Exempt
+# from the prose-hygiene checks both as a citation TARGET (via
+# EPHEMERAL_PATHS below) and as a scanned SOURCE (its own forward-referencing
+# prose is not drift) — see `_is_sanctioned_handoff`.
+SANCTIONED_HANDOFF: str = "knowledge/HANDOFF.md"
+
 # Known-ephemeral knowledge paths: legitimately absent in the steady state, so a
 # citation to one is NOT a broken citation. knowledge/HANDOFF.md is the sanctioned
 # mid-session handoff file (written mid-change, deleted on absorption) — see the
 # knowledge taxonomy (knowledge/README.md).
 EPHEMERAL_PATHS: tuple[str, ...] = (
-    "knowledge/HANDOFF.md",
+    SANCTIONED_HANDOFF,
     "knowledge/audit-log.md",
     "knowledge/ratchet-log.md",
 )
@@ -191,6 +198,13 @@ def _relpath(root: Path, path: Path) -> str:
 
 def _is_research(root: Path, path: Path) -> bool:
     return _RESEARCH_EXCLUDE in _relpath(root, path)
+
+
+def _is_sanctioned_handoff(root: Path, path: Path) -> bool:
+    """True only for the exact sanctioned handoff path. Uses **exact**
+    equality, never a substring/`in` test — a substring match would wrongly
+    exempt e.g. ``plans/knowledge/HANDOFF.md``."""
+    return _relpath(root, path) == SANCTIONED_HANDOFF
 
 
 def _knowledge_markdown(root: Path, is_ignored: Callable[[str], bool]) -> list[Path]:
@@ -802,7 +816,7 @@ def _check_handoff_files(root: Path, is_ignored: Callable[[str], bool]) -> list[
             for filename in filenames:
                 rel = _relpath(root, Path(dirpath) / filename)
                 # Sole sanctioned exemption.
-                if rel == "knowledge/HANDOFF.md":
+                if rel == SANCTIONED_HANDOFF:
                     continue
                 # Skip gitignored files.
                 if is_ignored(rel):
@@ -814,7 +828,7 @@ def _check_handoff_files(root: Path, is_ignored: Callable[[str], bool]) -> list[
                             "handoff-file",
                             rel,
                             None,
-                            f"handoff-named file {rel}; the only sanctioned handoff file is knowledge/HANDOFF.md",
+                            f"handoff-named file {rel}; the only sanctioned handoff file is {SANCTIONED_HANDOFF}",
                         )
                     )
     except OSError:
@@ -868,6 +882,11 @@ def _duplicate_scan_files(root: Path, is_ignored: Callable[[str], bool]) -> list
                 if not fn.endswith(".md"):
                     continue
                 full = Path(dirpath, fn)
+                if _relpath(root, full) == SANCTIONED_HANDOFF:
+                    # The sanctioned handoff must not be one of the "2+
+                    # files" a duplicate window is counted across — it
+                    # legitimately quotes context forward.
+                    continue
                 files.append(full)
 
     # Top-level *.md
@@ -1629,14 +1648,19 @@ def collect_findings(root: Path) -> list[Finding]:
     """Run every check and return the combined finding list. Read-only."""
     is_ignored = make_git_ignore_checker(root)
     all_knowledge_md = _knowledge_markdown(root, is_ignored)
-    content_check_md = [p for p in all_knowledge_md if not _is_research(root, p)]
+    content_check_md = [
+        p
+        for p in all_knowledge_md
+        if not _is_research(root, p) and not _is_sanctioned_handoff(root, p)
+    ]
+    archive_pointer_check_md = [p for p in all_knowledge_md if not _is_sanctioned_handoff(root, p)]
     retired_paths = load_retired_paths(root)
 
     findings: list[Finding] = []
     findings.extend(_check_orphan_duplicate(root, is_ignored))
     findings.extend(_check_retired_paths(root, content_check_md, retired_paths))
     findings.extend(_check_broken_citations(root, content_check_md, is_ignored))
-    findings.extend(_check_dangling_archive_pointers(root, all_knowledge_md))
+    findings.extend(_check_dangling_archive_pointers(root, archive_pointer_check_md))
     findings.extend(_check_audit_log(root))
     findings.extend(_check_ratchet_log(root))
     findings.extend(_check_handoff_files(root, is_ignored))
