@@ -10,7 +10,7 @@
 |---|---|---|---|
 | State | Where are we right now? | `knowledge/STATUS.md` + `knowledge/questions/INDEX.md` (Active) | boot |
 | Mid-session handoff | What in-flight work must I resume? | `knowledge/HANDOFF.md` (ephemeral; deleted on absorption) | boot-if-present |
-| Decisions | What did we choose, and why? | `knowledge/decisions/INDEX.md` (one line per decision → archive; rationale inline when no archive exists) | on-demand |
+| Decisions | What did we choose, and why? | `knowledge/decisions/INDEX.md` (rolling newest-tail window; one line per decision → archive; rationale inline when no archive exists) + `knowledge/decisions/HISTORY.md` (older entries, on demand) | on-demand |
 | Questions | What is open / parked? | `knowledge/questions/` (Active = boot; Parked + per-item files = on-demand) | split |
 | Lessons | What did we learn about how to work? | `knowledge/lessons.md` (single file) | on-demand |
 | Reference | Durable facts not in the code (runbook, external-API semantics, empirical findings) | `knowledge/reference/`; `knowledge/audit-log.md` (bounded one-line-per-audit registry ledger, same registry-line discipline as `knowledge/decisions/INDEX.md` — full audit outputs live untracked under `output/checks/<date>/` and are disposable per-audit build artifacts); `knowledge/ratchet-log.md` (second bounded one-line-per-entry registry ledger, same format class, tracking finding-closure dispositions) | on-demand |
@@ -29,3 +29,10 @@
 - **History is search-only:** Never load the full archive at boot. Search `openspec/changes/archive/` when you need to look something up.
 - **`knowledge/README.md` is scaffold-managed** (synced byte-identical to every repo). All other files under `knowledge/` are per-repo and are never synced.
 - **Deliberate forward-references:** a knowledge doc that deliberately cites a not-yet-created path SHALL put `<!-- lint:planned -->` on that line to suppress the broken-citation finding (`scripts/knowledge_lint.py`). The suppression is line-scoped — it only opts out the line it appears on.
+- **Decisions registry rolling window:** `knowledge/decisions/INDEX.md` holds only the newest tail
+  of the registry, byte-budgeted (`decisions-index-budget` check, default 16,000 bytes, per-repo
+  overridable via `checks.toml`); older entries roll verbatim into `knowledge/decisions/HISTORY.md`
+  — same one-line format, same chronological order, never part of the mandatory boot set, loaded
+  on demand (grep `knowledge/decisions/`). `scripts/roll_decisions.py` (dry-run supported) performs
+  the roll, shrinking INDEX.md down to a 12,000-byte hysteresis target. Raising either budget is an
+  operator decision recorded in the decisions registry.

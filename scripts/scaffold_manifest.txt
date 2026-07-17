@@ -78,6 +78,8 @@ scripts/test_gate_command_detection.py
 scripts/test_opencode_delegate.py
 scripts/freeze_check.py
 scripts/test_freeze_check.py
+scripts/roll_decisions.py
+scripts/test_roll_decisions.py
 
 # Lint config (scaffold-managed; see shared-lint-gate capability)
 ruff.toml

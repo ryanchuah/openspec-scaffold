@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import io
 import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -51,6 +53,15 @@ def _make_boot_repo(tmpdir: Path, sizes: dict[str, int], checks_toml: str | None
     return repo
 
 
+def _run_main_capture(args: list[str]) -> tuple[int, str]:
+    """Run boot_surface_lint.main(args), capturing stdout alongside the
+    exit code (used to assert on/absence of the WARN/FAIL remedy line)."""
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = boot_surface_lint.main(args)
+    return rc, buf.getvalue()
+
+
 # ===================================================================
 # Tests
 # ===================================================================
@@ -75,28 +86,31 @@ class BootSurfaceLintTest(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_under_warn_passes(self):
-        """Total under 80,000 => exit 0."""
+        """Total under 80,000 => exit 0, no remedy line."""
         repo = _make_boot_repo(self.tmpdir, {"AGENTS.md": 30_000, "knowledge/STATUS.md": 10_000})
-        rc = boot_surface_lint.main([str(repo)])
+        rc, output = _run_main_capture([str(repo)])
         self.assertEqual(rc, 0)
+        self.assertNotIn(boot_surface_lint.REMEDY_LINE, output)
 
     def test_in_warn_band(self):
-        """Total in [80_000, 100_000) => exit 1."""
+        """Total in [80_000, 100_000) => exit 1, remedy line present."""
         repo = _make_boot_repo(
             self.tmpdir,
             {"AGENTS.md": 40_000, "knowledge/STATUS.md": 40_001},
         )
-        rc = boot_surface_lint.main([str(repo)])
+        rc, output = _run_main_capture([str(repo)])
         self.assertEqual(rc, 1)
+        self.assertIn(boot_surface_lint.REMEDY_LINE, output)
 
     def test_at_fail_or_above(self):
-        """Total >= 100,000 => exit 2."""
+        """Total >= 100,000 => exit 2, remedy line present."""
         repo = _make_boot_repo(
             self.tmpdir,
             {"AGENTS.md": 50_000, "knowledge/STATUS.md": 50_000},
         )
-        rc = boot_surface_lint.main([str(repo)])
+        rc, output = _run_main_capture([str(repo)])
         self.assertEqual(rc, 2)
+        self.assertIn(boot_surface_lint.REMEDY_LINE, output)
 
     # ------------------------------------------------------------------
     # Boundary values

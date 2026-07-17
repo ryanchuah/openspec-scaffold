@@ -72,7 +72,10 @@ Per-repo config (D5): an optional repo-root ``checks.toml``
 ``[knowledge_lint].retired_paths`` array (read via stdlib ``tomllib``) is
 MERGED with the built-in retired-path defaults. Absent file/table/key means
 only the defaults apply. ``checks.toml`` is per-repo config, never
-scaffold-managed.
+scaffold-managed. The same ``[knowledge_lint]`` table also carries
+``decisions_index_max_bytes`` (default 16,000 — see check 14 below); an
+invalid value (non-``int``, including ``bool``, or negative) falls back to
+the default with a one-line stderr note.
 
 Detect-only: this script performs **zero filesystem writes** under any flag
 or input. Its only effects are the printed report and the process exit code.
@@ -130,6 +133,11 @@ DEFAULT_RETIRED_PATHS: tuple[str, ...] = (
     "plans/open-issues.md",
     "docs/reviews/",
 )
+
+# Default byte budget for knowledge/decisions/INDEX.md (check 14, D-roll —
+# see scripts/roll_decisions.py). Per-repo overridable via
+# [knowledge_lint].decisions_index_max_bytes in checks.toml.
+DECISIONS_INDEX_MAX_BYTES = 16_000
 
 # The sole sanctioned mid-session handoff file (written mid-change, deleted
 # on absorption) — see the knowledge taxonomy (knowledge/README.md). Exempt
@@ -359,8 +367,12 @@ def _load_knowledge_lint_config(root: Path) -> dict:
     """Load [knowledge_lint] config from checks.toml with graceful defaults.
 
     Returns dict with keys ``untriaged_max_age_days`` (default 14),
-    ``duplicate_scan_dirs`` (default []), and
-    ``ratchet_open_max_age_days`` (default 30).
+    ``duplicate_scan_dirs`` (default []), ``ratchet_open_max_age_days``
+    (default 30), and ``decisions_index_max_bytes`` (default
+    ``DECISIONS_INDEX_MAX_BYTES`` = 16,000). An invalid
+    ``decisions_index_max_bytes`` (non-``int`` — a ``bool`` counts as
+    non-int — or negative) falls back to the default, with a one-line
+    stderr note.
     """
     kl: dict = {}
     config_path = root / "checks.toml"
@@ -368,10 +380,26 @@ def _load_knowledge_lint_config(root: Path) -> dict:
         with open(config_path, "rb") as f:
             data = tomllib.load(f)
         kl = data.get("knowledge_lint", {})
+
+    decisions_index_max_bytes = kl.get("decisions_index_max_bytes", DECISIONS_INDEX_MAX_BYTES)
+    if (
+        isinstance(decisions_index_max_bytes, bool)
+        or not isinstance(decisions_index_max_bytes, int)
+        or decisions_index_max_bytes < 0
+    ):
+        print(
+            "knowledge_lint: [knowledge_lint] decisions_index_max_bytes must be a"
+            " non-negative integer — falling back to the"
+            f" {DECISIONS_INDEX_MAX_BYTES}-byte default",
+            file=sys.stderr,
+        )
+        decisions_index_max_bytes = DECISIONS_INDEX_MAX_BYTES
+
     return {
         "untriaged_max_age_days": kl.get("untriaged_max_age_days", 14),
         "duplicate_scan_dirs": kl.get("duplicate_scan_dirs", []),
         "ratchet_open_max_age_days": kl.get("ratchet_open_max_age_days", 30),
+        "decisions_index_max_bytes": decisions_index_max_bytes,
     }
 
 
@@ -1642,6 +1670,47 @@ def _check_claims_ledger_staleness(root: Path) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Check 14 — decisions-index byte budget (roll-decisions-index)
+# ---------------------------------------------------------------------------
+
+
+def _check_decisions_index_budget(root: Path) -> list[Finding]:
+    """Flag `knowledge/decisions/INDEX.md` when it exceeds its configured
+    byte budget (default `DECISIONS_INDEX_MAX_BYTES` = 16,000; per-repo
+    overridable via `[knowledge_lint] decisions_index_max_bytes` in
+    `checks.toml`).
+
+    A missing INDEX.md produces no finding. `knowledge/decisions/HISTORY.md`
+    — the never-boot-loaded rolled-entries file — is never inspected here;
+    its size is irrelevant to this check by design.
+    """
+    index_path = root / "knowledge" / "decisions" / "INDEX.md"
+    if not index_path.is_file():
+        return []
+
+    size = index_path.stat().st_size
+    kl_config = _load_knowledge_lint_config(root)
+    budget = kl_config["decisions_index_max_bytes"]
+
+    if size <= budget:
+        return []
+
+    rel = _relpath(root, index_path)
+    return [
+        Finding(
+            "decisions-index-budget",
+            rel,
+            None,
+            f"{rel} is {size} bytes, over the {budget}-byte budget — roll it with"
+            " `python3 scripts/roll_decisions.py` (rolls oldest entries to"
+            " `knowledge/decisions/HISTORY.md`; see `knowledge/README.md`)."
+            " Raising the budget is an operator decision recorded in the"
+            " decisions registry.",
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -1673,6 +1742,7 @@ def collect_findings(root: Path) -> list[Finding]:
     findings.extend(_check_audit_liveness(root))
     findings.extend(_check_post_close_ledger(root))
     findings.extend(_check_claims_ledger_staleness(root))
+    findings.extend(_check_decisions_index_budget(root))
     return findings
 
 

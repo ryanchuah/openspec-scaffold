@@ -2210,6 +2210,107 @@ def test_claims_ledger_empty_manifest_section_skipped(tmp_path):
 
 
 # ===================================================================
+# roll-decisions-index — decisions-index byte budget
+# (_check_decisions_index_budget)
+# ===================================================================
+
+
+def _write_decisions_index(tmp_path: Path, size: int) -> Path:
+    """Write knowledge/decisions/INDEX.md with an exact byte size, padded
+    with 'x' filler after one valid registry-anchor line."""
+    prefix = "- **2026-01-01** · pad · "
+    suffix = "\n"
+    pad_len = size - len((prefix + suffix).encode("utf-8"))
+    assert pad_len >= 0, "requested size too small for the fixed prefix/suffix"
+    content = prefix + ("x" * pad_len) + suffix
+    assert len(content.encode("utf-8")) == size
+    _write_tree(tmp_path, {"knowledge/decisions/INDEX.md": content})
+    return tmp_path / "knowledge" / "decisions" / "INDEX.md"
+
+
+def _decisions_budget_findings(tmp_path: Path) -> list:
+    findings = knowledge_lint.collect_findings(tmp_path)
+    return [f for f in findings if f.check == "decisions-index-budget"]
+
+
+def test_decisions_index_over_default_budget_flagged(tmp_path):
+    """(a) INDEX over the 16,000-byte default budget → exactly one
+    decisions-index-budget finding naming roll_decisions.py."""
+    _write_decisions_index(tmp_path, 16_001)
+    findings = _decisions_budget_findings(tmp_path)
+    assert len(findings) == 1
+    assert "roll_decisions.py" in findings[0].message
+    assert "knowledge/decisions/INDEX.md" in findings[0].message
+
+
+def test_decisions_index_at_default_budget_not_flagged(tmp_path):
+    """(b) INDEX at (or under) the default budget → zero findings."""
+    _write_decisions_index(tmp_path, 16_000)
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+def test_decisions_index_small_override_flags_small_file(tmp_path):
+    """(c1) a small checks.toml override flags a file the default would not."""
+    _write_decisions_index(tmp_path, 500)
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\ndecisions_index_max_bytes = 100\n"})
+    findings = _decisions_budget_findings(tmp_path)
+    assert len(findings) == 1
+
+
+def test_decisions_index_raised_override_silences_default_flag(tmp_path):
+    """(c2) a raised checks.toml override (100,000) silences a file the
+    16,000-byte default would flag."""
+    _write_decisions_index(tmp_path, 20_000)
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\ndecisions_index_max_bytes = 100000\n"})
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+def test_decisions_index_invalid_override_string_falls_back(tmp_path):
+    """(d1) a string override falls back to the 16,000 default."""
+    _write_decisions_index(tmp_path, 16_001)
+    _write_tree(
+        tmp_path,
+        {"checks.toml": '[knowledge_lint]\ndecisions_index_max_bytes = "not-a-number"\n'},
+    )
+    findings = _decisions_budget_findings(tmp_path)
+    assert len(findings) == 1  # 16,001 > fallback default of 16,000
+
+
+def test_decisions_index_invalid_override_negative_falls_back(tmp_path):
+    """(d2) a negative override falls back to the 16,000 default."""
+    _write_decisions_index(tmp_path, 15_000)
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\ndecisions_index_max_bytes = -1\n"})
+    # 15,000 <= fallback default of 16,000 -> no finding (proves fallback,
+    # not that -1 was honored, which would flag everything).
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+def test_decisions_index_invalid_override_bool_falls_back(tmp_path):
+    """(d3) a boolean override (`true`) falls back to the 16,000 default —
+    Python's bool is an int subclass, so this must be explicitly excluded."""
+    _write_decisions_index(tmp_path, 15_000)
+    _write_tree(tmp_path, {"checks.toml": "[knowledge_lint]\ndecisions_index_max_bytes = true\n"})
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+def test_decisions_index_missing_file_no_finding(tmp_path):
+    """(e) no knowledge/decisions/INDEX.md at all → zero findings."""
+    _write_tree(tmp_path, {"knowledge/other.md": "# Nothing here\n"})
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+def test_decisions_index_huge_history_alone_never_flagged(tmp_path):
+    """(f) a huge HISTORY.md never triggers the check on its own — only
+    INDEX.md's own size is inspected."""
+    _write_decisions_index(tmp_path, 1_000)
+    _write_tree(
+        tmp_path,
+        {"knowledge/decisions/HISTORY.md": "- **2020-01-01** · old · " + ("y" * 50_000) + "\n"},
+    )
+    assert _decisions_budget_findings(tmp_path) == []
+
+
+# ===================================================================
 # handoff-lint-exempt — the sanctioned `knowledge/HANDOFF.md` is exempt
 # from the four prose-hygiene checks (retired-path-token,
 # broken-prose-path-citation, dangling-archive-pointer,

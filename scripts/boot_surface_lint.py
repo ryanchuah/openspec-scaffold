@@ -61,6 +61,15 @@ BOOT_FILES = (
 WARN_BYTES = 80_000
 FAIL_BYTES = 100_000
 
+# Appended (as its own output line) after a WARN or FAIL verdict —
+# self-serviceable remedy naming the roll-decisions-index convention.
+REMEDY_LINE = (
+    "remedy: condense the boot files — if knowledge/decisions/INDEX.md is the"
+    " dominant weight, roll its oldest entries via: python3"
+    " scripts/roll_decisions.py (see knowledge/README.md); raising warn/fail"
+    " thresholds is an operator decision recorded in the decisions registry."
+)
+
 
 # ---------------------------------------------------------------------------
 # Per-repo config
@@ -167,10 +176,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if total >= fail_bytes:
         lines.append(f"boot_surface_lint: FAIL — {total} bytes exceeds {fail_bytes}")
+        lines.append(REMEDY_LINE)
         print("\n".join(lines))
         return 2
     elif total >= warn_bytes:
         lines.append(f"boot_surface_lint: WARN — {total} bytes (threshold >= {warn_bytes})")
+        lines.append(REMEDY_LINE)
         print("\n".join(lines))
         return 1
     else:

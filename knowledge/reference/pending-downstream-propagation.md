@@ -106,7 +106,16 @@ Neither downstream is pushed — push is operator-gated.
   layer wired. Superseded above.
 
 ## Shipped locally — NOT yet propagated
-_(none — both downstreams converged to scaffold HEAD `27adff6` on 2026-07-17; see frontier above.)_
+`roll-decisions-index` (shipped 2026-07-17) adds two manifest files (`scripts/roll_decisions.py`,
+`scripts/test_roll_decisions.py`) and modifies `scripts/knowledge_lint.py`, `scripts/boot_surface_lint.py`,
+and `knowledge/README.md`.
+
+Caveat that matters at propagation time:
+- **Requires a per-repo roll before the new gate lands.** Each downstream repo must run
+  `python3 scripts/roll_decisions.py` against its own tree during its propagation session, BEFORE its
+  live-tree `knowledge_lint` gate sees the new `decisions-index-budget` check — psc-monitor's
+  `knowledge/decisions/INDEX.md` is already well over the new 16,000-byte default budget and would
+  otherwise redden its gate on sync.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
