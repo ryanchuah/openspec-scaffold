@@ -22,5 +22,6 @@ This exemption is load-bearing rather than cosmetic: the live-tree gate promotes
 - **THEN** the linter SHALL still flag it (the exemption is scoped to the sanctioned handoff path, not a blanket suppression)
 
 #### Scenario: a handoff-named file elsewhere is exempt from neither check family
-- **WHEN** a handoff-named file exists outside the sanctioned path (e.g. `plans/session-handoff.md`) and contains a broken citation
+- **WHEN** a handoff-named file exists under `knowledge/` at a path other than the sanctioned one (e.g. `knowledge/session-handoff.md`) and contains a broken citation
 - **THEN** the linter SHALL flag it under the handoff-named-file check AND SHALL still flag its broken citation (the prose-hygiene exemption keys on the exact path `knowledge/HANDOFF.md`, so it does not extend to other handoff-named files)
+- **AND** a handoff-named file outside `knowledge/` (e.g. `plans/session-handoff.md`) SHALL still be flagged by the handoff-named-file check, which walks the whole tree; its prose is not citation-checked there because `broken-prose-path-citation` scans only `knowledge/**/*.md` by design — a pre-existing scan-domain boundary unrelated to this exemption

@@ -139,3 +139,115 @@ Sonnet too would collapse the multi-model independence the gate exists to provid
   write→red→delete loop this change fixes. Recorded as a boundary, not a defect.
 - Archiving the already-verified `openspec/changes/knowledge-lint-gitignored-citation-exempt/`
   (a pre-existing, unrelated ready-to-archive item flagged in `knowledge/STATUS.md`).
+
+## Verify checkpoint
+
+**1. Verdict — READY for archive.** All six acceptance criteria confirmed by live probe on the real
+tree, not by fixture green alone. Orchestrator self-review found one real defect (below); it was
+fixed and re-verified. The `deepseek/deepseek-v4-pro` behavioral pass returned `VERDICT: READY`,
+zero defects, on the fixed tree.
+
+**2. What was confirmed by eyeballing live output** (behavior, not counts):
+
+- A `knowledge/HANDOFF.md` carrying all four constructs — a forward citation, an `ai-docs/`
+  retired-path token, a not-yet-existing archive pointer, and a ≥8-line block quoted verbatim from
+  `knowledge/README.md` — planted on the **live tree** produced zero findings, and zero collateral
+  `duplicate-content-block` on the quoted README (criteria 1).
+- With that same tripping handoff present, `bash scripts/check.sh` exited 0 — the handoff is
+  committable, which is the whole point of the change (criterion 2).
+- The **identical** constructs in a non-handoff knowledge file still flagged all four checks
+  (criterion 3) — the exemption did not blind the linter generally. This is the load-bearing guard
+  and was proven live, not just in fixtures.
+- Orchestrator-authored boundary fixture the executor never wrote: `knowledge/_probesub/HANDOFF.md`
+  — a file literally *named* `HANDOFF.md` at a non-sanctioned path — flagged all four checks **plus**
+  `handoff-file`, proving the exemption keys on exact path, not filename.
+- With the handoff **absent**, lint stayed clean: the citations to `knowledge/HANDOFF.md` from
+  `AGENTS.md`, `knowledge/README.md`, `knowledge/decisions/INDEX.md` and others were not flagged —
+  no regression to the already-shipped citation-target carve-out (criterion 4). This closes task
+  6.2's literal wording ("with no handoff present"), which the executor could not run because the
+  live handoff exists.
+- `sync_scaffold.check_references` against a target repo whose **only** dangling ref was sourced from
+  its `knowledge/HANDOFF.md` scanned zero markdown files and returned clean; adding a dangling ref in
+  a non-handoff tracked doc still reported it (criterion 5).
+- `openspec validate --strict` valid; `checks.py --check spec-delta-structure` clean (criterion 6).
+
+**3. Defect found and how it was fixed** — surfaced by the **orchestrator self-review** (the pro pass
+returned READY on the pre-fix tree and did *not* catch it):
+
+> The duplicate-scan exemption was applied inside only **one** of `_duplicate_scan_files`' three
+> collection paths (the `knowledge/` walk), not the top-level glob or the configured
+> `duplicate_scan_dirs` walk. Reproduced: with `[knowledge_lint] duplicate_scan_dirs = ["."]` (or
+> `["knowledge"]`), the handoff was re-added and `duplicate-content-block` fired on **both** the
+> handoff and the file it quoted — silently re-arming the exact trap this change exists to remove.
+> This is not a hypothetical config: the codebase already treats a configured scan dir as able to
+> re-widen an exclusion — `openspec/specs/` is excluded in **both** loops and pinned by
+> `test_duplicate_block_openspec_specs_excluded_via_configured_scan_dir`. It matters downstream
+> because `checks.toml` is per-repo and **not** scaffold-managed, so `extrends` / `psc-monitor`
+> could each re-open the trap independently.
+
+Fixed by a **re-delegated fresh Sonnet `apply-executor`** (operator pre-route; no deepseek attempt,
+per `notes.md` routing) with a scoped fix-spec: the exclusion moved to the single return chokepoint
+in `_duplicate_scan_files`, so no collection path can re-add the handoff. Pinned by
+`test_duplicate_block_handoff_exempt_via_configured_scan_dir`, whose guard half asserts non-handoff
+files sharing a block are **still** flagged. Re-verified from disk by the orchestrator across four
+configs. A second, minor finding (a duplicate `"knowledge/HANDOFF.md"` literal newly introduced in
+`sync_scaffold.py` — the very drift hazard task 1.3 consolidated away in the sibling linter) was
+folded into the same fix-spec as `_SANCTIONED_HANDOFF`.
+
+**4. As-built delta discovered during verify:**
+
+- **Task 4.4's illustrative path was unsatisfiable, and so was the matching spec scenario.**
+  `broken-prose-path-citation` only ever scans `knowledge/**/*.md` (it is only called with
+  `content_check_md`, built from `_knowledge_markdown`). So at `plans/session-handoff.md` only
+  `handoff-file` fires — the broken citation is never checked there, and a test at that path would
+  pass **vacuously**. The apply-executor caught this and used `knowledge/session-handoff.md`
+  instead; verified empirically at both paths. The `knowledge-lint` delta spec's scenario
+  "a handoff-named file elsewhere is exempt from neither check family" asserted both flags for the
+  `plans/` example, which is **false** — it was corrected at verify to use a `knowledge/` example and
+  to state the `knowledge/**` scan-domain boundary explicitly, so the promoted spec does not ship a
+  claim that isn't true.
+- **The pro pass's `marker-missing` was a wrapper artifact, overruled with rationale.** The re-run
+  pass's wrapper reported `status=marker-missing`, which the verify skill's ladder would escalate as
+  an operational crash. Judged from disk instead: the `## Verify Pass` / `VERDICT: READY` block *was*
+  emitted, as the model's own `type:"text"` part (not a tool-read of the skill template — the raw
+  jsonl was deliberately not grepped, per the skill's own false-positive warning). See field 5.
+
+**5. Forward-looking items for the project docs** (surfaced here, recorded nowhere else — these must
+reach `knowledge/questions/INDEX.md` at archive or they die at the session boundary):
+
+- **The same configured-scan-dir leak affects the pre-existing `knowledge/research/` exclusion.**
+  Reproduced during verify: with `duplicate_scan_dirs = ["."]`, a `knowledge/research/` file **is**
+  flagged for `duplicate-content-block`, even though the `knowledge/` walk prunes research — the
+  extra-dirs loop re-adds it, exactly as it did for the handoff. This is **pre-existing** and
+  explicitly out of scope here (`notes.md` excludes the research exclusion), so it was deliberately
+  not fixed. The chokepoint discipline this change adopted for the handoff arguably belongs to
+  `_is_research` too. Candidate for the finding-closure ratchet, since the general shape is
+  "an exclusion applied per-loop rather than at the collection chokepoint".
+- **`scripts/opencode_delegate.py`'s `extract_text` returns only the LAST `type:"text"` part.** A
+  delegate that emits its verdict block and then a trailing summary line yields a false
+  `marker-missing` — and the verify skill's ladder treats marker-missing as an operational crash and
+  escalates to Sonnet. This fired live in this session: the re-run pro pass emitted a full
+  `VERDICT: READY` block, then appended a one-line summary, and the wrapper reported
+  `marker-missing`. The first pro pass extracted fine because its verdict block *happened* to be
+  last — so the failure is **intermittent and model-behavior-dependent**, which makes it worse: it
+  spuriously escalates good passes. Candidate fix: scan all text parts (or the concatenation) for
+  required markers rather than only the last. Generalizable harness defect, out of scope here.
+- **Downstream propagation is pending and operator-gated** — this change edits scaffold-managed
+  files that govern `extrends` and `psc-monitor`. Recorded in
+  `knowledge/reference/pending-downstream-propagation.md`. The `duplicate_scan_dirs` finding above
+  makes propagation more valuable than usual: each downstream repo's `checks.toml` is per-repo and
+  could otherwise re-open the trap.
+- **Data-path bounded-domain argument (recorded per the data-path verify rule):** `knowledge_lint.py`
+  and `sync_scaffold.py --check-refs` read a repo's tracked markdown into memory. The input domain is
+  bounded by a single repo's tracked `.md` files — it does not grow with data or history — so no
+  at-scale run is required. The change only *removes* one file from that list; it does not widen the
+  domain.
+
+**Still owned by archive:** move the change dir to the dated archive location; promote **both** delta
+specs (`knowledge-lint` ADDED, `knowledge-organization` MODIFIED) into `openspec/specs/`; reconcile
+`knowledge/STATUS.md` (respect the ≤3-change-section cap), `knowledge/decisions/INDEX.md` (registry
+line), and `knowledge/questions/INDEX.md` (fold in the field-5 items above); **delete
+`knowledge/HANDOFF.md`** — its normal state is absent and its content now lives in the archived
+change dir. Do **not** run the downstream sync (operator-gated) and do **not** push (operator-gated).
+Leave `openspec/changes/knowledge-lint-gitignored-citation-exempt/` alone — it is an unrelated
+pre-existing ready-to-archive item.

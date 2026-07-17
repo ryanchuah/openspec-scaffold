@@ -80,3 +80,76 @@ rather than deferred, since each is concrete and zero-risk:
   5.4 — an untested branch is exactly how this class of bug returns.
 
 No finding was overruled.
+
+---
+
+## Verify — 2026-07-17 (MEDIUM: self-review → pro behavioral pass)
+
+### Pass 1 — orchestrator self-review — **NEEDS REVISION** → fixed → READY
+
+Behavioral review per the verify skill (non-delegable). Live-tree probes, not fixture green alone:
+all six acceptance criteria confirmed against the real tree (detail in `notes.md` field 2).
+
+Because the diff carries decision logic (a detector), the orchestrator authored its own
+adversarial/boundary fixtures beyond the executor's suite, per the adversarial-fixtures rule:
+
+- `knowledge/_probesub/HANDOFF.md` — a file literally *named* `HANDOFF.md` at a non-sanctioned path
+  → all four checks fire **plus** `handoff-file`. Exemption keys on exact path, not filename. PASS.
+- Live handoff-absent probe → citations to the handoff from `AGENTS.md` / `README.md` /
+  `decisions/INDEX.md` not flagged. No regression to the shipped citation-target carve-out. PASS.
+- **Configured-scan-dir attack → FOUND THE DEFECT.** `duplicate_scan_dirs = ["."]` re-added the
+  handoff via the extra-dirs walk; `duplicate-content-block` fired on the handoff *and* collaterally
+  on the quoted file. Reproduced deterministically across configs. Full write-up in `notes.md`
+  field 3.
+
+Fix re-delegated to a fresh **Sonnet `apply-executor`** (operator pre-route — no deepseek attempt,
+no failure-ladder walk). Exclusion moved to the `_duplicate_scan_files` return chokepoint; pinned by
+`test_duplicate_block_handoff_exempt_via_configured_scan_dir` with a guard half. Orchestrator
+re-verified from disk across four configs: handoff never leaks, non-handoff duplicates still flagged.
+Committed as `d7752dc`.
+
+### Pass 2 — `deepseek/deepseek-v4-pro` behavioral verifier
+
+- **Pre-fix run** (`5ad1aa1`): `status=ok fallback=no marker_ok=yes` → **VERDICT: READY**, zero
+  defects. **It did not catch the configured-scan-dir leak** — the orchestrator self-review did.
+  Recorded because it is the honest signal about this gate's coverage: the pro pass independently
+  probed case-variants (`knowledge/handoff.md`, `knowledge/HANDOFF.MD`, `HANDOFF.md.backup`,
+  `plans/knowledge/HANDOFF.md`) and confirmed exact-match keying, but did not vary `checks.toml`.
+- **Post-fix re-run** (`d7752dc`, per gate semantics — re-run the failed pass and every pass after):
+  → **VERDICT: READY**, zero defects. It independently reproduced the pre-fix leak via
+  `git show 5ad1aa1:scripts/knowledge_lint.py`, confirmed the chokepoint closes it under both
+  `["."]` and `["knowledge"]`, confirmed non-handoff duplicates are still detected (not blinded),
+  and confirmed all task-2.4 checks are untouched.
+
+**Wrapper `marker-missing` on the re-run — overruled, with rationale.** `opencode_delegate.py`
+reported `status=marker-missing`, which the skill's ladder would escalate as an operational crash.
+Judged from disk instead: the verifier *did* emit `## Verify Pass` / `VERDICT: READY`, as its own
+`type:"text"` part. The raw jsonl was deliberately **not** grepped — the skill warns the raw stream
+contains tool-reads of the skill template, which carries those exact literals and would
+false-positive. Instead the model's text parts were parsed out specifically, and exactly one carried
+the verdict block, with bespoke evidence proving authorship. Root cause: `extract_text` returns only
+the **last** text part, and this run appended a summary after its verdict. Recorded as a harness
+defect in `notes.md` field 5.
+
+### Simplicity/quality gate — `code-review` (medium)
+
+Two findings, **both confirmed from disk and both fixed** in the `d7752dc` fix-spec:
+1. 🔴 the configured-scan-dir exemption leak (above);
+2. 🟡 a duplicate `"knowledge/HANDOFF.md"` literal newly introduced in `sync_scaffold.py` — the same
+   drift hazard task 1.3 consolidated away in the sibling linter → `_SANCTIONED_HANDOFF`.
+
+### Security review — not triggered
+
+No auth, credential, persisted-data, or external-API/network surface: the change is pure static
+analysis over the local filesystem. MEDIUM tier, so recommended-not-required regardless.
+
+### Artifact correction at verify
+
+The `knowledge-lint` delta spec's scenario "a handoff-named file elsewhere is exempt from neither
+check family" asserted that `plans/session-handoff.md` would be flagged for **both** the
+handoff-named-file check and its broken citation. Verified empirically: only `handoff-file` fires
+there, because `broken-prose-path-citation` scans only `knowledge/**/*.md` by design. The scenario
+was corrected to use a `knowledge/` example and to state that scan-domain boundary explicitly, so the
+promoted spec does not ship a false claim. See `notes.md` field 4.
+
+**VERDICT: READY for archive.**
