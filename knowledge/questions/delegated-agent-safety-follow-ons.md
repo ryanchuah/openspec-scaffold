@@ -15,14 +15,6 @@ live credentials, a backup of any irreplaceable store) — a downstream-repo con
 in the scaffold verifier's permission configuration. Revisit only if a real incident recurs through
 one of these vectors.
 
-## Manifest has no deletion/tombstone
-
-`scripts/scaffold_manifest.txt`'s `manifest-completeness` check only verifies files that exist; a
-manifest-listed file deleted upstream orphans silently in every downstream copy. This change adds no
-manifest deletions itself, but any future scaffold-managed file removal needs manual per-repo cleanup
-once downstream propagation (currently frozen) resumes. (Also tracked as a general gap in
-`knowledge/questions/mechanize-invariants-follow-ons.md`.)
-
 ## `knowledge/HANDOFF.md` shares STATUS.md's trust model re: prompt injection
 
 `knowledge/HANDOFF.md` is a boot-read file, same as `knowledge/STATUS.md` — it is git-tracked and

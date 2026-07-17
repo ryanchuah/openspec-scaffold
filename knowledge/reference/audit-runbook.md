@@ -82,9 +82,10 @@ python3 scripts/sync_scaffold.py --check-refs <repo>
 | `knowledge_lint`/`status_lint` | ✅ | ✅ |
 
 ## Known gaps the deterministic layer will NOT cover
-- **extrends domain-SQL data checks** — blocked until `data_lint.py` gets a SQLite
-  backend (`knowledge/questions/data-lint-sqlite-backend.md`). The LLM must eyeball
-  extrends data invariants by hand meanwhile.
+- **extrends domain-SQL data checks** — `data_lint.py`'s upstream SQLite backend has
+  shipped, but extrends' `checks.toml` still disables `data-lint` (comment there predates
+  the backend and has not been re-wired downstream). The LLM must eyeball extrends data
+  invariants by hand meanwhile.
 - **gitleaks version pin** re-breaks if `install-tools.sh` is re-run over the release
   binary (`knowledge/questions/scanner-provisioning-gaps.md`, Gap 1).
 - **Prior-art oneoffs** (`scripts/_audit_*_oneoff.py` in both repos: dup, flakiness,

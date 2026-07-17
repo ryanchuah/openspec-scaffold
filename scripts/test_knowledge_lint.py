@@ -1051,6 +1051,36 @@ def test_closed_unpruned_top_level_plan_flagged(tmp_path):
     assert closed[0].path == "plans/shipped-plan.md"
 
 
+def test_closed_unpruned_nested_plan_flagged(tmp_path):
+    """A plan file nested inside a non-archive subdirectory of plans/ is
+    gathered the same as a top-level plans/*.md file (recursive gather,
+    agreeing with scripts/outstanding.py)."""
+    _write_tree(
+        tmp_path,
+        {"plans/sub/item.md": "# Nested Shipped Plan\n\n**Status:** COMPLETE\n"},
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    closed = [f for f in findings if f.check == "closed-but-unpruned"]
+    assert len(closed) == 1
+    assert closed[0].path == "plans/sub/item.md"
+
+
+def test_closed_unpruned_archive_plan_not_gathered(tmp_path):
+    """plans/archive/**, regardless of nesting depth, is excluded from the
+    gather — a closed-token marker there is never flagged."""
+    _write_tree(
+        tmp_path,
+        {
+            "plans/archive/old.md": "# Old Plan\n\n**Status:** COMPLETE\n",
+            "plans/archive/sub/older.md": "# Older Plan\n\n**Status:** DONE\n",
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    assert not any(f.check == "closed-but-unpruned" for f in findings)
+
+
 def test_closed_unpruned_lint_keep_opts_out(tmp_path):
     _write_tree(
         tmp_path,

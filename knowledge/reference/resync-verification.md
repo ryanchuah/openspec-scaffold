@@ -53,10 +53,13 @@ drift; the judgment sweep catches what the manifest cannot see. You need both.
    or renamed any *terminology, rule, or process concept*, re-apply that change **by hand** in each
    downstream repo's knowledge and specs, then re-read for contradictions. The `knowledge-drift-review` skill is
    the semantic-drift pass for this; `knowledge_lint` only catches *structural* drift, not stale meaning.
-7. **Deletions / tombstones.** The manifest has no delete mechanism, so a file the scaffold *removed*
-   still lives downstream until deleted by hand. Currently owed: delete the `openspec-onboard` skill in
-   each downstream repo (the onboard tombstone) and confirm it is gone. Whenever a propagation batch
-   includes a scaffold-side deletion, record it as an explicit per-repo manual step before syncing.
+7. **Deletions / tombstones.** Scaffold-side deletions propagate automatically: list the removed path in
+   `scripts/scaffold_manifest_removed.txt` (trailing `/` marks a directory) and `sync_scaffold.py` deletes
+   it downstream, while `--check` reports a surviving copy as STALE. So a scaffold-side deletion needs a
+   tombstone entry, not a per-repo manual step. Removing a scaffold-managed skill without tombstoning it
+   is the mistake to avoid — the copy then lingers downstream unnoticed, and `scaffold_lint`'s
+   `dangling-skill-refs` derives its retired-name vocabulary from this same manifest, so an untombstoned
+   removal also silently loses removed-name reference detection.
 8. **Per-repo wiring follow-ons.** Anything downstream the scaffold cannot carry: `checks.toml`,
    `checks/*.sql`, task-runner (`just`) targets, dev-extras pins for the audit layer, and a first
    `knowledge-drift-review` pass. These are per-repo build-out tracked as parked follow-ons in

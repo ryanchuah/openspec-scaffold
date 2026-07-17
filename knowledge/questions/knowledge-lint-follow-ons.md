@@ -19,10 +19,6 @@ operator/downstream action.
   `knowledge-drift-review` pass to burn down its own drift backlog — a separate per-repo follow-on. Propagation
   itself is frozen pending operator go-ahead (see `knowledge/STATUS.md`), joining the
   `deterministic-tooling-layer` pending-propagation queue.
-- **Latent check, untested against real data:** the audit-log registry-format check is guarded on
-  `knowledge/audit-log.md` existence; the scaffold has none yet, so the check is unexercised against a
-  real file until a repo grows one — monitor when `deterministic-tooling-layer` wiring produces the
-  first `audit-log.md`.
 - **Possible new linter check (unbuilt):** `knowledge_lint.py` could grow a check for count-recording
   patterns ("N tests pass"-style tallies) in tracked docs — the `never-record-counts` rule is today
   enforced only by convention/review. Surfaced from the deterministic-tooling-layer session, which hit

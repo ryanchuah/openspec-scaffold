@@ -2,7 +2,6 @@
 name: knowledge-drift-review
 description: Detect per-repo knowledge drift — stale "not yet built" claims, intra-doc contradictions, and buried operator gates — that the deterministic linter cannot see. Use when the operator asks to audit/lint the knowledge tree, or periodically as a standalone maintenance pass. Not run automatically on every archive.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"

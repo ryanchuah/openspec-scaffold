@@ -2,7 +2,6 @@
 name: outstanding-work-deep-sweep
 description: Deep residual-sweep of outstanding work; operator-invoked, pull-only.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"

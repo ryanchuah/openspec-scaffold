@@ -111,6 +111,87 @@ class FreezeCheckTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(out, "FREEZE: READY")
 
+    # --- Bold-emphasis tolerance (all 4 spellings, both VERDICT and PREMISE) ---
+
+    def test_proposal_bold_label_and_value_ready(self):
+        """``**VERDICT:** PASS`` / ``**PREMISE:** AGREE`` parse like unbolded."""
+        review = "### Verdict\n**VERDICT:** PASS\n### Premise Verdict\n**PREMISE:** AGREE\n"
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 0)
+        self.assertEqual(out, "FREEZE: READY")
+
+    def test_proposal_bold_whole_line_ready(self):
+        """``**VERDICT: PASS**`` / ``**PREMISE: AGREE**`` (bold spans label+value)."""
+        review = "### Verdict\n**VERDICT: PASS**\n### Premise Verdict\n**PREMISE: AGREE**\n"
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 0)
+        self.assertEqual(out, "FREEZE: READY")
+
+    def test_proposal_bold_value_only_ready(self):
+        """``VERDICT: **PASS**`` / ``PREMISE: **AGREE**`` (only value bolded)."""
+        review = "### Verdict\nVERDICT: **PASS**\n### Premise Verdict\nPREMISE: **AGREE**\n"
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 0)
+        self.assertEqual(out, "FREEZE: READY")
+
+    def test_proposal_bold_needs_revision(self):
+        """Bolded ``NEEDS REVISION`` still parses to needs-revision."""
+        review = "### Verdict\n**VERDICT: NEEDS REVISION**\n### Premise Verdict\nPREMISE: AGREE\n"
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "FREEZE: BLOCKED — needs-revision")
+
+    def test_proposal_bold_dissent(self):
+        """Bolded ``DISSENT`` still parses to premise-dissent."""
+        review = "### Verdict\nVERDICT: PASS\n### Premise Verdict\n**PREMISE:** DISSENT\n"
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "FREEZE: BLOCKED — premise-dissent")
+
+    def test_design_bold_verdict_ready(self):
+        """design: bolded VERDICT (all 3 spellings) parses to FREEZE: READY."""
+        for review in (
+            "### Verdict\n**VERDICT:** PASS\n",
+            "### Verdict\n**VERDICT: PASS**\n",
+            "### Verdict\nVERDICT: **PASS**\n",
+        ):
+            with self.subTest(review=review):
+                rc, out, err = self._run("design", self._write_review(review))
+                self.assertEqual(rc, 0)
+                self.assertEqual(out, "FREEZE: READY")
+
+    # --- Negative controls: bold-tolerance must not over-relax the anchor ---
+
+    def test_negative_no_verdict_line_still_missing(self):
+        """No verdict line at all (bolded prose elsewhere) => missing-verdict."""
+        review = "**Summary:** everything looks fine, no concerns raised.\n"
+        rc, out, err = self._run("design", self._write_review(review))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "FREEZE: BLOCKED — missing-verdict")
+
+    def test_negative_bold_verdict_mid_prose_not_matched(self):
+        """A bolded verdict token embedded mid-sentence is NOT accepted —
+        only a genuine whole-line token counts, bolded or not."""
+        review = (
+            "The reviewer should emit **VERDICT: PASS** somewhere in the body.\n"
+            "### Verdict\n"
+            "VERDICT: NEEDS REVISION\n"
+        )
+        rc, out, err = self._run("design", self._write_review(review))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "FREEZE: BLOCKED — needs-revision")
+
+    def test_negative_bold_premise_mid_prose_not_matched(self):
+        """A bolded PREMISE token embedded mid-sentence is NOT accepted."""
+        review = (
+            "### Verdict\n"
+            "VERDICT: PASS\n"
+            "Some prose noting the reviewer usually writes **PREMISE: AGREE** here.\n"
+        )
+        rc, out, err = self._run("proposal", self._write_review(review))
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "FREEZE: BLOCKED — missing-verdict")
+
     # --- Design / tasks ---
 
     def test_design_pass_ready(self):

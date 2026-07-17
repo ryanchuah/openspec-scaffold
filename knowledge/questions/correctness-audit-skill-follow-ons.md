@@ -30,17 +30,10 @@ these are blockers — see `knowledge/decisions/INDEX.md` (`correctness-audit-sk
    `ratchet-lint-cleanup` parked follow-on (`knowledge/questions/ratchet-lint-cleanup.md`)
    rather than tracked separately here.
 
-5. **Pre-existing README staleness (out of scope).** Root `README.md:19` still lists a
-   removed `onboard` skill in "the 7 workflow skills". Unrelated to OW-5 (which touched
-   no README vocabulary); flagged for a future doc cleanup.
-
-6. **Carried from freeze (reconfirmed at verify).**
+5. **Carried from freeze (reconfirmed at verify).**
    - Graduation log is not lint-enforced (D8 scopes to core format checks, by design);
      a future audit shipping without one is a drift signal for
      `knowledge-drift-review`, not `knowledge_lint`.
    - First-real-audit manual check (not unit-testable): confirm wave-gate triage-file
      appends keep graduated findings out of the `untriaged-finding-stale` bucket
      during a live audit.
-   - **OW-15** (post-close coverage-liveness ledger + widened blind-spot classes;
-     `knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md`) amends this
-     capability and applies strictly AFTER it.

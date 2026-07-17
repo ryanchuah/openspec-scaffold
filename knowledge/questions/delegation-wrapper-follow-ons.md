@@ -30,13 +30,3 @@ and the ingest wrapper runs after. The load-bearing fields are
 phase/agent/model/change/exit/fallback/status/verdict/retry. If duration collection matters
 for the scheduled decisions, a follow-on could add a launcher-side clock or a more precise
 probe, but this is low priority.
-
-## Downstream propagation
-
-The wrapper script (`scripts/opencode_delegate.py`), its tests
-(`scripts/test_opencode_delegate.py`), the edited skill files, and the
-`delegation-harness.md` edits are all scaffold-managed. Propagation to `extrends` and
-`psc-monitor` via `sync_scaffold.py` is **operator-gated and deferred** — not synced
-without fresh authorization. The wrapper arrives INERT downstream (no delegation sites call it
-until the downstream repos' skill files are re-synced, which is gated on the operator
-authorizing propagation).

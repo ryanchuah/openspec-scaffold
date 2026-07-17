@@ -2,7 +2,6 @@
 name: run-audit
 description: Run the deterministic audit cycle — list, floor/report, triage, optional tag, log. Operator-invoked. Writes report artifacts to output/checks/<date>/ and appends one line to knowledge/audit-log.md (tag + log-line). Never fixes code.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"

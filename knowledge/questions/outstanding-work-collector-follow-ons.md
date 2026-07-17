@@ -4,14 +4,6 @@ Parked follow-ons from the outstanding-work-collector change (archived
 `openspec/changes/archive/2026-07-09-outstanding-work-collector/`). None are blocking;
 all are deferred or monitor-only.
 
-## plans/ gather scope: keep recursive, align spec+lint
-
-The as-built gather uses `plans_dir.rglob("*.md")` (recursive), while the written spec
-(design D6, tasks §1.3) and `_check_closed_unpruned` plan scan both say "top-level
-`plans/*.md`" (`glob`, non-recursive). Operator decision (2026-07-09): **keep the recursive
-gather**. This leaves a follow-on: update the spec and the closed-unpruned scan to match.
-Handoff details at `plans/plans-scope-alignment.md`.
-
 ## `<!-- lint:dup-ok -->` placement is non-obvious
 
 To suppress a legitimate duplicate, the marker must fall *inside the still-matching window* —

@@ -28,3 +28,4 @@
 - **Mid-session handoff write side:** a session writes `knowledge/HANDOFF.md` when it must hand off before archive (e.g. context exhausted mid-change). `knowledge/STATUS.md` is the wrong home because it is reconciled only at archive. The next session absorbs the handoff and deletes it. There is exactly one such file — this supersedes ad-hoc multiple root-level HANDOFF files.
 - **History is search-only:** Never load the full archive at boot. Search `openspec/changes/archive/` when you need to look something up.
 - **`knowledge/README.md` is scaffold-managed** (synced byte-identical to every repo). All other files under `knowledge/` are per-repo and are never synced.
+- **Deliberate forward-references:** a knowledge doc that deliberately cites a not-yet-created path SHALL put `<!-- lint:planned -->` on that line to suppress the broken-citation finding (`scripts/knowledge_lint.py`). The suppression is line-scoped — it only opts out the line it appears on.

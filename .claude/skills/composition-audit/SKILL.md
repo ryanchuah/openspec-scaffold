@@ -2,7 +2,6 @@
 name: composition-audit
 description: Run a bounded composition-audit ceremony — deterministic sweep (jscpd/vulture/radon) + bounded LLM judgment pass over top-K hotspots, with a machine-discriminable verdict. Operator-invoked, pull-only.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"

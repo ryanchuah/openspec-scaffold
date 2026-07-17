@@ -2,7 +2,6 @@
 name: correctness-audit
 description: Standardize the deep LLM correctness-audit protocol — operator-invoked, pull-only, never fixes product code. Standardizes charter/census/findings protocol, routes findings into the finding-closure ratchet.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"

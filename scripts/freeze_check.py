@@ -6,8 +6,12 @@ CLI::
     freeze_check.py --artifact {proposal,design,tasks} --review <path>
 
 Parses the last whole-line-anchored ``VERDICT: PASS|NEEDS REVISION`` and,
-for ``proposal``, the last ``PREMISE: AGREE|DISSENT``. Prints exactly one
-machine-distinguishable line and exits accordingly:
+for ``proposal``, the last ``PREMISE: AGREE|DISSENT``. Optional ``**``
+markdown emphasis around the label and/or the value is tolerated (e.g.
+``**VERDICT:** PASS``, ``**VERDICT: PASS**``, ``VERDICT: **PASS**``) — the
+line remains otherwise strictly anchored, so a token quoted mid-prose is
+still not accepted. Prints exactly one machine-distinguishable line and
+exits accordingly:
 
 - ``FREEZE: READY``  (exit 0)
 - ``FREEZE: BLOCKED — needs-revision``  (exit 1)
@@ -42,7 +46,9 @@ def freeze_check(artifact: str, review_text: str) -> tuple[str, int]:
 
     Returns ``(output_line, exit_code)``.
     """
-    verdict = _last_anchored(review_text, r"^\s*VERDICT:\s*(PASS|NEEDS REVISION)\s*$")
+    verdict = _last_anchored(
+        review_text, r"^\s*\*{0,2}VERDICT:\*{0,2}\s*\*{0,2}(PASS|NEEDS REVISION)\*{0,2}\s*$"
+    )
 
     if verdict is None:
         return "FREEZE: BLOCKED — missing-verdict", 1
@@ -52,7 +58,9 @@ def freeze_check(artifact: str, review_text: str) -> tuple[str, int]:
 
     # verdict is PASS
     if artifact == "proposal":
-        premise = _last_anchored(review_text, r"^\s*PREMISE:\s*(AGREE|DISSENT)\s*$")
+        premise = _last_anchored(
+            review_text, r"^\s*\*{0,2}PREMISE:\*{0,2}\s*\*{0,2}(AGREE|DISSENT)\*{0,2}\s*$"
+        )
         if premise is None:
             return "FREEZE: BLOCKED — missing-verdict", 1
         if premise == "DISSENT":

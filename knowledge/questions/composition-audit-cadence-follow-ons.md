@@ -35,7 +35,8 @@ checkpoint, field 5) — monitored/deferred items surfaced during verify, none b
    notice was declined). If a downstream repo is observed sitting `due` unseen for more than 30
    days, add the recurring-surface notice then, as its own SMALL change.
 
-7. **`run-audit-untested` partial-closure evidence.** The first downstream composition ceremony
-   exercises the shared tag/log-line/wiring-detection surfaces end-to-end, providing partial
-   closure evidence for `knowledge/questions/run-audit-untested.md` — feed findings back there
-   when it happens.
+7. **`run-audit` composition-variant closure — still unexercised.** The `audit/*-composition` tag
+   variant of the run-audit ceremony has not yet been exercised end-to-end in either downstream
+   repo (the plain, non-composition cycle has). The first downstream composition ceremony
+   exercises the shared tag/log-line/wiring-detection surfaces for this variant — record the
+   outcome here when it happens.

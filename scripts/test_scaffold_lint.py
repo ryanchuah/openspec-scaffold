@@ -460,10 +460,14 @@ def test_dangling_skill_refs_allowlisted_token_not_flagged(tmp_path):
 
 
 def test_dangling_skill_refs_non_openspec_skill_without_dir_flagged(tmp_path):
-    """Regression: a non-openspec skill in _NON_OPENSPEC_SKILL_TOKENS whose
-    directory exists resolves cleanly; one whose directory does NOT exist is
-    flagged as a dangling ref (detect-then-validate holds for the generalized
-    set, not only a single hardcoded literal)."""
+    """Regression: a non-openspec skill tombstoned in
+    scripts/scaffold_manifest_removed.txt whose directory no longer exists is
+    flagged as a dangling ref, while a still-current one (knowledge-drift-review)
+    resolves cleanly (detect-then-validate holds for the tombstone-derived
+    vocabulary, not only a single hardcoded literal). Removing a
+    scaffold-managed skill already requires a tombstone, so this also adds
+    run-audit's dir to the fixture's removed manifest — more faithful than the
+    old hardcoded-frozenset version of this test."""
     tree = _clean_tree()
     # Remove run-audit dir + manifest entry so only knowledge-drift-review
     # exists on disk; reference both in AGENTS.md.
@@ -471,6 +475,7 @@ def test_dangling_skill_refs_non_openspec_skill_without_dir_flagged(tmp_path):
     tree["scripts/scaffold_manifest.txt"] = tree["scripts/scaffold_manifest.txt"].replace(
         ".claude/skills/run-audit/SKILL.md\n", ""
     )
+    tree["scripts/scaffold_manifest_removed.txt"] += ".claude/skills/run-audit/\n"
     tree["AGENTS.md"] = _AGENTS_MD_CLEAN + (
         "\nUse `knowledge-drift-review` for the LLM pass and `run-audit` for the audit cycle.\n"
     )
@@ -484,6 +489,63 @@ def test_dangling_skill_refs_non_openspec_skill_without_dir_flagged(tmp_path):
 
     exit_code, _stdout = _run_main(tmp_path)
     assert exit_code == 1
+
+
+def test_dangling_skill_refs_retired_non_openspec_name_flagged(tmp_path):
+    """The blind spot D1 closes: a doc referencing a retired (tombstoned)
+    non-openspec skill name IS flagged. Confirmed this fails against the
+    pre-change hardcoded _NON_OPENSPEC_SKILL_TOKENS frozenset, which never
+    carried 'outstanding-work-review' (see task 2.4 apply report)."""
+    tree = _clean_tree()
+    tree["scripts/scaffold_manifest_removed.txt"] += ".claude/skills/outstanding-work-review/\n"
+    tree["AGENTS.md"] = _AGENTS_MD_CLEAN + (
+        "\nSee `outstanding-work-review` for the legacy workflow.\n"
+    )
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    dangling_findings = [f for f in findings if f.startswith("dangling-skill-refs:")]
+    assert len(dangling_findings) == 1
+    assert "AGENTS.md" in dangling_findings[0]
+    assert "outstanding-work-review" in dangling_findings[0]
+
+
+def test_dangling_skill_refs_current_non_openspec_name_not_flagged(tmp_path):
+    """A reference to a skill name that currently exists on disk is never
+    flagged, even if the manifest also (redundantly) lists it as removed —
+    disk-derived valid_tokens wins."""
+    tree = _clean_tree()
+    tree["scripts/scaffold_manifest_removed.txt"] += ".claude/skills/run-audit/\n"
+    tree["AGENTS.md"] = _AGENTS_MD_CLEAN + "\nSee `run-audit` for the audit cycle.\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    assert not any(f.startswith("dangling-skill-refs:") for f in findings)
+
+
+def test_dangling_skill_refs_non_skill_manifest_entry_contributes_no_token(tmp_path):
+    """A tombstoned non-skill entry (e.g. scripts/audit_bundle.py) contributes
+    no token to the scan vocabulary — referencing its literal text is not
+    flagged."""
+    tree = _clean_tree()
+    tree["scripts/scaffold_manifest_removed.txt"] += "scripts/audit_bundle.py\n"
+    tree["AGENTS.md"] = _AGENTS_MD_CLEAN + "\nSee scripts/audit_bundle.py for details.\n"
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    assert not any(f.startswith("dangling-skill-refs:") for f in findings)
+
+
+def test_dangling_skill_refs_absent_removed_manifest_no_crash(tmp_path):
+    """Missing scaffold_manifest_removed.txt -> empty derived vocabulary, no
+    crash, no dangling-skill-refs findings (manifest-optional, same as the
+    rest of this linter)."""
+    tree = _clean_tree()
+    del tree["scripts/scaffold_manifest_removed.txt"]
+    _write_tree(tmp_path, tree)
+
+    findings = scaffold_lint.collect_findings(tmp_path)
+    assert not any(f.startswith("dangling-skill-refs:") for f in findings)
 
 
 # ===================================================================

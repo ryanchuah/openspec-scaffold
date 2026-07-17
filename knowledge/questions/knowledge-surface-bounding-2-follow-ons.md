@@ -20,6 +20,3 @@ for the shipped decision. None of these gate other work.
    not redden the test suite and is only visible via a standalone script run. Consider wiring
    `boot_surface_lint` into `run-audit`'s reported surface so a WARN becomes visible without an
    operator manually invoking the script.
-
-(OW-13(d) plans/-count lint is tracked separately in `plans/plans-scope-alignment.md` /
-`knowledge/questions/INDEX.md` Parked — not duplicated here.)

@@ -6,14 +6,6 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
 
 ## From the verify checkpoint (field 5)
 
-- **First-downstream-run risk:** the gitleaks/osv-scanner/deptry/jscpd parsers are validated
-  against web-verified schemas + stubs only — no live binary has run them yet. The first
-  downstream `--report` run is the real integration test. Tool-version pins are recorded in
-  `EXPECTED_TOOL_VERSIONS` and were current 2026-07-02; they will rot over time. Recovery loop:
-  bump the pin, then re-run baseline triage (brief D9). Since `checks-facts-split` (2026-07-03) this
-  first run also exercises **preflight** for real (today only simulated against a tmp repo with
-  missing-on-purpose binaries) — the true multi-tool-missing report and the coverage-loss guidance
-  wording have never been seen against actual installed/absent tools.
 - **`data_lint.py` live-DB validation pending:** no Postgres exists in this repo; the first
   psc-monitor adoption run is what actually validates it. Downstream convention to set: check SQL
   should `LIMIT` its violating-row `SELECT` (the runner caps the recorded sample but still fetches
@@ -58,5 +50,3 @@ blockers — all are deferred, monitored, or gated behind a later operator actio
   deterministic linter now covers the `knowledge/audit-log.md` registry format this change introduces;
   see `knowledge/questions/knowledge-lint-follow-ons.md` for the still-open latent-check item (untested
   until a repo grows a real `audit-log.md`).
-- Delete `../extrends/AUDIT-WORKFLOW-HANDOFF.md` (superseded by the brief) — deferred along with
-  the extrends sync freeze.

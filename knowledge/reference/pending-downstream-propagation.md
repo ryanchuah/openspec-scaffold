@@ -18,8 +18,8 @@ reconciliation was needed (the knowledge_lint change is a relaxation — no new 
 - **extrends** — beacon `a2a450c`, commits `f671791` + `416a163` + `8271c3b` (local, unpushed).
   Standing per-repo caveats (unchanged): `[boot_surface_lint]` override 120K/140K in `checks.toml`;
   handoff-named files renamed `*-handoff.md` → `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero
-  entries). Data-lint stays **off** (repo DB is SQLite, blocked on the upstream `data_lint` SQLite
-  backend — `knowledge/questions/data-lint-sqlite-backend.md`). **New 2026-07-16:** pyproject `dev`
+  entries). Data-lint stays **off** (repo DB is SQLite; the upstream `data_lint.py` SQLite backend
+  has shipped, but extrends' `checks.toml` has not been re-wired to use it). **New 2026-07-16:** pyproject `dev`
   extra now declares `ruff==0.15.16`, installed into `.venv` (same self-contained-lint fix as
   psc-monitor). Full gate verified green with the venv activated.
 - **psc-monitor** — beacon `a2a450c`, commits `c83fed5` + `677240d` (local, unpushed). Standing

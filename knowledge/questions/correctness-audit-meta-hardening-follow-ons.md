@@ -25,10 +25,3 @@ follow-on if the "audit closed but no ledger seeded" gap is ever observed downst
 Chose the false-positive-safe "at least five, each non-empty" posture (rationale pinned in the
 archived change's `tasks.md` §2.1 + `review-log.md`). Monitored; revisit only if a concrete
 trade-off surfaces (e.g. a malformed line with exactly the right cell count still passing).
-
-## (d) OW-16 is the natural next change
-
-The `product-audit` skill (promise-surface / business-thesis audit), the claims-ledger convention,
-and the operationalization of classes 9-12 (carried by this change only as awareness pointers in
-the scope-seeding checklist) are OW-16 — chain-independent, slots in anywhere. Already tracked in
-`knowledge/research/scaffold-gap-analysis-2026-07/OUTSTANDING-WORK.md` (OW-16).

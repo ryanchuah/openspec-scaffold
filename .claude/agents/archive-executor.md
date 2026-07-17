@@ -81,6 +81,7 @@ If `notes.md` lacks a verify section, extract what you can from `proposal.md` an
 - **Active** — blockers only: open blockers, operator-decision items, in-flight backlogs that gate other work.
 - **Parked** — one-line pointers to per-item files at `knowledge/questions/<item>.md` for deferred, monitored, or low-priority follow-ons. There is no separate `parked-follow-ons.md` file.
 
+- **Before filing any follow-on, verify it was not already resolved by this very change** — check the change's own diff/commits, not just its prose, to confirm the ask is still open. File it only if it is. (Concrete failure this guards against: `repo-lint-fetchall-docstring.md` was filed 10 minutes after its own fix landed in the same change; `data-lint-sqlite-backend.md` was filed by a commit whose own message states the backend was already committed.)
 - **Pull the open follow-ons** from notes.md's "Candidate open-questions / follow-ons for archive" section (if present), or from design.md's Risks / deferred Non-Goals, then **route each by horizon:**
   - *Active* — an open blocker, an item needing an operator decision, or an in-flight backlog that gates other work → append it to the Active section of `knowledge/questions/INDEX.md`. Flag blockers with **BLOCKING**.
   - *Parked* — deferred, monitored ("watch and revisit if X recurs"), or low-priority cleanup that only matters when the relevant area is next worked → create `knowledge/questions/<item>.md` with the full item detail, then add a one-line pointer in the Parked section of `knowledge/questions/INDEX.md`.

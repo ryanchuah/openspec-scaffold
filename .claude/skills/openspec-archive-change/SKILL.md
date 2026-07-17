@@ -269,6 +269,7 @@ Archive a completed change in the experimental workflow.
        with alternatives rejected — not a paraphrase of the problem.
      - `knowledge/questions/INDEX.md` entry must contain ONLY active items (open follow-ons / blockers with **BLOCKING** flags where appropriate); deferred, monitored, or low-priority follow-ons must have been routed to the Parked section of `knowledge/questions/` (per-item files under `##` area headers); and **no live blocker was parked**.
      - `knowledge/STATUS.md` retains at most **3** change paragraphs (`## Latest change` / `## Prior change`) and any overflow is dropped (the oldest section is simply pruned — no separate log file).
+     - **Each filed follow-on was checked against this change's own diff/commits** and confirmed still open — not merely resolved by prose read. Two tracker files were filed stale by their own change's archive commit (`repo-lint-fetchall-docstring.md` 10 minutes after its own fix landed; `data-lint-sqlite-backend.md` by a commit whose message states the backend was already committed) — this is the concrete failure mode the check guards against.
    - **Fix trivial issues inline** (wording, missing field, minor formatting).
      For larger gaps — missing reconciliation, fabricated content, wrong structure —
      re-delegate to the archive-executor with a specific fix-spec and re-review.

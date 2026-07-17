@@ -85,10 +85,12 @@ Checks
     Scans ``AGENTS.md`` plus every ``.md`` file under ``.claude/skills/``
     (recursive — ``_shared/*.md`` is intentionally included and expected
     to stay clean), ``.claude/agents/``, and ``.opencode/agents/`` for
-    tokens matching ``\\bopenspec-[a-z][a-z-]*[a-z]\\b``, plus any token
-    in ``_NON_OPENSPEC_SKILL_TOKENS`` (an explicit set of non-``openspec-``
-    skill names, kept in step with actual skill directories). Every matched
-    token must resolve to one of: a skill directory name under
+    tokens matching ``\\bopenspec-[a-z][a-z-]*[a-z]\\b``, plus any token in
+    the non-``openspec-`` scan vocabulary derived from
+    ``scripts/scaffold_manifest_removed.txt`` (every tombstoned
+    ``.claude/skills/<name>/`` directory entry contributes its ``<name>``;
+    non-skill entries and a missing/unreadable manifest contribute nothing).
+    Every matched token must resolve to one of: a skill directory name under
     ``.claude/skills/``, an agent file stem under ``.claude/agents/`` or
     ``.opencode/agents/``, or the allowlist constant
     ``{"openspec-scaffold"}``. An unresolved token is a finding naming the
@@ -182,11 +184,14 @@ _SCAN_BASE_DIRS: tuple[str, ...] = (
 
 # dangling-skill-refs
 _TOKEN_RE = re.compile(r"\bopenspec-[a-z][a-z-]*[a-z]\b")
-# Non-openspec skills have no shared prefix to pattern-match, so police them by
-# explicit name. Keep in step with actual .claude/skills/ non-openspec dirs.
-_NON_OPENSPEC_SKILL_TOKENS: frozenset[str] = frozenset(
-    {"correctness-audit", "knowledge-drift-review", "product-audit", "run-audit"}
-)
+# Non-openspec skills have no shared prefix to pattern-match, so they need an
+# explicit scan vocabulary — unlike openspec-* names, which _TOKEN_RE matches
+# for free. That vocabulary is tombstone-derived (see
+# _removed_skill_names below) from scripts/scaffold_manifest_removed.txt
+# rather than hand-maintained, so it cannot drift the way a hardcoded set did
+# (D1 in this change's notes.md): every retired skill dir tombstoned there is
+# in scope for removed-name detection, and a current skill dir can never
+# false-positive because valid_tokens is disk-derived.
 _DANGLING_ALLOWLIST: frozenset[str] = frozenset({"openspec-scaffold"})
 
 # budget-agreement
@@ -400,15 +405,32 @@ def _agent_file_stems(root: Path) -> set[str]:
     return stems
 
 
+def _removed_skill_names(root: Path) -> set[str]:
+    """Return the set of retired skill names — the ``<name>`` in each
+    ``.claude/skills/<name>/`` directory entry tombstoned in
+    ``scripts/scaffold_manifest_removed.txt`` (reusing
+    ``_read_removed_manifest_entries``, which already ignores comments and
+    blanks). Non-skill entries (e.g. ``scripts/audit_bundle.py``) contribute
+    no token. A missing or unreadable manifest yields an empty set — this
+    check is manifest-optional, same as manifest-no-conflict."""
+    names: set[str] = set()
+    for entry in _read_removed_manifest_entries(root):
+        match = re.fullmatch(r"\.claude/skills/([^/]+)", entry)
+        if match:
+            names.add(match.group(1))
+    return names
+
+
 def check_dangling_skill_refs(root: Path, scanned: list[tuple[Path, str]]) -> list[str]:
     findings: list[str] = []
     valid_tokens = _skill_dir_names(root) | _agent_file_stems(root) | _DANGLING_ALLOWLIST
+    non_openspec_vocab = _removed_skill_names(root)
 
     for path, text in scanned:
         rel = path.relative_to(root).as_posix()
 
         tokens: set[str] = set(_TOKEN_RE.findall(text))
-        for t in _NON_OPENSPEC_SKILL_TOKENS:
+        for t in non_openspec_vocab:
             if re.search(rf"\b{re.escape(t)}\b", text):
                 tokens.add(t)
 

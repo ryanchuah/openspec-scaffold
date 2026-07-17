@@ -1115,10 +1115,13 @@ def _check_closed_unpruned(root: Path) -> list[Finding]:
 
                 i = j
 
-    # -- Check top-level plans/*.md --
+    # -- Check plans/**/*.md, recursively, excluding plans/archive/** --
     plans_dir = root / "plans"
     if plans_dir.is_dir():
-        for entry in sorted(plans_dir.glob("*.md")):
+        for entry in sorted(plans_dir.rglob("*.md")):
+            rel = _relpath(root, entry)
+            if rel.startswith("plans/archive/"):
+                continue
             if entry.name == "README.md":
                 continue
             try:
@@ -1126,7 +1129,6 @@ def _check_closed_unpruned(root: Path) -> list[Finding]:
             except OSError:
                 continue
             plan_lines = plan_text.splitlines()
-            rel = _relpath(root, entry)
 
             # Check all headings, Priority:, and Status: lines.
             tokens_found: list[tuple[int, str]] = []

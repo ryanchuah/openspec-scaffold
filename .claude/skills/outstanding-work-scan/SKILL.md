@@ -2,7 +2,6 @@
 name: outstanding-work-scan
 description: Surface all outstanding work — snapshot open items and newly surfaced findings, guide triage judgment. Operator-invoked, pull-only.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.1"

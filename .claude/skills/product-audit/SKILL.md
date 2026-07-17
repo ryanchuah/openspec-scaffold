@@ -2,7 +2,6 @@
 name: product-audit
 description: Run a single-session promise-surface / business-thesis audit — blind attack-list → five-lane evidence fan-out → per-attack disposition diff → operator ratification menu, with a machine-discriminable verdict. Operator-invoked, pull-only, never fixes product code.
 license: MIT
-compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
