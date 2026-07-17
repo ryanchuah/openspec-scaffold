@@ -882,11 +882,6 @@ def _duplicate_scan_files(root: Path, is_ignored: Callable[[str], bool]) -> list
                 if not fn.endswith(".md"):
                     continue
                 full = Path(dirpath, fn)
-                if _relpath(root, full) == SANCTIONED_HANDOFF:
-                    # The sanctioned handoff must not be one of the "2+
-                    # files" a duplicate window is counted across — it
-                    # legitimately quotes context forward.
-                    continue
                 files.append(full)
 
     # Top-level *.md
@@ -910,7 +905,14 @@ def _duplicate_scan_files(root: Path, is_ignored: Callable[[str], bool]) -> list
                     full = Path(dirpath, fn)
                     files.append(full)
 
-    return sorted(set(files))
+    # The sanctioned handoff must not be one of the "2+ files" a duplicate
+    # window is counted across — it legitimately quotes context forward.
+    # Excluded here, at the single return chokepoint, rather than per
+    # collection loop above: this guarantees no collection path — including
+    # a configured ``duplicate_scan_dirs`` root that happens to re-cover
+    # knowledge/ or "." — can re-add the sanctioned handoff to the compared
+    # set.
+    return sorted({f for f in files if _relpath(root, f) != SANCTIONED_HANDOFF})
 
 
 def _contiguous_runs(sorted_ints: list[int]) -> list[list[int]]:

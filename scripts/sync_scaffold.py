@@ -495,7 +495,8 @@ _REF_SCAN_EXCLUDE = ("openspec/changes/", "knowledge/research/")
 # in `_tracked_markdown` (its forward-referencing prose is not drift when read
 # as a source either) — keep both in step with knowledge_lint.EPHEMERAL_PATHS /
 # knowledge_lint.SANCTIONED_HANDOFF.
-_EPHEMERAL_PATHS = ("knowledge/HANDOFF.md", "knowledge/audit-log.md")
+_SANCTIONED_HANDOFF = "knowledge/HANDOFF.md"
+_EPHEMERAL_PATHS = (_SANCTIONED_HANDOFF, "knowledge/audit-log.md")
 # `knowledge/....md` path citations (e.g. in synced rules).
 _KNOWLEDGE_PATH_RE = re.compile(r"knowledge/[\w./-]+\.md")
 # `<file>.md § "Section"` citations (any file; we only resolve canonical docs).
@@ -534,7 +535,7 @@ def _tracked_markdown(repo: Path) -> list[str]:
     except (FileNotFoundError, subprocess.CalledProcessError):
         rels = [str(p.relative_to(repo)) for p in sorted(repo.rglob("*.md"))]
     rels = [r for r in rels if not any(x in r for x in _REF_SCAN_EXCLUDE)]
-    return [r for r in rels if r != "knowledge/HANDOFF.md"]
+    return [r for r in rels if r != _SANCTIONED_HANDOFF]
 
 
 _BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")

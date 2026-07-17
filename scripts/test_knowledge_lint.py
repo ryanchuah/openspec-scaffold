@@ -2318,6 +2318,48 @@ def test_over_broad_suppression_guard_non_handoff_file_still_flagged(tmp_path):
     assert any(f.check == "duplicate-content-block" for f in notes_findings)
 
 
+def test_duplicate_block_handoff_exempt_via_configured_scan_dir(tmp_path):
+    """(regression) A configured ``duplicate_scan_dirs`` entry that re-covers
+    ``knowledge/`` (or the whole repo) must not re-arm duplicate-content-block
+    against the sanctioned handoff. The exemption is applied at the
+    ``_duplicate_scan_files`` return chokepoint, not per collection loop, so
+    it survives regardless of which configured dir brought the handoff back
+    into scope.
+
+    Includes a THIRD, non-handoff file sharing the same block so the
+    duplicate check still has 2+ legitimate files to compare — proving the
+    chokepoint exclusion removes only the handoff, not the check's ability
+    to find real duplicates among the remaining files."""
+    _write_tree(
+        tmp_path,
+        {
+            "checks.toml": '[knowledge_lint]\nduplicate_scan_dirs = ["."]\n',
+            "knowledge/HANDOFF.md": (
+                f"# Session Handoff\n\n{_HANDOFF_QUOTED_BLOCK}\n\nTail unique to handoff.\n"
+            ),
+            "knowledge/README.md": (
+                f"# Knowledge README\n\n{_HANDOFF_QUOTED_BLOCK}\n\nTail unique to README.\n"
+            ),
+            "knowledge/reference/notes.md": (
+                f"# Notes\n\n{_HANDOFF_QUOTED_BLOCK}\n\nTail unique to notes.\n"
+            ),
+        },
+    )
+
+    findings = knowledge_lint.collect_findings(tmp_path)
+    dup_findings = [f for f in findings if f.check == "duplicate-content-block"]
+    dup_paths = {f.path for f in dup_findings}
+
+    # The sanctioned handoff is never flagged, and no collateral finding is
+    # attributable to it.
+    assert "knowledge/HANDOFF.md" not in dup_paths
+
+    # The two non-handoff files sharing the block ARE still flagged — the
+    # chokepoint exclusion did not blind the check generally.
+    assert "knowledge/README.md" in dup_paths
+    assert "knowledge/reference/notes.md" in dup_paths
+
+
 def test_handoff_named_file_at_other_path_still_flagged_both_checks(tmp_path):
     """(4.4) A handoff-NAMED file at a path OTHER than the exact sanctioned
     `knowledge/HANDOFF.md` is still flagged by both the handoff-named-file
