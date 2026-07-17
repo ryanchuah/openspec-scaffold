@@ -6,7 +6,29 @@ records scaffold changes that shipped **locally** (to scaffold `main`, unpushed)
 propagated**, plus any per-change caveat that matters at propagation time. It is per-repo state (not
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
-## Frontier — both downstreams current as of 2026-07-16
+## NOT yet propagated — `reconcile-parked-backlog` (shipped 2026-07-17, beacon `80e7a06`)
+
+Both downstreams are now **behind** — confirmed by a read-only `sync_scaffold.py --check`. This change
+touched 15 scaffold-managed files: `scripts/{freeze_check,knowledge_lint,test_freeze_check,test_knowledge_lint}.py`,
+`.claude/agents/archive-executor.md` + `.opencode/agents/archive-executor.md` (byte-identical pair —
+guarded by `test_executor_body_agreement.py`), `.claude/skills/openspec-archive-change/SKILL.md`,
+`knowledge/README.md`, and the frontmatter of 6 audit/workflow skills.
+
+Caveats that matter at propagation time:
+- **`knowledge_lint`'s `plans/` gather is now recursive** (excluding `plans/archive/`). This is a
+  *widening*, not a relaxation: a downstream repo with nested live plans under `plans/<sub>/` will see
+  **new** `closed-but-unpruned` findings that never fired before, and its live-tree doc-lint gate will
+  go red on them. Expect to triage real findings per repo — do not assume a clean sync.
+- **`scaffold_lint`'s scan vocabulary is now tombstone-derived.** A downstream repo whose docs still
+  reference a retired skill name (`lint-knowledge`, `outstanding-work-review`, `openspec-onboard`)
+  will now get a `dangling-skill-refs` finding that was previously invisible. That is the point of the
+  change, but it means the first sync may surface latent references. The scaffold's own scanned surface
+  was verified clean before shipping; the downstreams were not checked.
+- `freeze_check` bold-tolerance and the archive follow-on obligation are pure widenings/instructions —
+  no downstream findings expected.
+- `knowledge/README.md` gained the author-facing `<!-- lint:planned -->` marker documentation.
+
+## Frontier — both downstreams current as of 2026-07-16 (superseded by the entry above)
 Both converged to scaffold HEAD (beacon `a2a450c`) in the 2026-07-16 sync. It carried the two items
 formerly in "NOT yet propagated" — `split-outstanding-work-skills` (outstanding-work-review →
 outstanding-work-scan + new outstanding-work-deep-sweep; old dir removed via tombstone) and the
