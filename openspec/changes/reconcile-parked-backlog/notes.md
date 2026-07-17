@@ -4,12 +4,17 @@
 
 The parked backlog has decayed in two directions with one shared root cause:
 
-- **Stale paper.** 27 tracked items describe work that already shipped. Three were filed
+- **Stale paper.** 27 tracked items describe work that already shipped. **Two** were filed
   stale *by their own change's archive commit* — `repo-lint-fetchall-docstring.md` was
   filed 10 minutes AFTER its own fix landed (`e90961a2` 22:25:43 → `6d8024c` 22:35:59,
   same change); `data-lint-sqlite-backend.md` was filed by commit `8ceb1cc`, whose own
   message says it "accompanies the **already-committed** data_lint SQLite backend
   (`e604990`)".
+  *(Corrected at verify from "Three": `run-audit-untested.md` was also stale, but by a
+  different mechanism — it named its own resolution condition and that condition was met
+  later by extrends, so it was not filed-stale-by-its-own-change. The two-file count is the
+  one that evidences D3; the commit messages for `9344a7a`/`aba963f` say "three" and are
+  wrong on this point — history left unrewritten, corrected here.)*
 - **Unexecuted ready work.** A cluster of live mechanical gaps sits parked, two of which
   have now met their own recorded revisit triggers.
 
@@ -25,7 +30,9 @@ fixing the filing step means it re-decays — so the fix ships with the sweep.
   to Sonnet-first, recorded in that change's notes.md"). Justified independently by the work
   itself: evidence-gated prose surgery across 17 tracker files is judgment-adjacent, exactly
   the "judgment-heavy prose surgery" the carve-out names.
-- **Autonomy:** operator granted autonomy through verify, halting before archive.
+- **Autonomy:** initially granted through verify (halt before archive); **extended to archive**
+  by the operator in the follow-up session that resumed this change after the first apply
+  executor hit a session limit. Archive also pre-routed to Sonnet by the same instruction.
 - **Model tier:** Opus, not Fable. Execution-heavy with well-evidenced judgment; per the
   operator's Fable-scarcity working style, execution routes to Opus. No handoff warranted.
 
@@ -188,3 +195,116 @@ MEDIUM tier: acceptance criteria live here, not in a design.md (AGENTS.md).
 - Higher-risk parked items left untouched: verifier literal-spelling bypass, OpenCode
   gate-plugin gap, E501 ratchet, data_lint credential hygiene, dead-code campaign, and the
   two evidence-gated model-downgrade decisions (ledgers not yet full).
+
+## Verify checkpoint
+
+**1. Verdict:** READY for archive. Self-review READY; `deepseek/deepseek-v4-pro` behavioral
+pass `VERDICT: READY` (zero defects); simplicity/quality gate PASS.
+Security review: **not triggered** — the change touches no auth, credentials/secrets, persisted
+data, or external API/network surface. Data-path rule: **not triggered** — no data path modified,
+so no at-scale run or bounded-domain argument is owed. Live smoke: **not applicable** — no
+external-API surface exists to smoke (its absence is correct here, not a gap).
+
+**2. What was confirmed by eyeballing live output** (behavior, not counts):
+- **`plans/` recursion, real tree probe.** Planted `plans/probe-sub/closed-item.md` (nested, live)
+  and `plans/archive/probe-nested/old.md` (nested, archived). `knowledge_lint` flagged the nested
+  live plan as closed-but-unpruned — it was previously invisible to the top-level-only glob — and
+  did NOT flag the archived one. The `outstanding` gather listed the nested live plan and excluded
+  the archived one. Both gathers now agree; the three-way disagreement is gone. Probe removed, tree
+  re-verified clean.
+- **`scaffold_lint` vocabulary is genuinely non-empty**, derived live as
+  `{lint-knowledge, outstanding-work-review, openspec-onboard}`. This was the D1 no-op trap: the
+  parser fullmatches `.claude/skills/([^/]+)` against entries written with a trailing `/`, so had
+  the reader not stripped it the vocabulary would be silently EMPTY — and task 2.5's "zero findings"
+  would still have passed, because an empty vocabulary also yields zero findings. Checked directly
+  rather than inferred.
+- **The new retired-name test is not vacuous.** Reverted `scaffold_lint.py` to pre-change and re-ran
+  it: fails (`0 = len([])`); restored: passes. The blind spot is really closed.
+- **`freeze_check` emphasis tolerance did not become a blanket accept** — see field 3.
+- Live linters on the real tree: `knowledge_lint` OK, `scaffold_lint` clean, `check.sh` green,
+  `openspec validate --type change --strict` valid, `facts.py --check outstanding` regenerates.
+- **Boot surface returned to OK** (was WARN before this change).
+
+**Adversarial/boundary fixtures (orchestrator-authored, self-review core).** The diff carries
+decision logic in three places (a verdict regex, a manifest parser, a recursive gather), so the
+executor's green suite was treated as a single blind source and 27 independent fixtures were
+authored at inputs its tests did not reach. All pass. The load-bearing ones:
+- `freeze_check` **rejects** a verdict token mid-prose, blockquoted (`> VERDICT: PASS`), as a list
+  item (`- VERDICT: PASS`), and in inline code — i.e. tolerance did not degrade the gate.
+- `VERDICT: NEEDS REVISION` still **blocks** in all four emphasis spellings (a false READY there
+  would be the catastrophic failure).
+- last-anchored-wins semantics survive bolding in both directions.
+- manifest parser: trailing-slash and no-slash dir entries both contribute; non-skill entries,
+  nested paths, comments/blanks contribute nothing; absent manifest → empty set, no crash.
+
+**3. Defects found and how they were fixed:**
+- **(self-review, orchestrator)** Task 3.4's deletion of `plans/plans-scope-alignment.md` orphaned
+  citations in two other files. Caught by the live-tree `knowledge_lint` gate, not by planning.
+  Fixed by adding task 6.9. *Root cause: the cascade sweep was run for the Group 6 deletions but
+  never for the Group 3 deletion.*
+- **(apply-executor, Sonnet)** Three further orphan-citation cascades found by re-running
+  `knowledge_lint` after the Group 6 deletions (`composition-audit-cadence-follow-ons.md`,
+  `knowledge/reference/audit-runbook.md`, `pending-downstream-propagation.md`). Reworded to state
+  the live fact. The underlying downstream fact was independently operator-verified.
+- **(orchestrator, inline)** `knowledge/reference/resync-verification.md` §7 claimed "the manifest
+  has no delete mechanism" and named `openspec-onboard` as owed downstream. Both false. Worse than
+  a stale tracker entry — a runbook instructing agents to do manual work the mechanism already
+  does. Rewritten.
+- **(orchestrator, inline)** `lean-boot-context-follow-ons.md:5` pointed at `parked-follow-ons.md`,
+  a pre-restructure filename that has not existed since the knowledge migration. Repointed.
+- **(verify, orchestrator, inline)** notes.md over-claimed "Three" tracker files filed stale by
+  their own change; the evidence supports **two**. Corrected in place.
+- No defect required re-delegation to a fix executor. No Sonnet fallback was needed for a fix
+  (Sonnet ran apply itself, by operator pre-route).
+
+**4. As-built deltas vs the artifacts:**
+- Task 5.1 landed the archive obligation in the **orchestrator's review checklist** of
+  `openspec-archive-change/SKILL.md`, while 5.2 landed it in the two executor bodies as a
+  **filing-time** obligation. That two-layer split (executor does it; orchestrator verifies it) is
+  better than the single instruction the task specified. Both bodies remain byte-identical.
+- Task 4.3 was added post-freeze (recorded with rationale in `review-log.md`), and task 7.2 was
+  amended to remove all of §1 rather than keep §1(b), since 4.3 resolved it.
+- Task 6.9 was added mid-apply for the cascade above.
+- `verify-stale.md` was moved out of a volatile `/tmp` path into the change dir after the round-1
+  reviewer flagged it.
+
+**5. Forward-looking items for the project docs** (each is recorded NOWHERE else — fold into
+`knowledge/questions/INDEX.md` at archive):
+- **Un-backticked path references dangle invisibly.** `broken-prose-path-citation` only inspects
+  backtick-wrapped tokens, so a bare-prose filename reference can rot undetected — one
+  (`parked-follow-ons.md`) survived the entire `ai-docs/`→`knowledge/` restructure unseen and was
+  found by hand this session. Widening the check to bare tokens would be noisy (the backtick-only
+  scope is a deliberate false-positive guard), so the realistic mitigation is authoring discipline.
+  **Park as monitored, low priority.**
+- **extrends' `checks.toml` still disables `data-lint`** with a stale "Postgres-only … blocked on an
+  upstream scaffold change" comment, though the upstream SQLite backend shipped in `e604990`.
+  Operator-verified against the live checkout. Already recorded in the propagation ledger
+  (`knowledge/reference/pending-downstream-propagation.md`) — **no new question item needed**;
+  noted here so archive does not double-file it.
+- **`decisions/INDEX.md` year-split is still needed.** This change cleared the `boot_surface_lint`
+  WARN (81438 → 79607 bytes) but the margin is only ~400 bytes and `decisions/INDEX.md` alone is
+  ~33KB. The existing parked item (`knowledge-surface-bounding-2-follow-ons.md`) stays live and
+  will re-trigger soon. **Do not close it on the strength of this change.**
+- **Composition audit is DUE** (46 archived changes ≥ 10; 211 commits ≥ 100). Operator ceremony,
+  not a change. Surface to the operator.
+- **`commit-gate-bypass` remains parked** (`knowledge/questions/commit-gate-bypass.md`, committed
+  `af71194`) — prefix-anchored matcher + Claude-only. Deliberately excluded from this change as a
+  cross-agent design decision deserving its own. **Leave parked; do not close.**
+- **`knowledge-lint-gitignored-citation-exempt/` is still unarchived** — verified and landed
+  (`7f23eda`), needs only an archive-move. Flag to the operator.
+- **The verifier's terse verdict block** — the pro pass emitted a well-formed but evidence-free
+  block despite genuinely doing the work (443KB transcript: ran `pytest -q`, all three linters, read
+  all 5 delta specs). This is the already-parked `verify-adversarial-fixtures-follow-ons.md`
+  "verifier verdict-block adherence, monitored" item — **another observation for it, not a new item.**
+
+**Still owned by archive:**
+- `knowledge/STATUS.md` — add this change's section (≤3 sections, ≤150 words; drop the oldest).
+- `knowledge/decisions/INDEX.md` — registry lines for D1 (tombstone-derived scan vocabulary,
+  superseding the old D2 removed-name trade-off), D2 (sweep is apply work), D3 (archive filing
+  obligation).
+- `knowledge/questions/INDEX.md` — fold in field 5 above.
+- Promote the 5 delta specs into `openspec/specs/` (4 MODIFIED + 1 ADDED). **MODIFIED deltas replace
+  the whole requirement** — they were diff-verified against their originals at propose; promote
+  faithfully.
+- Move the change dir to `openspec/changes/archive/2026-07-17-reconcile-parked-backlog/`.
+- Delete `knowledge/HANDOFF.md` if present (already removed during apply).
