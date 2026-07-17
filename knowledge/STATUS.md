@@ -12,7 +12,20 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — handoff-lint-exempt SHIPPED (2026-07-17)
+## Latest change — knowledge-lint-gitignored-citation-exempt SHIPPED (2026-07-17)
+
+`knowledge_lint.py`'s broken-citation check exempted only the single hardcoded `output/`
+prefix, so a legitimate citation to any other generated/gitignored path (e.g. psc-monitor's
+`deploy/rendered/crontab.txt`) flagged as broken on a clean checkout. Fixed by threading the
+existing `is_ignored` git-check-ignore callable into `_check_broken_citations`, skipping any
+citation target git actually ignores; the `output/` literal stays as the git-unavailable
+fallback so behavior is unchanged when git is absent. Verify: independent Sonnet
+premise+behavioral review returned AGREE/CONFIRMED with no defects, and `check.sh` ran green
+(new unit test reproduces the psc-monitor scenario end-to-end and fails without the guard).
+Decisions: `knowledge/decisions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-17-knowledge-lint-gitignored-citation-exempt/`.
+
+## Prior change — handoff-lint-exempt SHIPPED (2026-07-17)
 
 `knowledge_lint.py` was scanning the mandated `knowledge/HANDOFF.md` mid-session handoff as ordinary
 steady-state prose, so its forward references, retired-path tokens, planned archive pointers, and
@@ -44,31 +57,16 @@ inferred; the system ran clean end to end. Decisions: `knowledge/decisions/INDEX
 `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-17-reconcile-parked-backlog/`.
 
-## Prior change — split-outstanding-work-skills SHIPPED (2026-07-16)
-
-Split the overloaded `outstanding-work-review` skill in two: renamed to `outstanding-work-scan`
-(cheap deterministic gather + untriaged-bucket dedup only) and added `outstanding-work-deep-sweep`
-(pull-only, operator-invoked five-category residual prose sweep as parallel subagents), mirroring
-the deterministic-check-vs-deep-audit split. Verify: self-review + pro behavioral pass + flash
-test-quality lens all READY, simplicity gate PASS; one defect (tombstone written file-form instead
-of dir-form) found by orchestrator self-review and fixed inline, confirmed via read-only
-`sync_scaffold.py --check`; `check.sh` and `openspec validate --strict` clean. Decisions:
-`knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Downstream propagation
-to psc-monitor/extrends is operator-gated (`knowledge/reference/pending-downstream-propagation.md`).
-Archive: `openspec/changes/archive/2026-07-16-split-outstanding-work-skills/`.
-
 ## Immediate next action
-No proactive build in flight. `handoff-lint-exempt` shipped —
-`openspec/changes/archive/2026-07-17-handoff-lint-exempt/` — restoring the mandated
-`knowledge/HANDOFF.md` handoff mechanism to committable. Downstream propagation to
+No proactive build in flight. `knowledge-lint-gitignored-citation-exempt` shipped —
+`openspec/changes/archive/2026-07-17-knowledge-lint-gitignored-citation-exempt/`. Downstream propagation to
 psc-monitor/extrends **is done** (2026-07-17): both converged to beacon `27adff6` and committed
 locally (unpushed — push stays operator-gated); per-repo detail and standing caveats in
 `knowledge/reference/pending-downstream-propagation.md`. Two concrete items remain ready for an
 operator call: the composition-audit ceremony is now **DUE** (both the archived-change and commit
 thresholds are crossed — an operator ceremony, not a scaffold change; the live signal is
 self-computed, run `facts.py --check outstanding` for the current figures rather than trusting a
-number written here); and `openspec/changes/knowledge-lint-gitignored-citation-exempt/` is already
-verified and landed (`7f23eda`) and needs only an archive-move.
+number written here).
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new

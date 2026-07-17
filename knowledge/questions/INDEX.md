@@ -2,10 +2,6 @@
 
 ## Active
 
-- `knowledge-lint-gitignored-citation-exempt` is verified and landed (`7f23eda`) but still sits
-  unarchived at `openspec/changes/knowledge-lint-gitignored-citation-exempt/` — needs only an
-  operator go-ahead to archive-move. Surfaced during `reconcile-parked-backlog` (2026-07-17).
-
 ## Parked
 
 - Commit-test-gate bypassable — `if: Bash(git commit*)` matcher is prefix-anchored (compound/`-C`/env-prefixed/bang commits skip it silently); also Claude-only (non-Claude agents never run it). Consider a git-native `core.hooksPath` pre-commit hook. Evidence: psc-monitor `0e5a823`. → `knowledge/questions/commit-gate-bypass.md`
