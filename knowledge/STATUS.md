@@ -12,7 +12,22 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — detect-truncated-stream SHIPPED (2026-07-18)
+## Latest change — security-audit skill graduated (OW-17) SHIPPED (2026-07-18)
+
+Graduated the reusable `security-audit` skill from psc-monitor's AP-1 proving run (run-first,
+graduate-after — the OW-16 path). Ships a normative spec `openspec/specs/security-audit/spec.md`
+(8 requirements) + an operator-invoked, pull-only skill: a lane-split adversarial audit — charter
+(lane select + attacker persona + secrets-exclusion) → front-loaded scanner floor
+(SAST-is-a-floor-not-a-finder) → per-lane adversarial passes (empirical-probe-first;
+confirm-the-negatives are the clean-lane deliverable) → delegated flash-refuter (money/abuse races
+surfaced, not auto-fixed) → cross-lane completeness critic →
+`SECURITY: CLEAN|FINDINGS-ROUTED|ESCALATE` → finding-closure ratchet, with multi-session liveness +
+deploy-time edge deferral. First scaffold skill owning the classic vuln classes. The deterministic
+half (bandit/semgrep) shipped earlier as `graduate-sast-scanners`. NOT Fable (guardrailed). Verify:
+all deterministic gates green + orchestrator self-review. Record:
+`openspec/changes/archive/2026-07-18-graduate-security-audit-skill/`.
+
+## Prior change — detect-truncated-stream SHIPPED (2026-07-18)
 
 A `detect_truncated_stream()` helper in `scripts/opencode_delegate.py` catches
 silently-truncated `opencode run` streams — the provider returns an empty completion,
@@ -36,34 +51,18 @@ alone, no standalone script needed. Verify: flash premise pass returned AGREE, f
 returned READY zero-defect, full suite green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
 `knowledge/questions/INDEX.md`. Record: `plans/archive/custom-checks-family-fix/`.
 
-## Prior change — git-native-commit-gate SHIPPED (2026-07-18)
-
-A git-native `pre-commit` hook (`scripts/githooks/pre-commit`, wired via `core.hooksPath` through new
-`scripts/setup-hooks.sh`) now enforces the commit-test gate on every `git commit` regardless of
-command spelling or agent harness, closing the prefix-evasion gap (`cd && git commit`,
-`git -C … commit`, `env … git commit`) and the Claude-only gap (OpenCode/DeepSeek and
-operator-terminal commits were never gated). The existing Claude `PreToolUse` `scripts/test-gate.sh`
-now defers (fail-safe) to git-native when it is wired, so a normally-set-up clone runs the gate at
-most once per commit; a clone that skipped setup keeps the Claude-only fallback. Verify: the real
-git-native hook blocked red commits across every evasion spelling in a throwaway repo, allowed a
-`--no-verify` commit (the visible opt-out) and a green commit; `test-gate.sh` correctly deferred when
-git-native was active and ran `check.sh` itself under `--no-verify`; this repo now dogfoods
-git-native. Independent behavioral and test-quality verifier passes both returned READY zero-defect.
-Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-18-git-native-commit-gate/`.
-
 ## Immediate next action
-No proactive build in flight. `detect-truncated-stream` shipped —
-`plans/archive/detect-truncated-stream/`. Downstream propagation is **PENDING** for five
-unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
-psc-monitor's registry is already condensed), `graduate-sast-scanners` (scaffold-managed files
-propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep),
-`git-native-commit-gate` (scaffold-managed files propagate byte-identical incl. exec bit; each
-downstream must run `bash scripts/setup-hooks.sh` once), `custom-checks-family-fix`
-(scaffold-managed `checks.py`/`test_checks.py`; propagates byte-identical, no per-repo manual step),
-and `detect-truncated-stream` (scaffold-managed `opencode_delegate.py`/`test_opencode_delegate.py`
-propagate byte-identical; harness/skill docs propagate via manifest; spec edit already committed
-directly to canonical spec).
+No proactive build in flight. `security-audit` skill graduated (OW-17) — archived
+`openspec/changes/archive/2026-07-18-graduate-security-audit-skill/`, committed to scaffold `main`
+locally (unpushed). Downstream propagation is **PENDING** for one change:
+`graduate-security-audit-skill` (skill `SKILL.md` + `scaffold_manifest.txt` propagate byte-identical
+and additive; the normative spec `openspec/specs/security-audit/spec.md`, the `security-scanners.md`
+header fix, and the OW-17 tracker entry are scaffold-only / per-repo knowledge and are NOT
+auto-propagated — matching the product-audit/composition-audit precedent, where the skill ships
+downstream and its spec stays in the scaffold, `--check-refs` still green; no mandatory per-repo
+step). The five prior changes (`roll-decisions-index`, `graduate-sast-scanners`,
+`git-native-commit-gate`, `custom-checks-family-fix`, `detect-truncated-stream`) were propagated in
+the 2026-07-18 frontier (both downstreams at beacon `36adc01`, commit `2c5e6b2`).
 See `knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change
 caveats.
 The composition-audit ceremony remains **DUE** (an operator ceremony, not a scaffold change; run

@@ -167,9 +167,25 @@ Neither downstream is pushed — push is operator-gated.
 
 ## Shipped locally — NOT yet propagated
 
-None — all five items (`roll-decisions-index`, `graduate-sast-scanners`, `git-native-commit-gate`,
-`custom-checks-family-fix`, `detect-truncated-stream`) were propagated in the 2026-07-18 frontier
-above. Their full records live in `openspec/changes/archive/`.
+- **`graduate-security-audit-skill`** (OW-17, archived
+  `openspec/changes/archive/2026-07-18-graduate-security-audit-skill/`; scaffold `main` local,
+  unpushed). Adds the `security-audit` skill + its normative spec.
+  **Propagation caveats:**
+  - `.claude/skills/security-audit/SKILL.md` is manifest-listed (added to `scaffold_manifest.txt`),
+    so it + the updated manifest propagate **byte-identical and additive** — no downstream gate
+    reddens (new pull-only skill, wired into nothing).
+  - The normative spec `openspec/specs/security-audit/spec.md` is **scaffold-only** —
+    `openspec/specs/` is not scaffold-managed. Precedent (`product-audit`, `composition-audit`):
+    downstream repos carry the **skill but not the spec**, and `--check-refs` stays green (a skill's
+    `openspec/specs/<name>/spec.md` citation does not dangle when the spec is absent downstream). So
+    **no mandatory per-repo step**; optionally sweep the spec if a downstream wants the local
+    normative copy.
+  - `knowledge/reference/security-scanners.md` (the "two scanners" → four fix) and the OW-17 tracker
+    entry are **per-repo knowledge** (not auto-propagated); carry them by hand only if a downstream
+    wants them.
+  - The **deterministic half** (bandit/semgrep in `checks.py`) already propagated with
+    `graduate-sast-scanners` in the 2026-07-18 frontier, so the skill's scanner floor is already live
+    downstream (default-disabled; `semgrep`/`bandit` need provisioning per `security-scanners.md`).
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

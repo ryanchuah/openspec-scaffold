@@ -1,11 +1,12 @@
 # Security scanners — required tools & provisioning
 
-Agent-neutral reference for the two security scanners the scaffold expects, their pinned
+Agent-neutral reference for the security scanners the scaffold expects — two Go binaries
+(`gitleaks`, `osv-scanner`) plus two Python SAST tools (`semgrep`, `bandit`) — their pinned
 versions, and how to provision them **per environment**. The scaffold *documents and provisions*
 these tools; per-repo **CI enforcement** (making a scan failure block a merge) is downstream
 wiring, deferred to D1/D2 — this doc is the single source for *what* to install and *how*.
 
-## The two scanners
+## The Go-binary scanners (secrets + known-CVE)
 
 | Tool | Detects | Pinned version | Go module path (`go install …@<version>`) |
 |---|---|---|---|

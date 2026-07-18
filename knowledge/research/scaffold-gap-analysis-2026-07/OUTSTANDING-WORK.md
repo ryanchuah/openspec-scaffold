@@ -367,6 +367,38 @@ anywhere after the frozen batch. Standard escalation caveat.
 
 ---
 
+## OW-17 · `security-audit` scaffold skill (adversarial vuln-class audit)  ·  Tier: MEDIUM  ·  Orch: **Opus (NOT Fable — guardrailed)**
+**STATUS 2026-07-18: SHIPPED** (`openspec/changes/archive/2026-07-18-graduate-security-audit-skill/`).
+Registered post-backlog (the wave-2 backlog was EMPTY at OW-16); this is a net-new graduation, not a
+wave-2 item — the security-audit gap was an *acknowledged* one (`psc-issues.md`: "a dedicated
+security-audit wave is an acknowledged, separate gap") never promoted to a numbered item until now.
+**Why:** the audit family had seven skills, **none owning the classic vuln classes** (authn/session,
+authz/IDOR, injection, crypto/secrets, payment integrity, supply-chain); the only security surface
+was the per-change, diff-scoped pass in `openspec-verify-change` — never a whole-repo adversarial
+audit. A repo can pass every chartered correctness audit and still ship an account-takeover
+misconfig, because no correctness charter's universe contains the security surface.
+**Method:** run-first-graduate-after (like OW-16). psc-monitor ran the first full-depth audit (AP-1,
+`plans/security-audit-ap1/`) across identity/session, authz/IDOR, money/Stripe, data layer, and
+frontend/supply-chain — surfacing one HIGH (placeholder-secret prod boot guard → forgeable JWT) and
+two PII/info leaks, with billing + frontend audited clean; each session logged lessons feeding this
+graduation.
+**Scope (shipped):** normative spec `openspec/specs/security-audit/spec.md`
+(the `security-audit` capability, 8 requirements) + operator-invoked/pull-only skill
+`.claude/skills/security-audit/SKILL.md` — charter (lane select + attacker persona +
+secrets-exclusion) → deterministic scanner floor (front-loaded; SAST-is-a-floor-not-a-finder) →
+per-lane adversarial passes (empirical-probe-first; confirm-the-negatives are the deliverable) →
+delegated flash-refuter verification (money/abuse races surfaced not auto-fixed) → cross-lane
+completeness critic → `SECURITY: CLEAN|FINDINGS-ROUTED|ESCALATE` verdict → finding-closure ratchet,
+with multi-session liveness + deploy-time edge deferral. The **deterministic half** (bandit/semgrep
+into `checks.py`) shipped separately as `2026-07-18-graduate-sast-scanners`; this is the LLM ceremony
+that stands on it.
+**Evidence:** `plans/security-audit-ap1/` in psc-monitor (audit-plan Q1–Q8, findings.md,
+session-lessons.md — the reference run + the lessons this skill distills).
+**Effort:** ~1 day (authoring; the scanner floor was already shipped). **Deps:** builds on
+`graduate-sast-scanners` (the scanner floor); otherwise independent.
+
+---
+
 ## New findings — 2026-07-10 OW-3 session (Fable; untriaged, small, none block anything)
 
 1. **OW-2's frozen delta fails `openspec validate`.** `lesson-check-ratchet`'s
@@ -411,6 +443,9 @@ anywhere after the frozen batch. Standard escalation caveat.
   **Update 2026-07-13/14: OW-9, OW-14, OW-1, OW-4, OW-7, OW-10, OW-11 (both halves), OW-13,
   OW-8, OW-5, OW-15, OW-16, OW-12 are DONE** (SHIPPED — see per-item STATUS lines above). **The
   wave-2 scaffold-hardening backlog is now EMPTY.**
+  **Update 2026-07-18: OW-17 (`security-audit` skill) added post-backlog and SHIPPED** — a net-new
+  graduation (not a wave-2 item; the security-audit gap was acknowledged but never numbered until
+  now). The wave-2 backlog remains empty; OW-17 stands alone.
 - **Post-backlog verdict (2026-07-11):** after this backlog lands, scaffold process optimization
   is at diminishing returns — further sessions should spend downstream (extrends' ~33 open
   defect classes) rather than on new scaffold mechanisms. See AUDIT.md non-findings for the
