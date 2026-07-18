@@ -314,6 +314,55 @@ class CustomCheckTest(AuditBundleTestBase):
         rc, out = self._capture(["--check", "failer", "--out", str(out_dir)])
         self.assertEqual(rc, 2)
 
+    def test_custom_check_family_fact_registers_as_fact(self):
+        (self.repo / "checks.toml").write_text(
+            "[checks.custom.myfact]\n"
+            'command = ["sh", "-c", "echo hello-fact"]\n'
+            'tier = "floor"\n'
+            'family = "fact"\n'
+        )
+        rc, out = self._capture(["--list"])
+        self.assertEqual(rc, 0)
+        line = next(line for line in out.splitlines() if line.split()[0] == "myfact")
+        self.assertEqual(line.split()[2], "fact")
+
+    def test_custom_check_family_fact_preflight_exempt(self):
+        """A custom fact-family check with a missing command binary
+        degrades gracefully in --report instead of INFRA-FAILing."""
+        (self.repo / "checks.toml").write_text(
+            "[checks.custom.missingfact]\n"
+            'command = ["nonexistent-binary-xyz-123"]\n'
+            'tier = "heavy"\n'
+            'family = "fact"\n'
+        )
+        out_dir = self.tmpdir / "out4"
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        self.assertNotIn("INFRA-FAIL", err_buf.getvalue())
+
+    def test_custom_check_invalid_family_falls_back_to_check_and_gates(self):
+        """An unrecognized family value must fall back to check-family
+        (gating-safe default), not silently become fact-exempt."""
+        (self.repo / "checks.toml").write_text(
+            "[checks.custom.badfamily]\n"
+            'command = ["nonexistent-binary-xyz-123"]\n'
+            'tier = "heavy"\n'
+            'family = "banana"\n'
+        )
+        rc, out = self._capture(["--list"])
+        self.assertEqual(rc, 0)
+        line = next(line for line in out.splitlines() if line.split()[0] == "badfamily")
+        self.assertEqual(line.split()[2], "check")
+
+        out_dir = self.tmpdir / "out5"
+        out_buf, err_buf = io.StringIO(), io.StringIO()
+        with redirect_stdout(out_buf), redirect_stderr(err_buf):
+            rc = checks.main(["--report", "--out", str(out_dir)])
+        self.assertEqual(rc, 3)
+        self.assertIn("INFRA-FAIL", err_buf.getvalue())
+
 
 class ConfigCoercionTest(AuditBundleTestBase):
     """Fix 6: scalar-string TOML values are coerced to the equivalent

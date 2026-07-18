@@ -61,9 +61,12 @@ list is a classic silent no-op footgun; any other scalar type (int, bool,
 (list[str], the argv to run), ``tier`` (``floor|heavy|snapshot``, default
 ``heavy`` if omitted), ``gate`` (bool, default ``true``: nonzero exit =
 findings/exit-2 class; ``gate = false`` = report-only — output is still
-captured and the run continues regardless of exit code). Output is always
-captured verbatim to ``<check>.txt`` with a null findings-count (`?` in the
-stdout summary) — there is no parser for custom commands.
+captured and the run continues regardless of exit code). ``family``
+(``check|fact``, default ``check``; ``fact`` = preflight-exempt and
+degrades gracefully instead of INFRA-FAILing when its ``command`` is
+unavailable). Output is always captured verbatim to ``<check>.txt`` with a
+null findings-count (`?` in the stdout summary) — there is no parser for
+custom commands.
 
 **D3 caveat (custom checks):** the engine cannot prevent a custom
 ``command`` from writing to the repo — keeping a custom check check-only is
@@ -388,12 +391,17 @@ def _custom_checks(config: dict) -> list[dict]:
     custom_cfg = config.get("checks", {}).get("custom", {})
     result = []
     for name, spec in custom_cfg.items():
+        family = str(spec.get("family", "check")).strip().lower()
+        if family not in ("check", "fact"):
+            # Gating-safe default: an unrecognized value (typo like "chek") must NOT
+            # silently become fact-exempt. Invalid -> "check" (gated), never "fact".
+            family = "check"
         result.append(
             {
                 "name": name,
                 "tier": spec.get("tier", "heavy"),
                 "kind": "custom",
-                "family": "check",
+                "family": family,
                 "command": spec.get("command", []),
                 "gate": spec.get("gate", True),
             }
