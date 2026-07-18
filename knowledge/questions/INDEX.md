@@ -50,3 +50,4 @@
 - An apply-executor wrote directly to `openspec/specs/`, bypassing archive promotion — task-authoring smell; one instance, no damage (monitored, low priority) → `knowledge/questions/apply-wrote-canonical-spec.md`
 - research-exclusion configured-scan-dir leak (same class as the handoff leak `handoff-lint-exempt` fixed; pre-existing, deferred) → `knowledge/questions/research-exclusion-scan-dir-leak.md`
 - `opencode_delegate.py` extract_text returns only the last text part, causing intermittent false `marker-missing` escalations (generalizable harness defect, monitored) → `knowledge/questions/opencode-delegate-extract-text-last-part-only.md`
+- roll-decisions-index follow-ons (shipped 2026-07-17): pointer-line insertion position hardening, budget-tuning cross-reference → `knowledge/questions/roll-decisions-follow-ons.md`

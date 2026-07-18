@@ -12,7 +12,21 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — knowledge-lint-gitignored-citation-exempt SHIPPED (2026-07-17)
+## Latest change — roll-decisions-index SHIPPED (2026-07-17)
+
+The `knowledge/decisions/INDEX.md` registry only ever grows, and had already crossed the boot-surface
+budget once, so this change mechanizes a pressure-triggered rolling window: `INDEX.md` keeps a
+byte-budgeted newest tail (default 16,000 bytes, `checks.toml`-overridable) while older entries roll
+verbatim to `knowledge/decisions/HISTORY.md` via new `scripts/roll_decisions.py`; `knowledge_lint`
+gained the `decisions-index-budget` check naming the remedy, and `boot_surface_lint`'s WARN/FAIL
+output now names it too. Verify: self-review found and fixed one real defect (a stray entry-count
+mention), the independent behavioral pass returned READY zero-defect, and a simplicity-gate review
+passed with one accepted low-severity finding (a microseconds-wide non-atomic write window, fully
+git-recoverable). This repo's own registry was rolled — boot surface is back under the default WARN.
+Resolves OW-13(b). Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
+Archive: `openspec/changes/archive/2026-07-17-roll-decisions-index/`.
+
+## Prior change — knowledge-lint-gitignored-citation-exempt SHIPPED (2026-07-17)
 
 `knowledge_lint.py`'s broken-citation check exempted only the single hardcoded `output/`
 prefix, so a legitimate citation to any other generated/gitignored path (e.g. psc-monitor's
@@ -42,31 +56,16 @@ file still flags (no over-broad suppression). Decisions: `knowledge/decisions/IN
 (`knowledge/reference/pending-downstream-propagation.md`). Archive:
 `openspec/changes/archive/2026-07-17-handoff-lint-exempt/`.
 
-## Prior change — reconcile-parked-backlog SHIPPED (2026-07-17)
-
-Swept the parked-questions backlog after finding two tracker files were filed stale by their own
-change's archive commit; fixed the root cause (the archive step must verify a follow-on was not
-already resolved by the very change being archived before filing it) and closed every genuinely-stale
-item against an adversarially re-verified evidence list. Also shipped three small mechanical fixes the
-sweep surfaced: `freeze_check` bold-emphasis tolerance (still line-anchored), `scaffold_lint`'s
-tombstone-derived skill vocabulary (closing a removed-name blind spot structurally), and
-`knowledge_lint`'s recursive `plans/` gather (agreeing with `outstanding.py`). Verify: self-review and
-an independent behavioral pass both READY; live probes were eyeballed directly (planted nested-plan
-fixtures; reverted-then-restored `scaffold_lint.py` to confirm the new test isn't vacuous) rather than
-inferred; the system ran clean end to end. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-17-reconcile-parked-backlog/`.
-
 ## Immediate next action
-No proactive build in flight. `knowledge-lint-gitignored-citation-exempt` shipped —
-`openspec/changes/archive/2026-07-17-knowledge-lint-gitignored-citation-exempt/`. Downstream propagation to
-psc-monitor/extrends **is done** (2026-07-17): both converged to beacon `27adff6` and committed
-locally (unpushed — push stays operator-gated); per-repo detail and standing caveats in
-`knowledge/reference/pending-downstream-propagation.md`. Two concrete items remain ready for an
-operator call: the composition-audit ceremony is now **DUE** (both the archived-change and commit
-thresholds are crossed — an operator ceremony, not a scaffold change; the live signal is
-self-computed, run `facts.py --check outstanding` for the current figures rather than trusting a
-number written here).
+No proactive build in flight. `roll-decisions-index` shipped —
+`openspec/changes/archive/2026-07-17-roll-decisions-index/`. Downstream propagation is **PENDING
+again**: this change shipped locally-unpropagated (see
+`knowledge/reference/pending-downstream-propagation.md`, "Shipped locally — NOT yet propagated"),
+and each downstream repo must run its own `scripts/roll_decisions.py` roll BEFORE its live-tree
+`knowledge_lint` gate sees the new `decisions-index-budget` check (psc-monitor's registry is already
+well over the new default budget). The composition-audit ceremony remains **DUE** (an operator
+ceremony, not a scaffold change; run `facts.py --check outstanding` for current figures rather than
+trusting a number written here).
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new

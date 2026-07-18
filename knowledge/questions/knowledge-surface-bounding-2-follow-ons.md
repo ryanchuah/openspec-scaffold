@@ -4,11 +4,11 @@ Deferred items surfaced by the change; see `knowledge/decisions/INDEX.md` (`know
 for the shipped decision. None of these gate other work.
 
 1. **OW-13(b) — decisions/INDEX.md pressure relief. RESOLVED 2026-07-17.** The operator call landed
-   on the pressure-triggered chronological roll (`roll-decisions-index` change — this change), which
-   supersedes the year-split idea: `knowledge/decisions/INDEX.md` keeps only a byte-budgeted newest
-   tail, older entries roll verbatim to `knowledge/decisions/HISTORY.md` via `scripts/roll_decisions.py`.
-   Applied to this repo's own registry — INDEX.md now holds only the newest tail and the boot
-   surface is back under the default WARN threshold.
+   on the pressure-triggered chronological roll (`openspec/changes/archive/2026-07-17-roll-decisions-index/`),
+   which supersedes the year-split idea: `knowledge/decisions/INDEX.md` keeps only a byte-budgeted
+   newest tail, older entries roll verbatim to `knowledge/decisions/HISTORY.md` via
+   `scripts/roll_decisions.py`. Applied to this repo's own registry — INDEX.md now holds only the
+   newest tail and the boot surface is back under the default WARN threshold.
 
 2. **Budget/threshold tuning.** The `status_lint.py` `EXEMPT_HEADING_BUDGETS` word budgets
    (current state 500 / immediate next action 550 / done 300 / pointers 200) and
