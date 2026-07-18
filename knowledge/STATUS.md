@@ -12,7 +12,23 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — graduate-sast-scanners SHIPPED (2026-07-18)
+## Latest change — git-native-commit-gate SHIPPED (2026-07-18)
+
+A git-native `pre-commit` hook (`scripts/githooks/pre-commit`, wired via `core.hooksPath` through new
+`scripts/setup-hooks.sh`) now enforces the commit-test gate on every `git commit` regardless of
+command spelling or agent harness, closing the prefix-evasion gap (`cd && git commit`,
+`git -C … commit`, `env … git commit`) and the Claude-only gap (OpenCode/DeepSeek and
+operator-terminal commits were never gated). The existing Claude `PreToolUse` `scripts/test-gate.sh`
+now defers (fail-safe) to git-native when it is wired, so a normally-set-up clone runs the gate at
+most once per commit; a clone that skipped setup keeps the Claude-only fallback. Verify: the real
+git-native hook blocked red commits across every evasion spelling in a throwaway repo, allowed a
+`--no-verify` commit (the visible opt-out) and a green commit; `test-gate.sh` correctly deferred when
+git-native was active and ran `check.sh` itself under `--no-verify`; this repo now dogfoods
+git-native. Independent behavioral and test-quality verifier passes both returned READY zero-defect.
+Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
+`openspec/changes/archive/2026-07-18-git-native-commit-gate/`.
+
+## Prior change — graduate-sast-scanners SHIPPED (2026-07-18)
 
 Semgrep and Bandit graduated as built-in parsed checks in `checks.py` (heavy-tier,
 default-disabled, version-recorded-not-gated for sync-safety); `install-tools.sh` restructured
@@ -39,25 +55,14 @@ git-recoverable). This repo's own registry was rolled — boot surface is back u
 Resolves OW-13(b). Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
 Archive: `openspec/changes/archive/2026-07-17-roll-decisions-index/`.
 
-## Prior change — knowledge-lint-gitignored-citation-exempt SHIPPED (2026-07-17)
-
-`knowledge_lint.py`'s broken-citation check exempted only the single hardcoded `output/`
-prefix, so a legitimate citation to any other generated/gitignored path (e.g. psc-monitor's
-`deploy/rendered/crontab.txt`) flagged as broken on a clean checkout. Fixed by threading the
-existing `is_ignored` git-check-ignore callable into `_check_broken_citations`, skipping any
-citation target git actually ignores; the `output/` literal stays as the git-unavailable
-fallback so behavior is unchanged when git is absent. Verify: independent Sonnet
-premise+behavioral review returned AGREE/CONFIRMED with no defects, and `check.sh` ran green
-(new unit test reproduces the psc-monitor scenario end-to-end and fails without the guard).
-Decisions: `knowledge/decisions/INDEX.md`. Archive:
-`openspec/changes/archive/2026-07-17-knowledge-lint-gitignored-citation-exempt/`.
-
 ## Immediate next action
-No proactive build in flight. `graduate-sast-scanners` shipped —
-`openspec/changes/archive/2026-07-18-graduate-sast-scanners/`. Downstream propagation is **PENDING**
-for two unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
-psc-monitor's registry is already condensed) and `graduate-sast-scanners` (scaffold-managed files
-propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep). See
+No proactive build in flight. `git-native-commit-gate` shipped —
+`openspec/changes/archive/2026-07-18-git-native-commit-gate/`. Downstream propagation is **PENDING**
+for three unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
+psc-monitor's registry is already condensed), `graduate-sast-scanners` (scaffold-managed files
+propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep), and
+`git-native-commit-gate` (scaffold-managed files propagate byte-identical incl. exec bit; each
+downstream must run `bash scripts/setup-hooks.sh` once). See
 `knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change caveats.
 The composition-audit ceremony remains **DUE** (an operator ceremony, not a scaffold change; run
 `facts.py --check outstanding` for current figures rather than trusting a number written here).

@@ -137,6 +137,29 @@ Caveats that matter at propagation time:
   `--config <ruleset>` supplied via `[checks.semgrep] args`; without it, an enabled semgrep
   INFRA-FAILs.
 
+### `git-native-commit-gate` (shipped 2026-07-18)
+Adds a git-native `pre-commit` hook (`scripts/githooks/pre-commit`) as the primary,
+spelling-agnostic, cross-agent commit-test-gate enforcement layer, wired via
+`git config --local core.hooksPath scripts/githooks` (new `scripts/setup-hooks.sh`); the Claude
+`PreToolUse` `scripts/test-gate.sh` now defers to it (fail-safe) instead of always running
+`check.sh`. New scaffold-managed files: `scripts/githooks/pre-commit`, `scripts/setup-hooks.sh`,
+`scripts/test_githook_pre_commit.py`, `scripts/test_gate_defer.py` (+ manifest entries). Modified
+scaffold-managed files: `scripts/test-gate.sh` (fail-safe defer branch), `AGENTS.md` (cross-agent
+carve-out).
+
+Caveats that matter at propagation time:
+- **Scaffold-managed files propagate byte-identical, including the exec bit:** `sync_scaffold.py`
+  uses `shutil.copy2`, which preserves the executable bit on `scripts/githooks/pre-commit` and
+  `scripts/setup-hooks.sh` — verified during this change, no manual step needed for the files
+  themselves.
+- **Per-repo manual sweep required:** each downstream clone must run `bash scripts/setup-hooks.sh`
+  once to wire `core.hooksPath` — this is `.git/config` state, not tracked/cloned, so sync alone does
+  not activate the hook.
+- **`knowledge/reference/new-repo-bootstrap.md` is scaffold-local (NOT synced):** its new
+  `setup-hooks.sh` bootstrap step must be added to each downstream's own bootstrap doc by hand.
+- **Downstream `.claude/settings.json` keeps its `PreToolUse` test-gate entry** — it is now the
+  fail-safe fallback (not removed), so no downstream settings edit is required by this change.
+
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
 `install-tools.sh` gitleaks `go install` embeds no version (fails the `checks.py` version pin);

@@ -1,52 +1,11 @@
-# HANDOFF — curated next-session work queue (written 2026-07-18)
+# HANDOFF — curated next-session work queue (written 2026-07-18, trimmed 2026-07-18)
 
-> Not a context-exhaustion dump. The `graduate-sast-scanners` session completed cleanly through
-> archive; this is a deliberately-curated queue of follow-ons the operator asked to hand forward.
-> Absorb it, do the work it describes (starting with Priority 1), and **delete this file** once the
-> items are either done or re-parked. Its normal state is absent.
-
----
-
-## Priority 1 — Commit-lint (commit-test-gate) is bypassable; explore a git-native pre-commit hook
-
-**Operator ask (2026-07-18):** "Some agents manage to bypass the commit lint check by accident — I
-suspect `cd dir && git commit …` which doesn't trigger the lint. Explore this — e.g. should we
-install pre-commit hooks?"
-
-**This is CONFIRMED, not hypothetical, and already analyzed** — see
-`knowledge/questions/commit-gate-bypass.md` (full write-up). Summary:
-- The gate is a Claude Code **PreToolUse hook** in `.claude/settings.json` with condition
-  `if: "Bash(git commit*)"` — a **prefix-anchored glob**. It only fires when the tool command
-  *starts with* `git commit`. These forms silently skip it:
-  - `cd /repo && git commit …` (starts with `cd`) ← exactly the operator's suspicion
-  - `git -C /repo commit …` (starts with `git -C`)
-  - `env FOO= git commit …` (starts with `env`)
-  - any `!`-bang command, operator-terminal commit, **or any non-Claude (OpenCode/DeepSeek) agent** —
-    PreToolUse hooks are Claude-only, so the cross-agent case never runs the gate at all.
-- Irony: `scripts/test-gate.sh` already strips env-prefixes and handles `git -C`/`-c` internally —
-  but that hardening is dead code behind a matcher that never lets it fire for those spellings.
-- `git commit --no-verify` does NOT bypass this hook (it's external to git); the exposure is the
-  *silent prefix-evasion* forms, not an explicit opt-out.
-- Concrete evidence: psc-monitor commit `0e5a823` (2026-07-16) landed a file the live-tree
-  `knowledge_lint` gate would have blocked ⟹ it reached HEAD via one of the evasion paths.
-
-**Recommended direction (from the parked question, ready to prototype):** add a **git-native
-`pre-commit` hook** via `core.hooksPath` that execs the existing `scripts/check.sh` (single
-definition of green). git fires it on every `git commit` regardless of spelling, AND it covers
-non-Claude agents — closing both gaps. Keep the Claude PreToolUse hook as belt-and-braces if desired.
-
-**Task for next session (scope: likely SMALL–MEDIUM scaffold change, runs the lifecycle):**
-1. Prototype `scripts/githooks/pre-commit` (execs `check.sh`) + a repo-setup step that runs
-   `git config core.hooksPath scripts/githooks` (the clone-safe way — raw `.git/hooks/` is not
-   tracked/copied on clone).
-2. Decide **scaffold-managed vs per-repo** (like `test-gate.sh` is byte-identical downstream) and add
-   to `scripts/scaffold_manifest.txt` if managed.
-3. Weigh caveats: `--no-verify` is a visible opt-out (acceptable, far better than silent evasion);
-   `core.hooksPath` must be set once per clone (onboarding line); interaction with the existing
-   Claude PreToolUse hook.
-4. Propagate (operator-gated) after archive.
-   This ties to the AGENTS.md cross-agent-compatibility invariant — that's the stronger argument for
-   doing it. **Not blocked by anything.**
+> Not a context-exhaustion dump. A deliberately-curated queue of follow-ons the operator asked to hand
+> forward. Priority 1 (commit-gate bypass) is now **DONE** — shipped by `git-native-commit-gate`
+> (`openspec/changes/archive/2026-07-18-git-native-commit-gate/`); see
+> `knowledge/decisions/INDEX.md` and `knowledge/questions/commit-gate-bypass.md` (marked RESOLVED).
+> Absorb the remaining items, do the work they describe (starting with Priority 2), and **delete this
+> file** once they are either done or re-parked. Its normal state is absent.
 
 ---
 
@@ -78,8 +37,10 @@ None are blocked; each is *waiting for a trigger event* — do nothing until it 
 
 ## Also outstanding (operator-gated — not for the agent to run unprompted)
 
-Downstream propagation of **two** shipped-but-unpropagated changes is pending in
+Downstream propagation of **three** shipped-but-unpropagated changes is pending in
 `knowledge/reference/pending-downstream-propagation.md`: `graduate-sast-scanners` (scaffold files
-byte-identical; `security-scanners.md` needs a manual per-repo sweep) and `roll-decisions-index`
-(extrends needs its own pre-roll first). Push to remote is also operator-gated. Do these only on
-explicit operator instruction (via the `propagate-scaffold` skill).
+byte-identical; `security-scanners.md` needs a manual per-repo sweep), `roll-decisions-index`
+(extrends needs its own pre-roll first), and `git-native-commit-gate` (scaffold files byte-identical
+incl. exec bit; each downstream must run `bash scripts/setup-hooks.sh` once; `new-repo-bootstrap.md`
+is scaffold-local so its bootstrap step is repeated by hand). Push to remote is also operator-gated.
+Do these only on explicit operator instruction (via the `propagate-scaffold` skill).

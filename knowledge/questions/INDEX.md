@@ -4,7 +4,6 @@
 
 ## Parked
 
-- Commit-test-gate bypassable — `if: Bash(git commit*)` matcher is prefix-anchored (compound/`-C`/env-prefixed/bang commits skip it silently); also Claude-only (non-Claude agents never run it). Consider a git-native `core.hooksPath` pre-commit hook. Evidence: psc-monitor `0e5a823`. → `knowledge/questions/commit-gate-bypass.md`
 - Growth-trigger (restructure-project-knowledge follow-on) → `knowledge/questions/restructure-growth-trigger.md`
 
 - Harden-delegation follow-ons → `knowledge/questions/harden-delegation-follow-ons.md`
@@ -55,3 +54,5 @@
 - Semgrep needs config (shipped 2026-07-18): no scaffold default ruleset — enabling without `--config` INFRA-FAILs; monitored → `knowledge/questions/semgrep-needs-config.md`
 - SAST auto-detection trigger TBD (shipped 2026-07-18): default-disabled; future trigger must preserve sync-safety → `knowledge/questions/sast-auto-detection-trigger.md`
 - SAST tool JSON version sensitivity (shipped 2026-07-18): parsers validated at bandit 1.9.4 / semgrep 1.170.0; major version bumps could change shape; monitored → `knowledge/questions/sast-tool-json-version-sensitivity.md`
+- scaffold_check.py parallel prefix-evasion + Claude-only bypass class (git-native-commit-gate follow-on, shipped 2026-07-18) — must not run in golden source, must stay `--no-verify`-skippable → `knowledge/questions/scaffold-check-git-native.md`
+- Silent degraded git-native state (git-native-commit-gate follow-on, shipped 2026-07-18): core.hooksPath set but hook deleted/loses exec bit → git-native silently stops firing; monitored → `knowledge/questions/git-native-degraded-state.md`

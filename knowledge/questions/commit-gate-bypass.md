@@ -1,6 +1,20 @@
 # Commit-test-gate is bypassable — the `if: Bash(git commit*)` matcher is prefix-anchored
 
-**Status:** monitored todo, not urgent. Surfaced 2026-07-16 from a concrete psc-monitor incident.
+**Status:** RESOLVED 2026-07-18 by `git-native-commit-gate`
+(`openspec/changes/archive/2026-07-18-git-native-commit-gate/`). See `## Resolution` below. The
+write-up below is retained as the evidence record.
+
+## Resolution
+
+`git-native-commit-gate` shipped exactly the recommended direction below: a git-native `pre-commit`
+hook (`scripts/githooks/pre-commit`, scaffold-managed) wired via `git config --local core.hooksPath
+scripts/githooks` (`scripts/setup-hooks.sh`). git fires the hook on every `git commit` regardless of
+command spelling and regardless of harness, closing both the prefix-evasion gap and the cross-agent
+gap described below. The Claude `PreToolUse` `scripts/test-gate.sh` hook now defers to git-native
+(fail-safe — it only no-ops when it positively confirms the hook will fire) rather than being
+retired, so a clone that forgot `setup-hooks.sh` still has the Claude-only fallback. Verified live
+against real git across all evasion spellings in a throwaway repo; this repo now dogfoods git-native.
+Decision: `knowledge/decisions/INDEX.md` (2026-07-18 · git-native-commit-gate).
 
 ## The problem
 
