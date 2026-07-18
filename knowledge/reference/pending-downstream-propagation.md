@@ -6,7 +6,67 @@ records scaffold changes that shipped **locally** (to scaffold `main`, unpushed)
 propagated**, plus any per-change caveat that matters at propagation time. It is per-repo state (not
 scaffold-managed): each repo's propagation frontier differs, so this file does not itself propagate.
 
-## Frontier — both downstreams current as of 2026-07-17 (beacon `27adff6`)
+## Frontier — both downstreams current as of 2026-07-18 (beacon `36adc01`)
+
+Both downstreams converged to scaffold HEAD `36adc01` in the 2026-07-18 sync, which carried the five
+items formerly listed as NOT-yet-propagated: **`roll-decisions-index`**, **`graduate-sast-scanners`**,
+**`git-native-commit-gate`**, **`custom-checks-family-fix`**, and **`detect-truncated-stream`**.
+
+Pre-sync audit: the deletion pass was a **no-op** in both repos (no `STALE` targets — the retired
+`openspec-onboard`, `lint-knowledge`, `outstanding-work-review`, and `audit_bundle.py` entries were
+already absent). `--check-refs` was clean pre-sync in both; the only clobber candidate
+(`knowledge/README.md`) held a single stale decisions-registry description line, correctly replaced
+by the sync.
+
+How the predicted caveats actually landed:
+- **decisions-registry pre-roll** — **psc-monitor** needed none (its INDEX was already 12,884 B, under
+  the 16,000-byte default, from its earlier hand-condense). **extrends** needed it: INDEX was
+  **64,898 B** (4x over budget). Ran `roll_decisions.py` — rolled **105 of 113 entries** verbatim into
+  a new `knowledge/decisions/HISTORY.md`, retaining the 8 newest (INDEX now 10,724 B) with a
+  load-on-demand pointer line; byte-conserving (no entry dropped). This cleared the new
+  `knowledge_lint` budget check AND the `README -> HISTORY.md` dangling ref the sync introduced.
+- **git-native commit gate wiring** — wired in **both** via `core.hooksPath=scripts/githooks`.
+  psc-monitor: `setup-hooks.sh` set it cleanly (was unset). extrends: `core.hooksPath` was pinned to a
+  vestigial explicit `.git/hooks` (samples only, no real hook — confirmed by the wave-4
+  correctness-audit finding), so `setup-hooks.sh` conflict-aborted by design; it was set manually per
+  the script's own guidance and proven functional (`git rev-parse` resolves to the tracked hook; a dry
+  run passed the full gate).
+- **SAST scanners / custom-checks `family=` / truncated-stream** — all propagate byte-identical via the
+  manifest; all additive and backward-compatible, so none reddened a downstream gate. Neither scanner
+  auto-enables (default-disabled). `knowledge/reference/security-scanners.md` is per-repo knowledge and
+  was NOT added downstream in this sweep (deferred; scanners stay off, so no gate impact).
+
+Per-repo reconciliation done at this sync (info-preserving — nothing deleted, nothing buried):
+- **psc-monitor** — beacon `36adc01`, commit `4281dcb` (local, unpushed). No knowledge reconciliation
+  needed: all six gates green on sync (full suite, ruff, `knowledge_lint`, `boot_surface` 77,943 B
+  **OK** — no longer WARN; it dropped under its 100K warn threshold since the 2026-07-17 note). Hook
+  wired. Standing per-repo caveats (unchanged): `[boot_surface_lint]` override 100K/120K; ratchet-log
+  seeded; 4 Postgres data-lint invariants live; osv-scanner + deptry idle by choice; pyproject `dev`
+  extra declares `ruff==0.15.16` in `.venv`.
+- **extrends** — beacon `36adc01`, sync commit `65c2459` + fix commit `15b9fc6` (local, unpushed).
+  Pre-roll done (above). **Three PRE-EXISTING gate failures** (from commit `c6b3caf` + STATUS.md
+  history, NOT sync-caused — they only surfaced when the full gate ran during propagation) were fixed
+  in `15b9fc6` so the git-native hook could be wired without blocking commits: ruff I001 + format drift
+  in two `scripts/_*_oneoff.py` probe scripts (auto-fixed), and a `knowledge/STATUS.md` latest-change
+  entry 8 words over the 150-word `status_lint` cap (trimmed filler, all facts preserved). Full gate
+  now green (2396 passed); boot surface **80,728 B** — under even the default budget after the roll, so
+  the `[boot_surface_lint]` 120K/140K override now carries large headroom. Standing per-repo caveats
+  (unchanged): handoff-named files `*-notes.md`; `knowledge/ratchet-log.md` seeded (zero entries);
+  data-lint stays off (SQLite; `checks.toml` not re-wired to the SQLite backend); pyproject `dev` extra
+  declares `ruff==0.15.16` in `.venv`.
+  **Flag (not actioned):** the 2026-07-17 note said do-not-prune the `gold-pilot3-resume-*.md` plans
+  "until pilot-3 archives." Pilot-3 has since concluded **NOT ADOPTED** and `gold-anchor-v1-2` is
+  archived in extrends (change `gold-anchor-v1-2`), so those resume runbooks and the
+  `knowledge/HANDOFF.md` that boot-points at them may now be prunable — left for operator triage, not
+  pruned here.
+
+Gates verified green by hand in both repos before commit (sync commits use `--no-verify`, the
+sanctioned escape for a deliberate sync): full suite, `ruff check`, `ruff format --check`,
+`status_lint`, `knowledge_lint`, `boot_surface_lint`, and `sync_scaffold --check` / `--check-refs`.
+
+Neither downstream is pushed — push is operator-gated.
+
+## Frontier — both downstreams current as of 2026-07-17 (beacon `27adff6`, superseded by the entry above)
 
 Both downstreams converged to scaffold HEAD `27adff6` in the 2026-07-17 sync, which carried the two
 items formerly listed as NOT-yet-propagated: **`reconcile-parked-backlog`** (recursive `plans/`
@@ -107,90 +167,9 @@ Neither downstream is pushed — push is operator-gated.
 
 ## Shipped locally — NOT yet propagated
 
-### `roll-decisions-index` (shipped 2026-07-17)
-Adds two manifest files (`scripts/roll_decisions.py`, `scripts/test_roll_decisions.py`) and modifies
-`scripts/knowledge_lint.py`, `scripts/boot_surface_lint.py`, and `knowledge/README.md`.
-
-Caveat that matters at propagation time:
-- **Requires a per-repo roll before the new gate lands.** Each downstream repo must run
-  `python3 scripts/roll_decisions.py` against its own tree during its propagation session, BEFORE its
-  live-tree `knowledge_lint` gate sees the new `decisions-index-budget` check. Status as of
-  2026-07-18: **psc-monitor already condensed** (its own `boot-surface-condense` commit `affce4e`
-  rolled its registry to `knowledge/decisions/HISTORY.md` by hand — its INDEX is now under the
-  16,000-byte default, so no pre-roll is needed there); **extrends has NOT** — its
-  `knowledge/decisions/INDEX.md` is still well over budget and would redden its gate on sync
-  without the pre-roll.
-
-### `graduate-sast-scanners` (shipped 2026-07-18)
-Adds Semgrep + Bandit as built-in parsed checks in `checks.py` (heavy-tier, default-disabled,
-version-recorded-not-gated), restructures `install-tools.sh` so Go-absence no longer short-circuits
-pip provisioning, documents both in `knowledge/reference/security-scanners.md`, and extends
-`test_checks.py`.
-
-Caveats that matter at propagation time:
-- **Scaffold-managed files propagate byte-identical:** `scripts/checks.py`, `scripts/install-tools.sh`,
-  `scripts/test_checks.py`, and `scripts/check.sh` sync via the manifest — no manual step.
-- **`knowledge/reference/security-scanners.md` is per-repo knowledge (NOT manifest):** each
-  downstream repo needs the semgrep/bandit documentation added by hand during the propagation sweep.
-- **Neither scanner auto-enables:** both are default-disabled, so the sync won't red any downstream
-  gate. Each repo opts in via `[checks.<name>] enabled = true`. Semgrep additionally requires a
-  `--config <ruleset>` supplied via `[checks.semgrep] args`; without it, an enabled semgrep
-  INFRA-FAILs.
-
-### `git-native-commit-gate` (shipped 2026-07-18)
-Adds a git-native `pre-commit` hook (`scripts/githooks/pre-commit`) as the primary,
-spelling-agnostic, cross-agent commit-test-gate enforcement layer, wired via
-`git config --local core.hooksPath scripts/githooks` (new `scripts/setup-hooks.sh`); the Claude
-`PreToolUse` `scripts/test-gate.sh` now defers to it (fail-safe) instead of always running
-`check.sh`. New scaffold-managed files: `scripts/githooks/pre-commit`, `scripts/setup-hooks.sh`,
-`scripts/test_githook_pre_commit.py`, `scripts/test_gate_defer.py` (+ manifest entries). Modified
-scaffold-managed files: `scripts/test-gate.sh` (fail-safe defer branch), `AGENTS.md` (cross-agent
-carve-out).
-
-Caveats that matter at propagation time:
-- **Scaffold-managed files propagate byte-identical, including the exec bit:** `sync_scaffold.py`
-  uses `shutil.copy2`, which preserves the executable bit on `scripts/githooks/pre-commit` and
-  `scripts/setup-hooks.sh` — verified during this change, no manual step needed for the files
-  themselves.
-- **Per-repo manual sweep required:** each downstream clone must run `bash scripts/setup-hooks.sh`
-  once to wire `core.hooksPath` — this is `.git/config` state, not tracked/cloned, so sync alone does
-  not activate the hook.
-- **`knowledge/reference/new-repo-bootstrap.md` is scaffold-local (NOT synced):** its new
-  `setup-hooks.sh` bootstrap step must be added to each downstream's own bootstrap doc by hand.
-- **Downstream `.claude/settings.json` keeps its `PreToolUse` test-gate entry** — it is now the
-  fail-safe fallback (not removed), so no downstream settings edit is required by this change.
-
-### `custom-checks-family-fix` (shipped 2026-07-18)
-`_custom_checks()` in `scripts/checks.py` honors a normalized, gating-safe `family=` key for
-`[checks.custom.*]` entries (fact-family = preflight-exempt, graceful-degrade); invalid values fall
-back to `check`. Modifies `scripts/checks.py` (function + module docstring) and `scripts/test_checks.py`.
-
-Caveat that matters at propagation time:
-- **Scaffold-managed files propagate byte-identical:** `scripts/checks.py` and `scripts/test_checks.py`
-  sync via the manifest — no manual per-repo step. The `family=` docstring lives inside `checks.py`, so
-  no per-repo knowledge doc needs a hand-edit. Purely additive and backward-compatible: existing
-  `[checks.custom.*]` entries with no `family` key keep defaulting to `check`, so the sync reds no
-  downstream gate.
-
-### `detect-truncated-stream` (shipped 2026-07-18)
-`scripts/opencode_delegate.py` gains `detect_truncated_stream()` — counts top-level `step_start` vs
-`step_finish` across JSONL to catch silently-truncated `opencode run` streams (empty provider
-completion; opencode exits 0 with unbalanced step counts); new `truncated-stream` status outranks
-`marker-missing`. No failure-ladder or ledger-schema changes. Modifies `scripts/opencode_delegate.py`
-and `scripts/test_opencode_delegate.py`.
-
-Caveats that matter at propagation time:
-- **Scaffold-managed files propagate byte-identical:** `scripts/opencode_delegate.py` and
-  `scripts/test_opencode_delegate.py` sync via the manifest — no manual per-repo step.
-- **Doc edits to harness/skill files propagate via manifest:** `.claude/skills/_shared/delegation-harness.md`
-  and the apply/propose/explore SKILL.md files contain the `truncated-stream` status enumeration
-  update — these are scaffold-managed and propagate byte-identical.
-- **Spec edit already committed directly to canonical spec:** `openspec/specs/delegation-wrapper/spec.md`
-  was updated directly (not via delta promotion) — already canonical. The downstream spec files
-  (`openspec/specs/delegation-wrapper/spec.md`) are NOT scaffold-managed and will need a manual
-  spot-edit if they carry the old enumeration.
-- **No per-repo manual step otherwise:** purely additive and backward-compatible — existing wrapper
-  calls without `truncated=` keep defaulting to `False`, and no downstream gate reddens.
+None — all five items (`roll-decisions-index`, `graduate-sast-scanners`, `git-native-commit-gate`,
+`custom-checks-family-fix`, `detect-truncated-stream`) were propagated in the 2026-07-18 frontier
+above. Their full records live in `openspec/changes/archive/`.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
