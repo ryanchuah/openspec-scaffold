@@ -25,6 +25,32 @@ together.
 `deptry` (unused-/missing-dependency linter) is **not** in this table: it is a Python tool provisioned
 via pip dev extras, not a standalone binary.
 
+## Python SAST scanners (pip)
+
+In addition to the Go-based scanners above, the scaffold provisions two **Python SAST security scanners**
+via pip (the `install-tools.sh` pip block; degrades gracefully when `pip` is absent):
+
+| Tool | Detects | Provisioning |
+|---|---|---|
+| `semgrep` | SAST pattern findings against a repo-supplied ruleset | `pip install semgrep` (unpinned latest) |
+| `bandit` | Python security linting (e.g. hardcoded passwords, `shell=True`, SQL injection) | `pip install bandit` (unpinned latest) |
+
+Both are **version-recorded-not-gated** by `checks.py`: a version mismatch is logged but never produces
+an INFRA-FAIL (the Python-ecosystem-tools posture). A repo needing version-exactness pins them in its
+own dev extras.
+
+Both are **default-disabled** in `checks.py` — opt in per repo via:
+```toml
+[checks.bandit]
+enabled = true
+
+[checks.semgrep]
+enabled = true
+args = ["--config", "<ruleset>"]
+```
+`semgrep` additionally requires a ruleset supplied via `[checks.semgrep] args`; without it, an enabled
+semgrep check will surface its own error as an INFRA-FAIL (acceptable misconfiguration signal).
+
 ## Provisioning per environment
 
 **CI — use the official GitHub Actions (recommended).** Do not run the local helper in CI; wire the

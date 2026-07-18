@@ -129,6 +129,8 @@ class AuditBundleTestBase(unittest.TestCase):
         self._write_generic_stub("osv-scanner", "OSV_SCANNER", default_version="2.4.0")
         self._write_generic_stub("radon", "RADON")
         self._write_generic_stub("vulture", "VULTURE")
+        self._write_generic_stub("bandit", "BANDIT")
+        self._write_generic_stub("semgrep", "SEMGREP")
         self._write_stub("gitleaks", _GITLEAKS_STUB)
         self._write_stub("deptry", _DEPTRY_STUB)
         self._write_stub("jscpd", _JSCPD_STUB)
@@ -150,6 +152,8 @@ class AuditBundleTestBase(unittest.TestCase):
         os.environ["RADON_FIXTURE"] = "{}"
         os.environ["JSCPD_FIXTURE"] = '{"duplicates": []}'
         os.environ["VULTURE_FIXTURE"] = ""
+        os.environ["BANDIT_FIXTURE"] = json.dumps({"results": []})
+        os.environ["SEMGREP_FIXTURE"] = json.dumps({"results": []})
 
     def tearDown(self):
         os.chdir(self._orig_cwd)
@@ -214,6 +218,8 @@ class ListModeTest(AuditBundleTestBase):
             "radon",
             "jscpd",
             "vulture",
+            "bandit",
+            "semgrep",
             "index-coverage",
             "outstanding",
             "inventory",
@@ -265,6 +271,8 @@ class AutodetectTest(AuditBundleTestBase):
         self.assertEqual(lines["radon"], "disabled")
         self.assertEqual(lines["jscpd"], "disabled")
         self.assertEqual(lines["vulture"], "disabled")
+        self.assertEqual(lines["bandit"], "disabled")
+        self.assertEqual(lines["semgrep"], "disabled")
         self.assertEqual(lines["index-coverage"], "disabled")
 
 
@@ -626,6 +634,46 @@ class NormalizedFindingsTest(AuditBundleTestBase):
         self.assertEqual(finding["line"], 12)
         self.assertEqual(finding["message"], "unused variable 'x'")
 
+    def test_bandit(self):
+        os.environ["BANDIT_FIXTURE"] = json.dumps(
+            {
+                "results": [
+                    {
+                        "test_id": "B602",
+                        "filename": "app.py",
+                        "line_number": 12,
+                        "issue_text": "subprocess call with shell=True",
+                    }
+                ]
+            }
+        )
+        finding = self._run_single_check("bandit")
+        self.assertEqual(finding["check"], "bandit")
+        self.assertEqual(finding["rule"], "B602")
+        self.assertEqual(finding["path"], "app.py")
+        self.assertEqual(finding["line"], 12)
+        self.assertEqual(finding["message"], "subprocess call with shell=True")
+
+    def test_semgrep(self):
+        os.environ["SEMGREP_FIXTURE"] = json.dumps(
+            {
+                "results": [
+                    {
+                        "check_id": "rules.sqli",
+                        "path": "api.py",
+                        "start": {"line": 7},
+                        "extra": {"message": "SQL injection"},
+                    }
+                ]
+            }
+        )
+        finding = self._run_single_check("semgrep")
+        self.assertEqual(finding["check"], "semgrep")
+        self.assertEqual(finding["rule"], "rules.sqli")
+        self.assertEqual(finding["path"], "api.py")
+        self.assertEqual(finding["line"], 7)
+        self.assertEqual(finding["message"], "SQL injection")
+
 
 class PathNormalizationTest(AuditBundleTestBase):
     """Findings whose path is absolute under the repo root are normalized to
@@ -969,6 +1017,18 @@ class PythonToolVersionRecordedTest(AuditBundleTestBase):
         out_dir = self.tmpdir / "out"
         rc, out = self._capture(["--check", "ruff", "--out", str(out_dir)])
         self.assertEqual(rc, 0)  # clean RUFF_FIXTURE ("[]") -> ok, never fails on version
+
+    def test_bandit_version_recorded_never_gates(self):
+        os.environ["BANDIT_VERSION"] = "9.9.9"
+        out_dir = self.tmpdir / "out-bandit"
+        rc, out = self._capture(["--check", "bandit", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+
+    def test_semgrep_version_recorded_never_gates(self):
+        os.environ["SEMGREP_VERSION"] = "9.9.9"
+        out_dir = self.tmpdir / "out-semgrep"
+        rc, out = self._capture(["--check", "semgrep", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
 
     def test_run_manifest_records_builtin_tool_version(self):
         out_dir = self.tmpdir / "out"

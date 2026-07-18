@@ -96,7 +96,9 @@ this keeps baseline fingerprints (4.6) portable across checkouts/machines):
 ``osv-scanner``, ``deptry``, ``radon`` (findings = blocks ranked D/E/F on
 radon's A-F cyclomatic-complexity scale), ``jscpd``, ``vulture`` (its
 line-text output, e.g. ``path.py:12: unused variable 'x' (60% confidence)``,
-parsed by regex). Delegating checks (own JSON shape, NOT merged into the
+parsed by regex), ``bandit`` (Python security linting findings from
+``-f json`` output), ``semgrep`` (SAST pattern findings from ``--json``
+output). Delegating checks (own JSON shape, NOT merged into the
 aggregate `findings.json`): ``scope`` (`audit_scope.py scan`, floor, never
 gates — informational hotspot ranking), ``data-lint`` (`data_lint.py`,
 floor, gates on violating rows), ``repo-lint`` (`repo_lint.py`, floor,
@@ -107,6 +109,10 @@ tree, detected entrypoints (pyproject `[project.scripts]`, `justfile`/
 `Makefile` target names, `package.json` "scripts"), and env-var names
 referenced in source via ``os.environ``/``os.getenv(...)``/``process.env``
 (anchored forms only — a `my_getenv_wrapper` identifier does not match).
+``bandit`` and ``semgrep`` are default-disabled opt-in SAST security checks
+(enable per repo via ``[checks.<name>] enabled = true``); ``semgrep``
+additionally requires a ruleset supplied via
+``[checks.semgrep] args = ["--config", "<ruleset>"]``.
 
 Everything else named in the brief (eslint, tsc, sqlfluff, alembic-check,
 pyan3, paracelsus, pg_dump, openapi fetch, schemathesis, testmon) is
@@ -122,8 +128,8 @@ probe's combined stdout+stderr, the FIRST ``\\d+\\.\\d+(\\.\\d+)?`` substring
 is compared EXACT-STRING to the pin; a mismatch or unparseable version is
 ``version-mismatch`` — an infra failure whenever the check actually runs
 (``--check``/``--floor``/``--report``), though `--list` only reports the
-status without failing. Python-ecosystem tools (ruff, deptry, radon,
-vulture) are probed the same way but NEVER fail on a version mismatch —
+status without failing. Python-ecosystem tools (ruff, deptry, radon, vulture, bandit, semgrep)
+are probed the same way but NEVER fail on a version mismatch —
 pinned in each repo's dev extras, not here; their probed version is only
 *recorded*, and an unprobeable one is ``null``. A tool missing from PATH is
 an infra failure in `--report`/`--floor` (stop-on-first-failure for
@@ -281,6 +287,22 @@ _REGISTRY: list[dict] = [
         "trigger": "always (enabled explicitly)",
         "coverage_note": "disabling drops dead-code detection",
     },
+    {
+        "name": "bandit",
+        "tier": "heavy",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "always (enabled explicitly)",
+        "coverage_note": "disabling drops Python security (SAST) scanning",
+    },
+    {
+        "name": "semgrep",
+        "tier": "heavy",
+        "kind": "builtin",
+        "family": "check",
+        "trigger": "always (enabled explicitly)",
+        "coverage_note": "disabling drops SAST pattern scanning",
+    },
     {"name": "index-coverage", "tier": "heavy", "kind": "delegate", "family": "fact"},
     {"name": "outstanding", "tier": "snapshot", "kind": "delegate", "family": "fact"},
     {"name": "inventory", "tier": "snapshot", "kind": "builtin", "family": "fact"},
@@ -354,6 +376,8 @@ def _autodetect_defaults(repo_root: Path) -> dict[str, bool]:
         "radon": False,
         "jscpd": False,
         "vulture": False,
+        "bandit": False,
+        "semgrep": False,
         "index-coverage": False,
         "outstanding": True,
         "inventory": True,
@@ -448,6 +472,8 @@ _BUILTIN_TOOL_BIN = {
     "radon": "radon",
     "jscpd": "jscpd",
     "vulture": "vulture",
+    "bandit": "bandit",
+    "semgrep": "semgrep",
 }
 
 
@@ -624,6 +650,40 @@ def _parse_vulture(raw: str) -> list[dict]:
     return findings
 
 
+def _parse_bandit(raw: str) -> list[dict]:
+    data = json.loads(raw) if raw.strip() else {}
+    findings = []
+    for item in data.get("results", []) or []:
+        findings.append(
+            {
+                "check": "bandit",
+                "rule": item.get("test_id") or "",
+                "path": item.get("filename") or "",
+                "line": item.get("line_number"),
+                "message": item.get("issue_text") or "",
+            }
+        )
+    return findings
+
+
+def _parse_semgrep(raw: str) -> list[dict]:
+    data = json.loads(raw) if raw.strip() else {}
+    findings = []
+    for item in data.get("results", []) or []:
+        start = item.get("start") or {}
+        extra = item.get("extra") or {}
+        findings.append(
+            {
+                "check": "semgrep",
+                "rule": item.get("check_id") or "",
+                "path": item.get("path") or "",
+                "line": start.get("line"),
+                "message": extra.get("message") or "",
+            }
+        )
+    return findings
+
+
 _PARSERS = {
     "ruff": _parse_ruff,
     "gitleaks": _parse_gitleaks,
@@ -632,6 +692,8 @@ _PARSERS = {
     "radon": _parse_radon,
     "jscpd": _parse_jscpd,
     "vulture": _parse_vulture,
+    "bandit": _parse_bandit,
+    "semgrep": _parse_semgrep,
     "test-quality": lambda _stdout: [],
     "data-scale": lambda _stdout: [],
     "spec-delta-structure": lambda _stdout: [],
@@ -805,8 +867,8 @@ def _normalize_finding_paths(findings: list[dict], repo_root: Path) -> None:
     absolute AND resolves to a location under ``repo_root``. An absolute path
     outside the repo root is left unchanged (already-relative paths pass
     through untouched too). Centralizing this here — the one place every
-    builtin-parsed check's outcome flows through — means all seven parsers
-    (ruff, gitleaks, osv-scanner, deptry, radon, jscpd, vulture) are covered
+    builtin-parsed check's outcome flows through — means all nine parsers
+    (ruff, gitleaks, osv-scanner, deptry, radon, jscpd, vulture, bandit, semgrep) are covered
     without duplicating the logic per-runner. Portable baselines depend on
     this: task 4.6's fingerprint is keyed on repo-relative ``path``, so an
     absolute path would silently break cross-checkout/cross-machine delta
@@ -940,6 +1002,30 @@ def _run_vulture(check: dict, config: dict, out_path: Path) -> dict:
     findings = _parse_vulture(result.stdout)
     _write_json(out_path, findings)
     return {"status": "FINDINGS" if findings else "ok", "findings": findings}
+
+
+def _run_bandit(check: dict, config: dict, out_path: Path) -> dict:
+    cmd = [
+        "bandit",
+        "-f",
+        "json",
+        "-q",
+        *_check_args("bandit", config),
+        "-r",
+        *_check_paths("bandit", config),
+    ]
+    return _run_builtin_tool_json("bandit", cmd, out_path)
+
+
+def _run_semgrep(check: dict, config: dict, out_path: Path) -> dict:
+    cmd = [
+        "semgrep",
+        "--json",
+        "--quiet",
+        *_check_args("semgrep", config),
+        *_check_paths("semgrep", config),
+    ]
+    return _run_builtin_tool_json("semgrep", cmd, out_path)
 
 
 def _run_ruff(check: dict, config: dict, out_path: Path) -> dict:
@@ -1522,6 +1608,8 @@ _BUILTIN_RUNNERS = {
     "radon": _run_radon,
     "jscpd": _run_jscpd,
     "vulture": _run_vulture,
+    "bandit": _run_bandit,
+    "semgrep": _run_semgrep,
     "test-quality": _run_test_quality,
     "data-scale": _run_data_scale,
     "spec-delta-structure": _run_spec_delta_structure,
@@ -1741,7 +1829,8 @@ def _execute_check(
         outcome = _BUILTIN_RUNNERS[name](check, config, out_path)
         if "findings" in outcome:
             # Normalize -> repo-relative paths, then rewrite the artifact
-            # the runner already wrote (all seven builtin parsers funnel
+            # the runner already wrote (all nine builtin parsers (ruff, gitleaks,
+            # osv-scanner, deptry, radon, jscpd, vulture, bandit, semgrep) funnel
             # through this one point via their shared "findings" key).
             _normalize_finding_paths(outcome["findings"], repo_root)
             _write_json(out_path, outcome["findings"])
