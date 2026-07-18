@@ -172,6 +172,26 @@ Caveat that matters at propagation time:
   `[checks.custom.*]` entries with no `family` key keep defaulting to `check`, so the sync reds no
   downstream gate.
 
+### `detect-truncated-stream` (shipped 2026-07-18)
+`scripts/opencode_delegate.py` gains `detect_truncated_stream()` — counts top-level `step_start` vs
+`step_finish` across JSONL to catch silently-truncated `opencode run` streams (empty provider
+completion; opencode exits 0 with unbalanced step counts); new `truncated-stream` status outranks
+`marker-missing`. No failure-ladder or ledger-schema changes. Modifies `scripts/opencode_delegate.py`
+and `scripts/test_opencode_delegate.py`.
+
+Caveats that matter at propagation time:
+- **Scaffold-managed files propagate byte-identical:** `scripts/opencode_delegate.py` and
+  `scripts/test_opencode_delegate.py` sync via the manifest — no manual per-repo step.
+- **Doc edits to harness/skill files propagate via manifest:** `.claude/skills/_shared/delegation-harness.md`
+  and the apply/propose/explore SKILL.md files contain the `truncated-stream` status enumeration
+  update — these are scaffold-managed and propagate byte-identical.
+- **Spec edit already committed directly to canonical spec:** `openspec/specs/delegation-wrapper/spec.md`
+  was updated directly (not via delta promotion) — already canonical. The downstream spec files
+  (`openspec/specs/delegation-wrapper/spec.md`) are NOT scaffold-managed and will need a manual
+  spot-edit if they carry the old enumeration.
+- **No per-repo manual step otherwise:** purely additive and backward-compatible — existing wrapper
+  calls without `truncated=` keep defaulting to `False`, and no downstream gate reddens.
+
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
 `install-tools.sh` gitleaks `go install` embeds no version (fails the `checks.py` version pin);

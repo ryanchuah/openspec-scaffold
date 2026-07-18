@@ -12,7 +12,21 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — custom-checks-family-fix SHIPPED (2026-07-18)
+## Latest change — detect-truncated-stream SHIPPED (2026-07-18)
+
+A `detect_truncated_stream()` helper in `scripts/opencode_delegate.py` catches
+silently-truncated `opencode run` streams — the provider returns an empty completion,
+opencode treats no-assistant-output as a clean end-of-stream and exits 0, and the wrapper
+was classifying the run `ok`. The detector counts top-level `step_start` vs `step_finish`
+across the JSONL output; an imbalance produces a new `truncated-stream` classification that
+outranks `marker-missing`. No failure-ladder or ledger-schema changes. Verify: flash premise
+AGREE, flash verifier READY zero-defect (Chinese-language verdict block was a marker-literal
+language-drift artifact, not a real failure — stream balanced, substance READY); orchestrator
+independently confirmed the detector flags the actual incident file that originally slipped
+through. Full suite green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Record: `plans/archive/detect-truncated-stream/`.
+
+## Prior change — custom-checks-family-fix SHIPPED (2026-07-18)
 
 `_custom_checks()` in `scripts/checks.py` now honors a normalized, gating-safe `family=` key so
 `[checks.custom.*]` entries can register fact-family (preflight-exempt, graceful-degrade) checks; an
@@ -38,28 +52,18 @@ git-native. Independent behavioral and test-quality verifier passes both returne
 Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-18-git-native-commit-gate/`.
 
-## Prior change — graduate-sast-scanners SHIPPED (2026-07-18)
-
-Semgrep and Bandit graduated as built-in parsed checks in `checks.py` (heavy-tier,
-default-disabled, version-recorded-not-gated for sync-safety); `install-tools.sh` restructured
-so Go-absence no longer short-circuits pip provisioning for the two Python SAST scanners;
-`security-scanners.md` documented the opt-in configuration pattern. Verify: real-tool live
-smoke (bandit 1.9.4, semgrep 1.170.0) through the exact runners normalized every finding to
-the standard shape; boundary fixtures (empty/missing/null results, missing line keys, non-JSON
-stdout) all handled correctly; independent behavioral verifier returned READY zero-defect;
-simplicity gate passed. Both scanners absent from `EXPECTED_TOOL_VERSIONS` — version recorded,
-never gated. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
-Archive: `openspec/changes/archive/2026-07-18-graduate-sast-scanners/`.
-
 ## Immediate next action
-No proactive build in flight. `custom-checks-family-fix` shipped —
-`plans/archive/custom-checks-family-fix/`. Downstream propagation is **PENDING** for four
+No proactive build in flight. `detect-truncated-stream` shipped —
+`plans/archive/detect-truncated-stream/`. Downstream propagation is **PENDING** for five
 unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
 psc-monitor's registry is already condensed), `graduate-sast-scanners` (scaffold-managed files
 propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep),
 `git-native-commit-gate` (scaffold-managed files propagate byte-identical incl. exec bit; each
-downstream must run `bash scripts/setup-hooks.sh` once), and `custom-checks-family-fix`
-(scaffold-managed `checks.py`/`test_checks.py`; propagates byte-identical, no per-repo manual step).
+downstream must run `bash scripts/setup-hooks.sh` once), `custom-checks-family-fix`
+(scaffold-managed `checks.py`/`test_checks.py`; propagates byte-identical, no per-repo manual step),
+and `detect-truncated-stream` (scaffold-managed `opencode_delegate.py`/`test_opencode_delegate.py`
+propagate byte-identical; harness/skill docs propagate via manifest; spec edit already committed
+directly to canonical spec).
 See `knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change
 caveats.
 The composition-audit ceremony remains **DUE** (an operator ceremony, not a scaffold change; run
