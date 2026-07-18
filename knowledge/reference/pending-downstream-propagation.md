@@ -160,6 +160,18 @@ Caveats that matter at propagation time:
 - **Downstream `.claude/settings.json` keeps its `PreToolUse` test-gate entry** — it is now the
   fail-safe fallback (not removed), so no downstream settings edit is required by this change.
 
+### `custom-checks-family-fix` (shipped 2026-07-18)
+`_custom_checks()` in `scripts/checks.py` honors a normalized, gating-safe `family=` key for
+`[checks.custom.*]` entries (fact-family = preflight-exempt, graceful-degrade); invalid values fall
+back to `check`. Modifies `scripts/checks.py` (function + module docstring) and `scripts/test_checks.py`.
+
+Caveat that matters at propagation time:
+- **Scaffold-managed files propagate byte-identical:** `scripts/checks.py` and `scripts/test_checks.py`
+  sync via the manifest — no manual per-repo step. The `family=` docstring lives inside `checks.py`, so
+  no per-repo knowledge doc needs a hand-edit. Purely additive and backward-compatible: existing
+  `[checks.custom.*]` entries with no `family` key keep defaulting to `check`, so the sync reds no
+  downstream gate.
+
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
 `install-tools.sh` gitleaks `go install` embeds no version (fails the `checks.py` version pin);

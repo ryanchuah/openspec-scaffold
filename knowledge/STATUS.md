@@ -12,7 +12,17 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — git-native-commit-gate SHIPPED (2026-07-18)
+## Latest change — custom-checks-family-fix SHIPPED (2026-07-18)
+
+`_custom_checks()` in `scripts/checks.py` now honors a normalized, gating-safe `family=` key so
+`[checks.custom.*]` entries can register fact-family (preflight-exempt, graceful-degrade) checks; an
+invalid/typo value falls back to `check` (gated), never silently `fact`. Docstring and regression
+tests updated. Unblocks downstream app-specific fact snapshots (e.g. psc-monitor route-authz) via config
+alone, no standalone script needed. Verify: flash premise pass returned AGREE, flash verifier
+returned READY zero-defect, full suite green. Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
+`knowledge/questions/INDEX.md`. Record: `plans/archive/custom-checks-family-fix/`.
+
+## Prior change — git-native-commit-gate SHIPPED (2026-07-18)
 
 A git-native `pre-commit` hook (`scripts/githooks/pre-commit`, wired via `core.hooksPath` through new
 `scripts/setup-hooks.sh`) now enforces the commit-test gate on every `git commit` regardless of
@@ -41,29 +51,17 @@ simplicity gate passed. Both scanners absent from `EXPECTED_TOOL_VERSIONS` — v
 never gated. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
 Archive: `openspec/changes/archive/2026-07-18-graduate-sast-scanners/`.
 
-## Prior change — roll-decisions-index SHIPPED (2026-07-17)
-
-The `knowledge/decisions/INDEX.md` registry only ever grows, and had already crossed the boot-surface
-budget once, so this change mechanizes a pressure-triggered rolling window: `INDEX.md` keeps a
-byte-budgeted newest tail (default 16,000 bytes, `checks.toml`-overridable) while older entries roll
-verbatim to `knowledge/decisions/HISTORY.md` via new `scripts/roll_decisions.py`; `knowledge_lint`
-gained the `decisions-index-budget` check naming the remedy, and `boot_surface_lint`'s WARN/FAIL
-output now names it too. Verify: self-review found and fixed one real defect (a stray entry-count
-mention), the independent behavioral pass returned READY zero-defect, and a simplicity-gate review
-passed with one accepted low-severity finding (a microseconds-wide non-atomic write window, fully
-git-recoverable). This repo's own registry was rolled — boot surface is back under the default WARN.
-Resolves OW-13(b). Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
-Archive: `openspec/changes/archive/2026-07-17-roll-decisions-index/`.
-
 ## Immediate next action
-No proactive build in flight. `git-native-commit-gate` shipped —
-`openspec/changes/archive/2026-07-18-git-native-commit-gate/`. Downstream propagation is **PENDING**
-for three unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
+No proactive build in flight. `custom-checks-family-fix` shipped —
+`plans/archive/custom-checks-family-fix/`. Downstream propagation is **PENDING** for four
+unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
 psc-monitor's registry is already condensed), `graduate-sast-scanners` (scaffold-managed files
-propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep), and
+propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep),
 `git-native-commit-gate` (scaffold-managed files propagate byte-identical incl. exec bit; each
-downstream must run `bash scripts/setup-hooks.sh` once). See
-`knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change caveats.
+downstream must run `bash scripts/setup-hooks.sh` once), and `custom-checks-family-fix`
+(scaffold-managed `checks.py`/`test_checks.py`; propagates byte-identical, no per-repo manual step).
+See `knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change
+caveats.
 The composition-audit ceremony remains **DUE** (an operator ceremony, not a scaffold change; run
 `facts.py --check outstanding` for current figures rather than trusting a number written here).
 
