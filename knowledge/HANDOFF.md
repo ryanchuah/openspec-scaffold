@@ -9,13 +9,60 @@
 
 ---
 
-## Priority 2 — `_custom_checks` `family=` fix (the one actionable graduate-sast-scanners follow-on)
+## Priority 2 — `_custom_checks` `family=` fix (SMALL — RECON DONE, ready to apply)
 
 See `knowledge/questions/custom-checks-family-fix.md`. Let a `[checks.custom.<name>]` entry in
 `checks.toml` register a **fact**-family (preflight-exempt, graceful-degrade) check by honoring
-`spec.get("family", "check")` — today `_custom_checks` (in `scripts/checks.py`) hardcodes
-`family="check"`. This unblocks downstream repos registering app-specific fact snapshots (e.g.
-psc-monitor's route-authz) without standalone scripts. Clean SMALL change. **Not blocked.**
+`spec.get("family", "check")` — today `_custom_checks` hardcodes `family="check"`. Unblocks downstream
+repos registering app-specific fact snapshots (e.g. psc-monitor's route-authz) without standalone
+scripts. **Not blocked. SMALL tier** (parked question confirms).
+
+**Recon completed this session (2026-07-18) — do NOT re-derive, apply directly:**
+
+- **The fix** — `scripts/checks.py`, `_custom_checks()` at **line ~387–401**. Change the hardcoded
+  `"family": "check"` (line ~396) to honor the config, WITH validation to close a footgun:
+  ```python
+  family = spec.get("family", "check")
+  if family not in ("check", "fact"):
+      family = "check"   # gating-safe default; a typo ("chek") must NOT silently become fact-exempt
+  ```
+  then use `family` in the dict. **Why the validation matters:** everywhere downstream, `family != "check"`
+  is treated as fact-like (preflight-exempt + graceful-degrade). Without validation, a typo would
+  silently exempt a check from gating — a real footgun. Default invalid → `check` (safe), not `fact`.
+  (Optional: emit a one-line stderr warning on an invalid value. Author's call.)
+
+- **Why the change is SAFE — the full `family` usage map (verified this session).** `family` is
+  consulted only at these sites, all keying on `== "check"` vs not, and a custom `family="fact"` flows
+  correctly through every one: `--list` display (~1945); `--floor` filter `family != "check"` excludes
+  facts (~2028 — correct, facts aren't floor checks); preflight availability gate skips non-check
+  (~2085); execution `is_fact = family == "fact"` degrades gracefully (~2139/2151/2194). No other code
+  path branches on `family`. The custom-check execution path (`kind == "custom"`, ~line 487) is
+  family-agnostic — it captures stdout to `<check>.txt`; family only governs preflight/degradation.
+
+- **Docstring** — the `[checks.custom.<name>]` docstring (`scripts/checks.py` ~line 60–66) lists
+  `command`, `tier`, `gate` but NOT `family`. Add `family` (`check|fact`, default `check`;
+  `fact` = preflight-exempt, degrades gracefully).
+
+- **Test** — add to `scripts/test_checks.py` (custom-check tests live at ~line 280–310): a
+  `[checks.custom.<name>]` with `family = "fact"` (a) registers as fact-family (assert via `--list`
+  output showing `fact`), and (b) is preflight-EXEMPT — with an unavailable/missing `command`, the run
+  degrades gracefully (skipped, run continues) instead of INFRA-FAILing. Add a companion test that an
+  invalid `family = "banana"` falls back to `check`. Reuse the existing tmp `checks.toml` fixture
+  pattern in that test class.
+
+- **No spec delta needed.** No `openspec/specs/*` requirement pins custom checks to check-family
+  (checked `defect-prevention-detectors`, `repo-invariant-checks`); `repo-invariant-checks` mentions
+  `[checks.custom.*]` only as the ast-grep graduation escape hatch (line ~83), not a family constraint.
+  SMALL tier ⇒ no spec/proposal artifacts anyway.
+
+- **Process (SMALL):** write a plan (problem/approach/out-of-scope) to `plans/custom-checks-family-fix/`
+  → orchestrator runs the flash **SMALL premise pass** → apply (**operator pre-routed apply/archive to a
+  Sonnet subagent this session — honor that unless the operator says otherwise**) → own verification +
+  the single `deepseek/deepseek-v4-flash` verifier pass → commit. The commit runs through the
+  now-live git-native `pre-commit` hook (this repo dogfoods `core.hooksPath=scripts/githooks`) → full
+  suite must be green. **After it lands:** mark `knowledge/questions/custom-checks-family-fix.md`
+  RESOLVED, remove its Parked pointer from `knowledge/questions/INDEX.md`, add a `decisions/INDEX.md`
+  line, and reconcile `STATUS.md` (respect the ≤3 cap).
 
 ---
 
