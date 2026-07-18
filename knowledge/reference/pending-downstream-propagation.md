@@ -113,9 +113,12 @@ and `knowledge/README.md`.
 Caveat that matters at propagation time:
 - **Requires a per-repo roll before the new gate lands.** Each downstream repo must run
   `python3 scripts/roll_decisions.py` against its own tree during its propagation session, BEFORE its
-  live-tree `knowledge_lint` gate sees the new `decisions-index-budget` check — psc-monitor's
-  `knowledge/decisions/INDEX.md` is already well over the new 16,000-byte default budget and would
-  otherwise redden its gate on sync.
+  live-tree `knowledge_lint` gate sees the new `decisions-index-budget` check. Status as of
+  2026-07-18: **psc-monitor already condensed** (its own `boot-surface-condense` commit `affce4e`
+  rolled its registry to `knowledge/decisions/HISTORY.md` by hand — its INDEX is now under the
+  16,000-byte default, so no pre-roll is needed there); **extrends has NOT** — its
+  `knowledge/decisions/INDEX.md` is still well over budget and would redden its gate on sync
+  without the pre-roll.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:
