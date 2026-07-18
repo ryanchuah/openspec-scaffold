@@ -12,7 +12,20 @@ hand-maintained set; `knowledge_lint`'s `plans/` gather is recursive, agreeing w
 fact and the spec; and the archive step itself must now verify a follow-on was not already resolved
 by the very change being archived before filing it.
 
-## Latest change — roll-decisions-index SHIPPED (2026-07-17)
+## Latest change — graduate-sast-scanners SHIPPED (2026-07-18)
+
+Semgrep and Bandit graduated as built-in parsed checks in `checks.py` (heavy-tier,
+default-disabled, version-recorded-not-gated for sync-safety); `install-tools.sh` restructured
+so Go-absence no longer short-circuits pip provisioning for the two Python SAST scanners;
+`security-scanners.md` documented the opt-in configuration pattern. Verify: real-tool live
+smoke (bandit 1.9.4, semgrep 1.170.0) through the exact runners normalized every finding to
+the standard shape; boundary fixtures (empty/missing/null results, missing line keys, non-JSON
+stdout) all handled correctly; independent behavioral verifier returned READY zero-defect;
+simplicity gate passed. Both scanners absent from `EXPECTED_TOOL_VERSIONS` — version recorded,
+never gated. Decisions: `knowledge/decisions/INDEX.md`; follow-ons: `knowledge/questions/INDEX.md`.
+Archive: `openspec/changes/archive/2026-07-18-graduate-sast-scanners/`.
+
+## Prior change — roll-decisions-index SHIPPED (2026-07-17)
 
 The `knowledge/decisions/INDEX.md` registry only ever grows, and had already crossed the boot-surface
 budget once, so this change mechanizes a pressure-triggered rolling window: `INDEX.md` keeps a
@@ -39,33 +52,15 @@ premise+behavioral review returned AGREE/CONFIRMED with no defects, and `check.s
 Decisions: `knowledge/decisions/INDEX.md`. Archive:
 `openspec/changes/archive/2026-07-17-knowledge-lint-gitignored-citation-exempt/`.
 
-## Prior change — handoff-lint-exempt SHIPPED (2026-07-17)
-
-`knowledge_lint.py` was scanning the mandated `knowledge/HANDOFF.md` mid-session handoff as ordinary
-steady-state prose, so its forward references, retired-path tokens, planned archive pointers, and
-quoted blocks tripped four check families and turned the commit gate red — making the handoff
-un-committable and driving agents to delete it. Fixed by extending the existing `knowledge/research/`
-exclusion precedent to this mirror-image case (a forward-looking source, not a backward-looking one),
-keyed to the exact `knowledge/HANDOFF.md` path in both `knowledge_lint.py` and
-`sync_scaffold.py --check-refs`. Verify: self-review found and fixed one real defect (a
-configured-scan-dir leak that could re-arm the trap); the `deepseek/deepseek-v4-pro` behavioral pass
-returned READY zero-defect on the fixed tree; live probes on the real tree confirmed a tripping
-handoff produces zero findings while `check.sh` stays green, and the identical prose in a non-handoff
-file still flags (no over-broad suppression). Decisions: `knowledge/decisions/INDEX.md`; follow-ons:
-`knowledge/questions/INDEX.md`. Downstream propagation to psc-monitor/extrends is operator-gated
-(`knowledge/reference/pending-downstream-propagation.md`). Archive:
-`openspec/changes/archive/2026-07-17-handoff-lint-exempt/`.
-
 ## Immediate next action
-No proactive build in flight. `roll-decisions-index` shipped —
-`openspec/changes/archive/2026-07-17-roll-decisions-index/`. Downstream propagation is **PENDING
-again**: this change shipped locally-unpropagated (see
-`knowledge/reference/pending-downstream-propagation.md`, "Shipped locally — NOT yet propagated"),
-and each downstream repo must run its own `scripts/roll_decisions.py` roll BEFORE its live-tree
-`knowledge_lint` gate sees the new `decisions-index-budget` check (psc-monitor's registry is already
-well over the new default budget). The composition-audit ceremony remains **DUE** (an operator
-ceremony, not a scaffold change; run `facts.py --check outstanding` for current figures rather than
-trusting a number written here).
+No proactive build in flight. `graduate-sast-scanners` shipped —
+`openspec/changes/archive/2026-07-18-graduate-sast-scanners/`. Downstream propagation is **PENDING**
+for two unpropagated changes: `roll-decisions-index` (extrends needs its own pre-roll before sync —
+psc-monitor's registry is already condensed) and `graduate-sast-scanners` (scaffold-managed files
+propagate byte-identical; `security-scanners.md` needs a manual per-repo sweep). See
+`knowledge/reference/pending-downstream-propagation.md` for the full ledger and per-change caveats.
+The composition-audit ceremony remains **DUE** (an operator ceremony, not a scaffold change; run
+`facts.py --check outstanding` for current figures rather than trusting a number written here).
 
 Per the 2026-07-11 workflow-audit verdict (`knowledge/research/workflow-audit-2026-07-11/AUDIT.md`),
 **scaffold process optimization is at diminishing returns**: future work is downstream, not new

@@ -106,9 +106,10 @@ Neither downstream is pushed — push is operator-gated.
   layer wired. Superseded above.
 
 ## Shipped locally — NOT yet propagated
-`roll-decisions-index` (shipped 2026-07-17) adds two manifest files (`scripts/roll_decisions.py`,
-`scripts/test_roll_decisions.py`) and modifies `scripts/knowledge_lint.py`, `scripts/boot_surface_lint.py`,
-and `knowledge/README.md`.
+
+### `roll-decisions-index` (shipped 2026-07-17)
+Adds two manifest files (`scripts/roll_decisions.py`, `scripts/test_roll_decisions.py`) and modifies
+`scripts/knowledge_lint.py`, `scripts/boot_surface_lint.py`, and `knowledge/README.md`.
 
 Caveat that matters at propagation time:
 - **Requires a per-repo roll before the new gate lands.** Each downstream repo must run
@@ -119,6 +120,22 @@ Caveat that matters at propagation time:
   16,000-byte default, so no pre-roll is needed there); **extrends has NOT** — its
   `knowledge/decisions/INDEX.md` is still well over budget and would redden its gate on sync
   without the pre-roll.
+
+### `graduate-sast-scanners` (shipped 2026-07-18)
+Adds Semgrep + Bandit as built-in parsed checks in `checks.py` (heavy-tier, default-disabled,
+version-recorded-not-gated), restructures `install-tools.sh` so Go-absence no longer short-circuits
+pip provisioning, documents both in `knowledge/reference/security-scanners.md`, and extends
+`test_checks.py`.
+
+Caveats that matter at propagation time:
+- **Scaffold-managed files propagate byte-identical:** `scripts/checks.py`, `scripts/install-tools.sh`,
+  `scripts/test_checks.py`, and `scripts/check.sh` sync via the manifest — no manual step.
+- **`knowledge/reference/security-scanners.md` is per-repo knowledge (NOT manifest):** each
+  downstream repo needs the semgrep/bandit documentation added by hand during the propagation sweep.
+- **Neither scanner auto-enables:** both are default-disabled, so the sync won't red any downstream
+  gate. Each repo opts in via `[checks.<name>] enabled = true`. Semgrep additionally requires a
+  `--config <ruleset>` supplied via `[checks.semgrep] args`; without it, an enabled semgrep
+  INFRA-FAILs.
 
 ## Scanner provisioning gaps (parked)
 Surfaced while extrends/psc enabled scanners; see `knowledge/questions/scanner-provisioning-gaps.md`:

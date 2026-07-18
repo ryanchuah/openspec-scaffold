@@ -51,3 +51,7 @@
 - research-exclusion configured-scan-dir leak (same class as the handoff leak `handoff-lint-exempt` fixed; pre-existing, deferred) → `knowledge/questions/research-exclusion-scan-dir-leak.md`
 - `opencode_delegate.py` extract_text returns only the last text part, causing intermittent false `marker-missing` escalations (generalizable harness defect, monitored) → `knowledge/questions/opencode-delegate-extract-text-last-part-only.md`
 - roll-decisions-index follow-ons (shipped 2026-07-17): pointer-line insertion position hardening, budget-tuning cross-reference → `knowledge/questions/roll-decisions-follow-ons.md`
+- Custom-checks `family=` fix (shipped 2026-07-18): let `[checks.custom.*]` honor a `family=` key for fact-family entries → `knowledge/questions/custom-checks-family-fix.md`
+- Semgrep needs config (shipped 2026-07-18): no scaffold default ruleset — enabling without `--config` INFRA-FAILs; monitored → `knowledge/questions/semgrep-needs-config.md`
+- SAST auto-detection trigger TBD (shipped 2026-07-18): default-disabled; future trigger must preserve sync-safety → `knowledge/questions/sast-auto-detection-trigger.md`
+- SAST tool JSON version sensitivity (shipped 2026-07-18): parsers validated at bandit 1.9.4 / semgrep 1.170.0; major version bumps could change shape; monitored → `knowledge/questions/sast-tool-json-version-sensitivity.md`
