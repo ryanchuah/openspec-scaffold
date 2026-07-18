@@ -5,7 +5,7 @@ Reads the stdout JSONL, stderr log, and exit source of one completed
 ``opencode run`` invocation, then: detects silent agent fallback, extracts the
 completion text (last ``type:"text"`` part), asserts optional required-marker
 regexes, optionally captures a verdict token via a regex, classifies the run
-status (``ok|fallback|timeout|crash|marker-missing``), appends one telemetry
+status (``ok|fallback|timeout|crash|truncated-stream|marker-missing``), appends one telemetry
 line to the ledger at ``output/delegation-log.jsonl``, and writes the extracted
 text + a machine-readable result file.
 
@@ -67,6 +67,38 @@ def extract_text(out_jsonl_text: str) -> str | None:
                 if isinstance(text, str) and text.strip():
                     last_text = text
     return last_text
+
+
+def detect_truncated_stream(out_jsonl_text: str) -> bool:
+    """Detect a silently-truncated opencode stream by counting step events.
+
+    A healthy run balances ``step_start`` / ``step_finish`` events.  When the
+    provider stream returns an empty completion, opencode may exit 0 with an
+    unterminated final step, leaving ``step_start > step_finish``.
+
+    Parses each JSONL line from *out_jsonl_text*; skips blank / non-JSON /
+    non-dict lines.  Returns ``True`` when ``step_start`` count exceeds
+    ``step_finish`` count.  Returns ``False`` on balanced counts, no step
+    events, or any parse degradation.
+    """
+    starts = 0
+    finishes = 0
+    for raw_line in out_jsonl_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        t = obj.get("type")
+        if t == "step_start":
+            starts += 1
+        elif t == "step_finish":
+            finishes += 1
+    return starts > finishes
 
 
 def detect_fallback(err_text: str) -> bool:
@@ -135,6 +167,7 @@ def classify_status(
     fallback: bool,
     text: str | None,
     marker_ok: bool,
+    truncated: bool = False,
 ) -> str:
     """Classify the run status.
 
@@ -142,8 +175,9 @@ def classify_status(
         1. ``fallback`` → ``"fallback"``
         2. ``exit_code in (124, 137)`` → ``"timeout"``
         3. ``text`` is empty/``None`` → ``"crash"``
-        4. ``not marker_ok`` → ``"marker-missing"``
-        5. Otherwise → ``"ok"``
+        4. ``truncated`` → ``"truncated-stream"``
+        5. ``not marker_ok`` → ``"marker-missing"``
+        6. Otherwise → ``"ok"``
 
     Note the **exit-code lie**: a nonzero exit code NOT in (124, 137) with
     present text and marker_ok does NOT downgrade from ``"ok"`` — the raw exit
@@ -156,6 +190,8 @@ def classify_status(
         return "timeout"
     if not text:  # None or empty/whitespace
         return "crash"
+    if truncated:
+        return "truncated-stream"
     if not marker_ok:
         return "marker-missing"
     return "ok"
@@ -417,8 +453,9 @@ def main(argv: list[str] | None = None) -> int:
     fallback = detect_fallback(err_text)
     text = extract_text(out_text)
     marker_ok = assert_markers(text, args.markers)
+    truncated = detect_truncated_stream(out_text)
     verdict = extract_verdict(text, args.verdict_regex)
-    status = classify_status(exit_code, fallback, text, marker_ok)
+    status = classify_status(exit_code, fallback, text, marker_ok, truncated=truncated)
     duration_s = best_effort_duration(out_text)
 
     # ---- Write extracted text ----
@@ -437,6 +474,7 @@ def main(argv: list[str] | None = None) -> int:
         "fallback": fallback,
         "text_present": text is not None,
         "marker_ok": marker_ok,
+        "truncated": truncated,
         "verdict": verdict,
         "duration_s": duration_s,
         "text_path": text_out_path,

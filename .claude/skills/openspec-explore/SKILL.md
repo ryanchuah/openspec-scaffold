@@ -46,8 +46,9 @@ On that explicit choice:
    ```
    Read the extracted text from `/tmp/explore-review-out.jsonl.text.txt` and confirm
    it contains `### Premise Verdict`. The wrapper reports `status: ok` when the marker
-   matches and a verdict is captured; if it reports fallback/timeout/crash/marker-missing,
-   treat as an operational crash and apply the salvage rule.
+   matches and a verdict is captured; if it reports
+   fallback/timeout/crash/truncated-stream/marker-missing, treat as an operational crash
+   and apply the salvage rule.
 
 3. **Extract the verdict** — the reviewer is `edit: deny`, so read the extracted text from
    `/tmp/explore-review-out.jsonl.text.txt`, extract the `### Premise Verdict` block, and write

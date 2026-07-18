@@ -31,9 +31,13 @@ calls).  It:
 - Extracts the completion text: parses stdout as JSON-lines, collects every
   ``type:"text"`` part, and returns the **last** one's ``part.text`` (mirroring the
   historical ``grep | tail | jq`` chain, but as a tested Python function).
-- Classifies the run status: ``ok``, ``fallback``, ``timeout``, ``crash``, or
-  ``marker-missing`` — respecting the exit-code lie (non-zero-but-not-timeout with
-  present text is NOT ``crash``).
+- Classifies the run status: ``ok``, ``fallback``, ``timeout``, ``crash``,
+  ``truncated-stream``, or ``marker-missing`` — respecting the exit-code lie
+  (non-zero-but-not-timeout with present text is NOT ``crash``). ``truncated-stream``
+  flags a silently-truncated run (stdout JSONL shows more ``step_start`` than
+  ``step_finish`` events — an unterminated step), caught on every phase regardless of
+  markers; it exits nonzero and routes to the failure ladder like the other non-``ok``
+  statuses.
 - Asserts optional ``--require-marker`` regex(es) against the extracted text, and
   optionally captures a verdict token via ``--verdict-regex``.
 - Appends one JSONL telemetry line to ``output/delegation-log.jsonl`` (see Ledger

@@ -70,6 +70,50 @@ class TestExtractText:
         assert od.extract_text(jsonl) is None
 
 
+class TestDetectTruncatedStream:
+    def test_balanced_counts(self):
+        """One start, one finish → False."""
+        jsonl = '{"type":"step_start"}\n{"type":"step_finish"}\n'
+        assert od.detect_truncated_stream(jsonl) is False
+
+    def test_starts_greater_than_finishes(self):
+        """Two starts, one finish → True."""
+        jsonl = '{"type":"step_start"}\n{"type":"step_finish"}\n{"type":"step_start"}\n'
+        assert od.detect_truncated_stream(jsonl) is True
+
+    def test_no_step_events(self):
+        """Only text/tool_use lines → False."""
+        jsonl = (
+            '{"type":"text","part":{"text":"hello"}}\n{"type":"tool_use","part":{"name":"read"}}\n'
+        )
+        assert od.detect_truncated_stream(jsonl) is False
+
+    def test_empty_string(self):
+        assert od.detect_truncated_stream("") is False
+
+    def test_blank_and_non_json_tolerated(self):
+        """Blank and non-JSON lines interleaved, still balanced → False."""
+        jsonl = '\nnot-json\n{"type":"step_start"}\n\n{"type":"step_finish"}\nalso-not-json\n'
+        assert od.detect_truncated_stream(jsonl) is False
+
+    def test_more_finishes_than_starts(self):
+        """Defensive: more finishes than starts → False."""
+        jsonl = '{"type":"step_finish"}\n{"type":"step_start"}\n{"type":"step_finish"}\n'
+        assert od.detect_truncated_stream(jsonl) is False
+
+    def test_incident_shaped(self):
+        """Bare step_start at end: 2 starts, 1 finish → True."""
+        jsonl = (
+            '{"type":"text","part":{"text":"partial work"}}\n'
+            '{"type":"step_start"}\n'
+            '{"type":"step_finish"}\n'
+            '{"type":"tool_use","part":{"name":"read"}}\n'
+            '{"type":"text","part":{"text":"more text"}}\n'
+            '{"type":"step_start"}\n'
+        )
+        assert od.detect_truncated_stream(jsonl) is True
+
+
 class TestDetectFallback:
     def test_fallback_detected(self):
         assert od.detect_fallback("something\nFalling back to default agent\nmore")
@@ -168,11 +212,11 @@ class TestExtractVerdict:
 
 
 class TestClassifyStatus:
-    # (exit_code, fallback, text, marker_ok) → expected
+    # (exit_code, fallback, text, marker_ok, truncated) → expected
 
     @staticmethod
-    def _c(exit_code, fallback, text, marker_ok):
-        return od.classify_status(exit_code, fallback, text, marker_ok)
+    def _c(exit_code, fallback, text, marker_ok, truncated=False):
+        return od.classify_status(exit_code, fallback, text, marker_ok, truncated=truncated)
 
     def test_ok_normal(self):
         assert self._c(0, False, "x", True) == "ok"
@@ -221,6 +265,32 @@ class TestClassifyStatus:
         """Exit codes 2, 255 are not in (124,137) → ok with text."""
         for ec in (2, 127, 255, 99, -1):
             assert self._c(ec, False, "x", True) == "ok", f"exit={ec}"
+
+    # ---- truncated-stream cases ----
+
+    def test_truncated_status(self):
+        """truncated=True with text and marker_ok → truncated-stream."""
+        assert self._c(0, False, "x", True, truncated=True) == "truncated-stream"
+
+    def test_truncated_wins_over_marker_missing(self):
+        """truncated wins over marker-missing."""
+        assert self._c(0, False, "x", False, truncated=True) == "truncated-stream"
+
+    def test_fallback_over_truncated(self):
+        """fallback wins over truncated."""
+        assert self._c(0, True, "x", True, truncated=True) == "fallback"
+
+    def test_timeout_over_truncated(self):
+        """timeout (124) wins over truncated."""
+        assert self._c(124, False, "x", True, truncated=True) == "timeout"
+
+    def test_crash_over_truncated(self):
+        """crash (no text) wins over truncated."""
+        assert self._c(0, False, None, True, truncated=True) == "crash"
+
+    def test_default_truncated_param(self):
+        """Default truncated=False yields 'ok'."""
+        assert self._c(0, False, "x", True) == "ok"
 
 
 class TestBuildLedgerRecord:
@@ -726,6 +796,48 @@ class TestMainPipeline:
         assert rc == 1
         result = json.loads(Path(paths["result_out"]).read_text())
         assert result["status"] == "crash"  # no text extracted
+
+    def test_truncated_stream_status(self, tmp_path):
+        """Unbalanced steps + satisfied marker → truncated-stream status."""
+        paths = self._make_fixtures(
+            tmp_path,
+            out_jsonl=(
+                '{"type":"text","part":{"text":"partial work VERDICT: READY"}}\n'
+                '{"type":"step_start"}\n'
+                '{"type":"step_finish"}\n'
+                '{"type":"step_start"}\n'
+            ),
+        )
+        rc = od.main(
+            [
+                "--phase",
+                "verify-pro",
+                "--agent",
+                "openspec-verifier",
+                "--model",
+                "deepseek/deepseek-v4-pro",
+                "--change",
+                "demo",
+                "--out",
+                paths["out"],
+                "--err",
+                paths["err"],
+                "--exit-file",
+                paths["exit"],
+                "--require-marker",
+                "VERDICT:",
+                "--ledger",
+                paths["ledger"],
+                "--text-out",
+                paths["text_out"],
+                "--result-out",
+                paths["result_out"],
+                "--quiet",
+            ]
+        )
+        assert rc == 1
+        result = json.loads(Path(paths["result_out"]).read_text())
+        assert result["status"] == "truncated-stream"
 
 
 # ===================================================================

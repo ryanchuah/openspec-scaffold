@@ -164,7 +164,7 @@ Implement tasks from an OpenSpec change.
          --quiet
        ```
        The wrapper exits 0 iff `status == "ok"`. If the wrapper reports fallback, timeout, crash,
-       or marker-missing, treat it as an **operational crash** per the ladder below.
+       truncated-stream, or marker-missing, treat it as an **operational crash** per the ladder below.
        Read the extracted text from `/tmp/apply-out.jsonl.text.txt` (the `--text-out` default).
        Confirm it is a non-empty completion summary (not a fallback message).
 

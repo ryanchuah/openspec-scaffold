@@ -246,8 +246,8 @@ I'll create artifacts with review:
                 --verdict-regex "PREMISE: (AGREE|DISSENT)" \
                 --quiet
               ```
-              If the wrapper reports fallback, timeout, crash, or marker-missing,
-              do NOT proceed — escalate with the raw output.  If the premise verdict
+              If the wrapper reports fallback, timeout, crash, truncated-stream, or
+              marker-missing, do NOT proceed — escalate with the raw output.  If the premise verdict
               was omitted (no `PREMISE: AGREE` or `PREMISE: DISSENT` in the extracted
               text), do NOT freeze or proceed; re-run the review (D2a).
 
