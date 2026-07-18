@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ===================================================================
 # Read PreToolUse stdin JSON non-blockingly via python3.
 HOOK_DECISION=$(python3 -c "
-import json, sys, select
+import json, re, sys, select
 
 # Non-blocking read: check if stdin has data within 0.2s
 r, _, _ = select.select([sys.stdin], [], [], 0.2)
@@ -76,7 +76,21 @@ while idx < len(tokens) and tokens[idx].startswith('-'):
         idx += 1  # skip the option token itself
 
 if idx < len(tokens) and tokens[idx].startswith('commit'):
-    print('GIT_COMMIT')
+    # Scan the post-'commit' argv for --no-verify or a short-flag cluster
+    # containing 'n' (e.g. -n, -nm, -vn) — git skips the pre-commit hook
+    # for these, so the fail-safe defer branch must NOT defer on them.
+    argv = tokens[idx + 1:]
+    noverify = False
+    for tok in argv:
+        if tok == '--no-verify':
+            noverify = True
+            break
+        if tok.startswith('--'):
+            continue
+        if re.match(r'^-[a-zA-Z]*n[a-zA-Z]*$', tok):
+            noverify = True
+            break
+    print('GIT_COMMIT_NOVERIFY' if noverify else 'GIT_COMMIT')
 else:
     print('NOT_GIT_COMMIT')
 " 2>/dev/null || echo "UNKNOWN")
@@ -86,8 +100,33 @@ case "$HOOK_DECISION" in
         echo "${GATE_NAME}: command is not a genuine 'git commit' — skipping gate (no-op)"
         exit 0
         ;;
-    GIT_COMMIT|UNKNOWN)
-        # GIT_COMMIT → proceed with the gate.
+    GIT_COMMIT)
+        # Positive genuine-commit classification, no --no-verify. Defer to
+        # the git-native pre-commit hook ONLY if it is confirmed active
+        # (existing + executable at the resolved core.hooksPath). Every git
+        # call here is guarded (2>/dev/null || true) so a git failure
+        # (absent / not-a-repo / bare) under `set -e` falls through to
+        # running check.sh below — it must never abort the script (an abort
+        # exits ~128, which PreToolUse treats as non-blocking = silent gap).
+        top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+        if [ -n "$top" ]; then
+            hook="$(cd "$top" 2>/dev/null && git rev-parse --git-path hooks/pre-commit 2>/dev/null || true)"
+            if [ -n "$hook" ]; then
+                case "$hook" in
+                    /*) hook_abs="$hook" ;;
+                    *) hook_abs="$top/$hook" ;;
+                esac
+                if [ -x "$hook_abs" ]; then
+                    echo "${GATE_NAME}: git-native pre-commit hook is active — deferring (no-op)"
+                    exit 0
+                fi
+            fi
+        fi
+        # Hook not confirmed active — fall through to run check.sh.
+        ;;
+    GIT_COMMIT_NOVERIFY|UNKNOWN)
+        # GIT_COMMIT_NOVERIFY → git will skip its own hook, so this gate
+        # must run check.sh itself (preserves today's Claude coverage).
         # UNKNOWN (fail-safe) → also proceed (never skip when unsure).
         ;;
 esac

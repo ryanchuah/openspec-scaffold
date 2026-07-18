@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# pre-commit — git-native primary layer for the commit-test gate.
+#
+# This is the primary, spelling-agnostic, cross-agent enforcement layer for
+# the commit-test gate (see openspec/specs/commit-test-gate). git invokes
+# this hook on every genuine `git commit` — any spelling (`git commit`,
+# `cd repo && git commit`, `git -C repo commit`, `env FOO=bar git commit`,
+# ...) and any harness (Claude / OpenCode / operator terminal) — unless
+# `--no-verify` is passed, which is git's own documented, visible opt-out.
+# It execs scripts/check.sh — the single definition of green — and
+# propagates its exit code so git blocks the commit on any non-zero result.
+# No stdin or command parsing is needed here (unlike scripts/test-gate.sh's
+# PreToolUse guard): git only fires `pre-commit` on genuine commit attempts.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$REPO_ROOT" ]; then
+    # Fall back: resolve relative to this script's own on-disk location
+    # (scripts/githooks/pre-commit -> repo root is two levels up from the
+    # script's containing directory).
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    REPO_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+fi
+
+exec "$REPO_ROOT/scripts/check.sh"

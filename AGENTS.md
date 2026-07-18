@@ -55,12 +55,14 @@ harness-private storage. Concretely, do **not** read from, write to, or rely on:
 `.claude/skills/`, `.claude/agents/`, and `.opencode/agents/` directories ARE relied
 upon by design: they are version-controlled and loaded by *both* harnesses (OpenCode
 auto-discovers `.claude/skills/` — see `knowledge/decisions/INDEX.md`). The rule above bans
-harness-*private* state/memory, not these shared, tracked definitions. (The sole
-carve-out is the shipped commit-test-gate `PreToolUse` hook in `.claude/settings.json`
-— verified present and git-tracked — which runs the tracked, agent-neutral
-`scripts/test-gate.sh`; see the commit-test-gate hook carve-out decision in
-`knowledge/decisions/INDEX.md`. This is a Claude-only, deliberate exception and does not weaken
-the harness-private-state ban above.)
+harness-*private* state/memory, not these shared, tracked definitions. (The commit-test gate's
+**primary** layer is the tracked, agent-neutral git-native `scripts/githooks/pre-commit` hook —
+honored by every harness via git itself, so it strengthens rather than dents this invariant. The
+sole harness-specific carve-out is the shipped `PreToolUse` hook in `.claude/settings.json` —
+verified present and git-tracked — which runs the tracked, agent-neutral `scripts/test-gate.sh`
+as its Claude-only fail-safe fallback, deferring to the git-native layer when wired; see the
+commit-test-gate hook carve-out decision in `knowledge/decisions/INDEX.md`. This is a Claude-only,
+deliberate exception and does not weaken the harness-private-state ban above.)
 
 **Claude Code harness memory — deliberately not used.** The Claude Code harness ships a
 persistent cross-session memory store (`~/.claude/.../memory/`, indexed by `MEMORY.md`). It is

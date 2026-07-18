@@ -54,6 +54,8 @@ scripts/scaffold_manifest.txt
 scripts/status_lint.py
 scripts/boot_surface_lint.py
 scripts/test-gate.sh
+scripts/githooks/pre-commit
+scripts/setup-hooks.sh
 scripts/test_checks.py
 scripts/test_facts.py
 scripts/test_apply_delta_spec.py
@@ -75,6 +77,8 @@ scripts/opencode_delegate.py
 scripts/test_check_sh.py
 scripts/test_doc_lint_gate.py
 scripts/test_gate_command_detection.py
+scripts/test_gate_defer.py
+scripts/test_githook_pre_commit.py
 scripts/test_opencode_delegate.py
 scripts/freeze_check.py
 scripts/test_freeze_check.py

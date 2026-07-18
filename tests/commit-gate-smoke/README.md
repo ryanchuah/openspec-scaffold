@@ -1,15 +1,49 @@
 # Commit-Test-Gate Smoke
 
-This directory contains a repeatable smoke procedure for the commit-test-gate
-(`scripts/test-gate.sh`). The gate has two independently testable layers:
+This directory contains a repeatable smoke procedure for the commit-test-gate.
+The gate now has **two enforcement layers** — a git-native primary layer and a
+Claude-only fallback that defers to it — comprising three independently
+testable pieces:
 
+0. **Git-native layer** — `scripts/githooks/pre-commit`, the primary,
+   spelling-agnostic, cross-agent enforcement layer. Deterministic; covered
+   automatically by `scripts/test_githook_pre_commit.py` (no gated session
+   needed — see "Git-Native Layer" below).
 1. **Script layer** — `scripts/test-gate.sh` exit behavior across all branches,
-   including the hook-matcher guard (task 5.2). Deterministic; can be run from
-   any session.
+   including the hook-matcher guard (task 5.2) and its fail-safe defer to the
+   git-native layer (task 3). Deterministic; can be run from any session, and
+   the defer branch is covered by `scripts/test_gate_defer.py`.
 2. **Hook wiring** — whether Claude's `PreToolUse` hook actually fires on
    `git commit`, and whether exit codes are correctly propagated. Requires a
    gated Claude session whose project dir carries the hook and a real
    `scripts/check.sh` + `scripts/test-cmd`.
+
+## Git-Native Layer
+
+`scripts/githooks/pre-commit` execs `scripts/check.sh` — the single
+definition of green — and propagates its exit code, so git blocks the commit
+on any non-zero result. It is wired via `scripts/setup-hooks.sh`, which sets
+`git config --local core.hooksPath scripts/githooks` (idempotent,
+conflict-safe — see the script's header comment). Once wired, this hook fires
+on **every** `git commit` spelling (`git commit`, `cd repo && git commit`,
+`git -C repo commit`, `env FOO=bar git commit`, ...) and on **every**
+harness (Claude / OpenCode / operator terminal) — it is git's own mechanism,
+not a harness hook, so it closes both the prefix-evasion gap and the
+cross-agent gap the `PreToolUse`-only gate could not. It is skipped by
+`git commit --no-verify` — git's own documented, visible opt-out.
+
+This layer is covered **deterministically** by
+`scripts/test_githook_pre_commit.py` — a throwaway-git-repo pytest that
+drives real `git commit --allow-empty` attempts across every evasion
+spelling and asserts red-blocks / green-allows / `--no-verify`-allows. This
+is the first commit-gate layer whose correctness does not require a gated
+Claude session to smoke — run it with `pytest scripts/test_githook_pre_commit.py`.
+
+`scripts/test-gate.sh` (the `PreToolUse` fallback below) now **defers** to
+this layer: when it positively confirms the git-native hook is wired and
+active, and the commit is not `--no-verify`, it no-ops (does not re-run
+`check.sh`) rather than double-running the gate. See `scripts/test_gate_defer.py`
+for that defer branch's deterministic coverage.
 
 ## Script-Layer Smoke Procedure
 
